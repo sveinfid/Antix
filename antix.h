@@ -10,7 +10,10 @@
 #include <math.h> 
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef CYGWIN
 #include <time.h>
+#endif
 
 #define GRAPHICS 1
 

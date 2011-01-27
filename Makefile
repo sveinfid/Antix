@@ -12,6 +12,7 @@
 # this works on cygwin
 GLUTFLAGS = -I/usr/include/opengl
 EXTRALIBS = -lglut32 -lglu32 -lopengl32
+EXTRAFLAGS = -DCYGWIN
 
 CC = g++
 CXXFLAGS = -g -Wall -O3 $(GLUTFLAGS)
@@ -22,7 +23,7 @@ SRC = antix.h antix.cc controller.cc gui.cc main.cc
 all: antix
 
 antix: $(SRC)
-	$(CC) $(CXXFLAGS) $(LIBS) -o $@ $(SRC) $(EXTRALIBS)
+	$(CC) $(CXXFLAGS) $(LIBS) $(EXTRAFLAGS) -o $@ $(SRC) $(EXTRALIBS)
 
 clean:
 	rm *.o antix antix.exe
