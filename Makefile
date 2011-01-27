@@ -7,7 +7,11 @@
 #GLUTFLAGS = -I/usr/local/include/GL
 
 # this works on Mac OS X
-GLUTFLAGS = -framework OpenGL -framework GLUT
+#GLUTFLAGS = -framework OpenGL -framework GLUT
+
+# this works on cygwin
+GLUTFLAGS = -I/usr/include/opengl
+EXTRALIBS = -lglut32 -lglu32 -lopengl32
 
 CC = g++
 CXXFLAGS = -g -Wall -O3 $(GLUTFLAGS)
@@ -18,8 +22,8 @@ SRC = antix.h antix.cc controller.cc gui.cc main.cc
 all: antix
 
 antix: $(SRC)
-	$(CC) $(CXXFLAGS) $(LIBS) -o $@ $(SRC) 
+	$(CC) $(CXXFLAGS) $(LIBS) -o $@ $(SRC) $(EXTRALIBS)
 
 clean:
-	rm *.o antix
+	rm *.o antix antix.exe
 
