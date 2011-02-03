@@ -2,13 +2,7 @@
 	Master sets up the nodes & clients
 */
 
-#include <zmq.hpp>
-#include <string>
-#include <iostream>
-#include <stdio.h>
-#include <unistd.h>
-#include <math.h>
-#include <stdlib.h>
+#include "antix.cpp"
 
 using namespace std;
 

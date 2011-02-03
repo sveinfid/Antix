@@ -2,7 +2,13 @@
 	Some library functions
 */
 
+#include <zmq.hpp>
+#include <string>
 #include <iostream>
+#include <stdio.h>
+#include <unistd.h>
+#include <math.h>
+#include <stdlib.h>
 
 using namespace std;
 
