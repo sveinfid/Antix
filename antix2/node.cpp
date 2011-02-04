@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 	// socket to announce ourselves to master on
 	zmq::socket_t node_master_sock(context, ZMQ_REQ);
 	node_master_sock.connect(antix::make_endpoint(master_host, master_node_port));
-
+	cout << "connecting to master..." << endl;
 	zmq::socket_t master_publish_sock(context, ZMQ_SUB);
 	// subscribe to all messages on this socket: should just be a list of nodes
 	master_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
