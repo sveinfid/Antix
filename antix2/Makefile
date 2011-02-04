@@ -8,6 +8,7 @@
 # export PROTOBUF_PATH=/home/wjs2/protobuf
 #
 
+build_dir=.
 targets=master operator node client
 objs=antix.pb.o
 
@@ -15,13 +16,14 @@ includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include
 lib_paths=-L$(ZMQ_PATH)/lib -L$(PROTOBUF_PATH)/lib
 libraries=-lzmq -lprotobuf
 
-all: $(targets)
+all: $(objs) $(targets)
 
 .cpp: $(objs)
-	g++ -o $@ $< $(objs) $(includes) $(lib_paths) $(libraries)
+	g++ -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
 
-.cc:
-	g++ -c $< $(includes) $(lib_paths) $(libraries)
+antix.pb.o: antix.proto
+	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
+	g++ -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
 
 clean:
-	rm -f $(targets)
+	rm -f $(targets) antix.pb.*

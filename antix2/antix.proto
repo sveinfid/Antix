@@ -4,6 +4,7 @@ package antixtransfer;
 
 // node -> master initial connection message
 message connect_init_node {
+//
 	required string ip_addr = 1;
 }
 
