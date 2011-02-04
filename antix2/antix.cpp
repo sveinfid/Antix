@@ -10,6 +10,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "antix.pb.h"
+
 using namespace std;
 
 class antix {

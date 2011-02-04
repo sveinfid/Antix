@@ -1,5 +1,23 @@
 package antixtransfer;
 
+// some testing messages... currently used
+
+// node -> master initial connection message
+message connect_init_node {
+	required string ip_addr = 1;
+}
+
+// master -> node/client response upon initial connect
+message connect_init_response {
+	required int32 id = 1;
+	required double world_size = 2;
+	required int32 sleep_time = 3;
+
+	// more... same as MasterServerClient/NodeInitialization?
+}
+
+//
+
 message connect {
 	enum connectionType{
 	     CLIENT = 0;
