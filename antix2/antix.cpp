@@ -34,7 +34,6 @@ public:
 		string pb_as_str;
 		pb_obj->SerializeToString(&pb_as_str);
 
-		// XXX should this be size+1?
 		zmq::message_t msg( pb_as_str.size() );
 		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() );
 
@@ -49,8 +48,7 @@ public:
 		zmq::message_t msg;
 		socket->recv(&msg);
 
-		char raw_pb[msg.size()];
-		// should be +1?
+		char raw_pb[msg.size() + 1];
 		memcpy(raw_pb, msg.data(), msg.size());
 		pb_obj->ParseFromString(raw_pb);
 	}
