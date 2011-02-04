@@ -70,6 +70,9 @@ int main() {
 			// XXX add node to internal listing of nodes
 
 			cout << "got ip " << init_msg.ip_addr() << endl;
+			antixtransfer::RobotRequestMap master_robot;
+			antix::recv_pb(&nodes_socket, &master_robot);
+			cout << "got robot" << master_robot.robotid() << endl;
 
 			// respond with an id for the node & config info
 			antixtransfer::connect_init_response init_response;
