@@ -7,7 +7,7 @@ using namespace std;
 
 string master_host = "localhost";
 string master_publish_port = "7773";
-string master_node_port = "7770";
+string master_node_port = "7774";
 
 int main(int argc, char* argv[]) {
   // Verify that the version of the library that we linked against is

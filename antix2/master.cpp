@@ -20,6 +20,7 @@ const double fov = 1.5;
 // listening on
 string host = "*";
 string node_port = "7770";
+string gptest_port = "7774";
 string client_port = "7771";
 string operator_port = "7772";
 string publish_port = "7773";
@@ -33,6 +34,8 @@ int main() {
 	// nodes/client socket are for nodes/clients connecting & giving their
 	// ip. in return they get assigned an id
 	zmq::socket_t nodes_socket(context, ZMQ_REP);
+	zmq::socket_t gptest_socket(context, ZMQ_REP);
+
 	zmq::socket_t clients_socket(context, ZMQ_REP);
 
 	// to start the simulation, operator connects to this
@@ -43,6 +46,7 @@ int main() {
 
 	// start listening for connections
 	nodes_socket.bind(antix::make_endpoint(host, node_port));
+	nodes_socket.bind(antix::make_endpoint(host, gptest_port));
 	clients_socket.bind(antix::make_endpoint(host, client_port));
 	operators_socket.bind(antix::make_endpoint(host, operator_port));
 	publish_socket.bind(antix::make_endpoint(host, publish_port));
@@ -51,9 +55,10 @@ int main() {
 	zmq::pollitem_t items [] = {
 		{ nodes_socket, 0, ZMQ_POLLIN, 0 },
 		{ clients_socket, 0, ZMQ_POLLIN, 0},
-		{ operators_socket, 0, ZMQ_POLLIN, 0}
-	};
+		{ operators_socket, 0, ZMQ_POLLIN, 0},
+		{ gptest_socket, 0, ZMQ_POLLIN, 0 }	
 
+	};
 	// respond to messages forever
 	while (1) {
 		zmq::message_t message;
@@ -70,10 +75,11 @@ int main() {
 			// XXX add node to internal listing of nodes
 
 			cout << "got ip " << init_msg.ip_addr() << endl;
+/*
 			antixtransfer::RobotRequestMap master_robot;
 			antix::recv_pb(&nodes_socket, &master_robot);
 			cout << "got robot" << master_robot.robotid() << endl;
-
+*/
 			// respond with an id for the node & config info
 			antixtransfer::connect_init_response init_response;
 			init_response.set_id(next_node_id++);
@@ -101,6 +107,22 @@ int main() {
 			// any nodes/clients that connect after this get unexpected results
 			// right now
 		}
+		if (items[3].revents & ZMQ_POLLIN) {
+			cout << "Got msg from a gptest" << endl;
+			antixtransfer::RobotRequestMap master_robot;
+			antix::recv_pb(&gptest_socket, &master_robot);
+			cout << "got robot" << master_robot.robotid() << endl;
+/*
+			// respond with an id for the node & config info
+			antixtransfer::connect_init_response init_response;
+			init_response.set_id(next_node_id++);
+			init_response.set_world_size(world_size);
+			init_response.set_sleep_time(sleep_time);
+			antix::send_pb(&nodes_socket, &init_response);
+*/
+		}
+		
+		
 	}
 
 	return 0;
