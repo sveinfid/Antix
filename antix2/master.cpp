@@ -62,10 +62,21 @@ int main() {
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
 			cout << "Got msg from a node" << endl;
-			nodes_socket.recv(&message);
-			// this message should be node giving its ip & port
-			// respond with an id for the node
 
+			// this message should be node giving its ip (& port maybe?)
+			antixtransfer::connect_init_node init_msg;
+			antix::recv_pb(&nodes_socket, &init_msg);
+
+			// XXX add node to internal listing of nodes
+
+			cout << "got ip " << init_msg.ip_addr() << endl;
+
+			// respond with an id for the node & config info
+			antixtransfer::connect_init_response init_response;
+			init_response.set_id(next_node_id++);
+			init_response.set_world_size(world_size);
+			init_response.set_sleep_time(sleep_time);
+			antix::send_pb(&nodes_socket, &init_response);
 		}
 
 		// message from a client

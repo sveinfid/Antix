@@ -29,13 +29,19 @@ int main(int argc, char **argv) {
 	master_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_publish_sock.connect(antix::make_endpoint(master_host, master_publish_port));
 
-	cout << "Sending master existence notification..." << endl;
 	// send message announcing ourself. includes our own IP
-	antixtransfer::connect_init_node init_msg;
-	init_msg.set_ip_addr( string(argv[1]) );
-	cout << "ip: " << init_msg.ip_addr() << endl;
+	cout << "Sending master existence notification..." << endl;
+
+	// create pb msg
+	antixtransfer::connect_init_node pb_init_msg;
+	pb_init_msg.set_ip_addr( string(argv[1]) );
+
+	antix::send_pb(&node_master_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
+	antixtransfer::connect_init_response init_response;
+	antix::recv_pb(&node_master_sock, &init_response);
+	cout << "Got id " << init_response.id() << endl;
 
 	// block on master_publish_sock
 
