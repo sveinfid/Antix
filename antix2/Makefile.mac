@@ -1,0 +1,13 @@
+# You must set the environment variable
+# export ZMQ_PATH=/pathto/zeromq
+# e.g. export ZMQ_PATH=/home/wjs2/zeromq
+
+targets=master operator node client
+
+all: $(targets)
+
+.cpp:
+	g++ -o $@ $< -lzmq
+
+clean:
+	rm -f $(targets)
