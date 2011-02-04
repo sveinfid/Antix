@@ -10,17 +10,24 @@ string master_host = "localhost";
 string master_node_port = "7770";
 string master_publish_port = "7773";
 
-int main() {
+int main(int argc, char **argv) {
+	if (argc != 2) {
+		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
+		return -1;
+	}
+
 	zmq::context_t context(1);
 
+	// socket to announce ourselves to master on
 	zmq::socket_t node_master_sock(context, ZMQ_REQ);
 	node_master_sock.connect(antix::make_endpoint(master_host, master_node_port));
-	zmq::socket_t master_publish_sock(context, ZMQ_SUB);
-	// make sure to filter this to get all messages
 
-	cout << "Sending master existence notification";
-	// XXX get our own ip somehow
-	// send message including our own IP
+	zmq::socket_t master_publish_sock(context, ZMQ_SUB);
+	// make sure to filter this SUB to get all messages (should just have list of
+	// nodes message)
+
+	cout << "Sending master existence notification...";
+	// send message announcing ourself. includes our own IP
 
 	// receive message back stating our unique ID
 
