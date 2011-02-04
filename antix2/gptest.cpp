@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include "antix.pb.h"
+#include "antix.cpp"
 using namespace std;
 
 string master_host = "localhost";
