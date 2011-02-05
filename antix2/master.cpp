@@ -1,5 +1,11 @@
 /*
 	Master sets up the nodes & clients
+
+	The majority of ZMQ stuff is based on examples from the ZMQ guide:
+	http://zguide.zeromq.org/chapter:all
+
+	Polling sockets stuff from:
+	https://github.com/imatix/zguide/blob/master/examples/C++/mspoller.cpp
 */
 
 #include "antix.cpp"
@@ -28,6 +34,15 @@ int next_node_id = 0;
 int next_client_id = 0;
 
 antixtransfer::Node_list node_list;
+
+/*
+	Go through our list of nodes & assign an x offset to the node for which
+	it is responsible to manage the map for
+*/
+void
+set_node_offsets() {
+	int offset_size = world_size / node_list.node_size();
+}
 
 int main() {
 	zmq::context_t context(1);
@@ -92,13 +107,21 @@ int main() {
 
 		// message from an operator
 		if (items[2].revents & ZMQ_POLLIN) {
+			// only message is begin right now
 			cout << "Got begin message from an operator" << endl;
 			operators_socket.recv(&message);
-			// only message is begin right now
+
+			zmq::message_t blank(1);
+			operators_socket.send(blank);
 
 			// ensure we have at least 3 nodes
+			if ( node_list.node_size() < 3 ) {
+				cout << "Error running begin: we need at least 3 nodes." << endl;
+				continue;
+			}
 
 			// assign each node in our list an x offset
+			set_node_offsets();
 
 			// send message on publish_socket containing a list of nodes
 

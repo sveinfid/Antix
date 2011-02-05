@@ -1,5 +1,8 @@
 /*
 	Some library functions
+
+	send_pb/recv_pb motivated by s_send/s_recv from
+	https://github.com/imatix/zguide/blob/master/examples/C%2B%2B/zhelpers.hpp
 */
 
 #include <zmq.hpp>

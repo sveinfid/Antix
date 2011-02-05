@@ -21,6 +21,7 @@ message Node_list {
 	message Node {
 		required string ip_addr = 1;
 		required int32 id = 2;
+		optional int32 x_offset = 3;
 	}
 	repeated Node node = 1;
 }

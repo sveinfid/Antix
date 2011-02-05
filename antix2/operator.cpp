@@ -19,8 +19,14 @@ int main() {
 	string master_s = "tcp://" + master_host + ":" + master_port;
 	sock.connect(master_s.c_str());
 
+	// send message with no content to indicate begin
 	zmq::message_t begin(1);
 	sock.send(begin);
-	// don't need to bother with getting a response?
 	cout << "Sent master begin command" << endl;
+
+	// get a blank ACK or else the REP socket will hang
+	zmq::message_t resp;
+	sock.recv(&resp);
+
+	cout << "Done." << endl;
 }

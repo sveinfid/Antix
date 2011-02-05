@@ -1,5 +1,8 @@
 /*
 	Node / map piece server
+
+	The majority of the ZMQ stuff is based on examples from the ZMQ guide:
+	http://zguide.zeromq.org/chapter:all
 */
 
 #include "antix.cpp"
