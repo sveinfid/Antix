@@ -20,8 +20,8 @@ antixtransfer::Node_list::Node right_node;
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
-	if (argc != 2) {
-		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
+	if (argc != 3) {
+		cerr << "Usage: " << argv[0] << " <IP to listen on> <port>" << endl;
 		return -1;
 	}
 
@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 	// create & send pb msg
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr( string(argv[1]) );
+	pb_init_msg.set_port( string(argv[2]) );
 	antix::send_pb(&node_master_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
@@ -70,6 +71,10 @@ int main(int argc, char **argv) {
 
 	// connect & subscribe to both neighbour's PUB sockets
 	// this socket will receive foreign entities that are near our border
+	zmq::socket_t neighbour_publish_sock(context, ZMQ_SUB);
+	// subscribe to all messages on this socket: should just be a list of nodes
+	neighbour_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	//neighbour_publish_sock.connect(antix::make_endpoint(master_host, master_publish_port));
 
 	// ensure socket is set to filter to recv all messages
 	//connect(left)

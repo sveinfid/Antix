@@ -110,7 +110,10 @@ public:
 		const antixtransfer::Node_list::Node *node;
 		for (int i = 0; i < node_list->node_size(); i++) {
 			node = node_list->mutable_node(i);
-			cout << "\tNode id: " << node->id() << " IP: " << node->ip_addr() << " x offset: " << node->x_offset() << endl;
+			cout << "\tNode id: " << node->id();
+			cout << " IP: " << node->ip_addr();
+			cout << " Port: " << node->port();
+			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}
 };

@@ -5,6 +5,7 @@ package antixtransfer;
 // node -> master initial connection message
 message connect_init_node {
 	required string ip_addr = 1;
+	optional string port = 2;
 }
 
 // master -> node/client response upon initial connect
@@ -20,8 +21,9 @@ message connect_init_response {
 message Node_list {
 	message Node {
 		required string ip_addr = 1;
-		required int32 id = 2;
-		optional double x_offset = 3;
+		required string port = 2;
+		required int32 id = 3;
+		optional double x_offset = 4;
 	}
 	repeated Node node = 1;
 }

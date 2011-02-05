@@ -101,8 +101,9 @@ int main() {
 			antixtransfer::Node_list::Node *node = node_list.add_node();
 			node->set_ip_addr( init_msg.ip_addr() );
 			node->set_id( next_node_id - 1 );
+			node->set_port( init_msg.port() );
 
-			cout << "Node with IP " << node->ip_addr() << " connected. Assigned id " << node->id() << "." << endl;
+			cout << "Node " << node->ip_addr() << ":" << node->port() << " connected. Assigned id " << node->id() << "." << endl;
 			cout << "Total nodes: " << node_list.node_size() << "." << endl;
 		}
 
