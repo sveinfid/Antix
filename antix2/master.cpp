@@ -20,7 +20,6 @@ const double fov = 1.5;
 // listening on
 string host = "*";
 string node_port = "7770";
-string gptest_port = "7774";
 string client_port = "7771";
 string operator_port = "7772";
 string publish_port = "7773";
