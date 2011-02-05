@@ -103,6 +103,13 @@ int main() {
 			clients_socket.recv(&message);
 			// this message should be client giving its ip & port
 			// respond with an id for the client
+			antixtransfer::connect_init_response init_response;
+			init_response.set_id(next_client_id++);
+			/*set stuff later*/
+			antix::send_pb(&clients_socket, &init_response);
+
+
+
 		}
 
 		// message from an operator
