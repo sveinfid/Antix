@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
 	cout << "Sending master existence notification..." << endl;
 
 	// create pb msg
+	//
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr( string(argv[1]) );
 
