@@ -112,7 +112,8 @@ public:
 			node = node_list->mutable_node(i);
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
-			cout << " Port: " << node->port();
+			cout << " Client Port: " << node->client_port();
+			cout << " Neighbour Port: " << node->neighbour_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}
