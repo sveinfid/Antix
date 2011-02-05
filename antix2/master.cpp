@@ -27,6 +27,8 @@ string publish_port = "7773";
 int next_node_id = 0;
 int next_client_id = 0;
 
+antixtransfer::Node_list node_list;
+
 int main() {
 	zmq::context_t context(1);
 
@@ -60,14 +62,9 @@ int main() {
 
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
-			cout << "Got msg from a node" << endl;
-
 			// this message should be node giving its ip (& port maybe?)
 			antixtransfer::connect_init_node init_msg;
 			antix::recv_pb(&nodes_socket, &init_msg);
-
-			// XXX add node to internal listing of nodes
-			cout << "got ip " << init_msg.ip_addr() << endl;
 
 			// respond with an id for the node & config info
 			antixtransfer::connect_init_response init_response;
@@ -75,6 +72,14 @@ int main() {
 			init_response.set_world_size(world_size);
 			init_response.set_sleep_time(sleep_time);
 			antix::send_pb(&nodes_socket, &init_response);
+
+			// add node to internal listing of nodes
+			antixtransfer::Node_list::Node *node = node_list.add_node();
+			node->set_ip_addr( init_msg.ip_addr() );
+			node->set_id( next_node_id - 1 );
+
+			cout << "Node with IP " << node->ip_addr() << " connected. Assigned id " << node->id() << "." << endl;
+			cout << "Total nodes: " << node_list.node_size() << "." << endl;
 		}
 
 		// message from a client
@@ -90,8 +95,12 @@ int main() {
 			cout << "Got begin message from an operator" << endl;
 			operators_socket.recv(&message);
 			// only message is begin right now
-			// send message on publish_socket containing a list
-			// of nodes
+
+			// ensure we have at least 3 nodes
+
+			// assign each node in our list an x offset
+
+			// send message on publish_socket containing a list of nodes
 
 			// any nodes/clients that connect after this get unexpected results
 			// right now

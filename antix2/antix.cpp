@@ -18,11 +18,11 @@ class antix {
 public:
 	/*
 		Take a host and a port, return c_str
-		memleak?
 	*/
 	static const char *
 	make_endpoint(string host, string port) {
 		string s = "tcp://" + host + ":" + port;
+		// invalid memory when function returns?
 		return s.c_str();
 	}
 
@@ -51,5 +51,46 @@ public:
 		char raw_pb[msg.size() + 1];
 		memcpy(raw_pb, msg.data(), msg.size());
 		pb_obj->ParseFromString(raw_pb);
+	}
+
+	/*
+		Go through given Node_list looking for the node with id, and set the
+		neighbour pointers
+	*/
+	static void
+	set_neighbours(antixtransfer::Node_list::Node *left,
+		antixtransfer::Node_list::Node *right,
+		antixtransfer::Node_list *node_list,
+		int id)
+	{
+		antixtransfer::Node_list::Node n;
+		for (int i = 0; i < node_list->node_size(); i++) {
+			n = node_list->node(i);
+			int index_left,
+				index_right;
+			// found ourself, take the previous as left, next as right
+			if (n.id() == id) {
+				// if we're far left node, our left is the furthest right
+				if (id == 0) {
+					index_left = node_list->node_size() - 1;
+					index_right = i + 1;
+
+				// if we're far right node, our right is furthest left
+				} else if (id == node_list->node_size() - 1) {
+					index_left = i - 1;
+					index_right = 0;
+				} else {
+					index_left = i - 1;
+					index_right = i + 1;
+				}
+
+				left->set_id( node_list->node( index_left ).id() );
+				left->set_ip_addr ( node_list->node( index_left ).ip_addr() );
+
+				right->set_id( node_list->node( index_right ).id() );
+				right->set_ip_addr ( node_list->node( index_right ).ip_addr() );
+				return;
+			}
+		}
 	}
 };

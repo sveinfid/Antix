@@ -10,6 +10,10 @@ string master_host = "localhost";
 string master_node_port = "7770";
 string master_publish_port = "7773";
 
+int my_id;
+antixtransfer::Node_list::Node left_node;
+antixtransfer::Node_list::Node right_node;
+
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
@@ -23,34 +27,42 @@ int main(int argc, char **argv) {
 	// socket to announce ourselves to master on
 	zmq::socket_t node_master_sock(context, ZMQ_REQ);
 	node_master_sock.connect(antix::make_endpoint(master_host, master_node_port));
-	cout << "connecting to master..." << endl;
+	cout << "Connecting to master..." << endl;
+
 	zmq::socket_t master_publish_sock(context, ZMQ_SUB);
 	// subscribe to all messages on this socket: should just be a list of nodes
 	master_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_publish_sock.connect(antix::make_endpoint(master_host, master_publish_port));
 
 	// send message announcing ourself. includes our own IP
-	cout << "Sending master existence notification..." << endl;
+	cout << "Sending master our existence notification..." << endl;
 
-	// create pb msg
-	//
+	// create & send pb msg
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr( string(argv[1]) );
-
 	antix::send_pb(&node_master_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
 	antixtransfer::connect_init_response init_response;
 	antix::recv_pb(&node_master_sock, &init_response);
-	cout << "Got id " << init_response.id() << endl;
+	my_id = init_response.id();
+	cout << "We are now node id " << my_id << endl;
 
-	// block on master_publish_sock
+	// receive node list
+	// blocks until master publishes list of nodes
+	antixtransfer::Node_list node_list;
+	antix::recv_pb(&master_publish_sock, &node_list);
+	cout << "Received list of nodes" << endl;
 
-	// once we have received message from master publish sock, we have a list
-	// of nodes
+	// find our left/right neighbours
+	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
+	cout << "Left neighbour: " << left_node.id() << " : " << left_node.ip_addr() << endl;
+	cout << "Right neighbour: " << right_node.id() << " : " << right_node.ip_addr() << endl;
 
-	// find our left/right neighbour & connect with SUB socket
+	// connect & subscribe to both neighbour's PUB sockets
 	// this socket will receive foreign entities that are near our border
+
+	// ensure socket is set to filter to recv all messages
 	//connect(left)
 	//connect(right)
 
