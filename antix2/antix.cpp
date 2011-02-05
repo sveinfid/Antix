@@ -37,23 +37,31 @@ public:
 		string pb_as_str;
 		pb_obj->SerializeToString(&pb_as_str);
 
-		zmq::message_t msg( pb_as_str.size() );
-		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() );
+		zmq::message_t msg( pb_as_str.size() + 1 );
+		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() + 1);
 
 		socket->send(msg);
 	}
 
 	/*
 		Receive a waiting protobuf message on socket, parse into pb_obj
+
+		Parsing from bytes -> string from
+		http://www.mail-archive.com/protobuf@googlegroups.com/msg05381.html
 	*/
 	static void
 	recv_pb(zmq::socket_t *socket, google::protobuf::Message *pb_obj) {
 		zmq::message_t msg;
 		socket->recv(&msg);
 
-		char raw_pb[msg.size() + 1];
+		char raw_pb[msg.size()];
 		memcpy(raw_pb, msg.data(), msg.size());
-		pb_obj->ParseFromString(raw_pb);
+
+		// make a string out of the raw bytes
+		string s;
+		s.assign(raw_pb, msg.size() + 1);
+
+		pb_obj->ParseFromString(s);
 	}
 
 	/*
@@ -94,6 +102,15 @@ public:
 				right->set_ip_addr ( node_list->node( index_right ).ip_addr() );
 				return;
 			}
+		}
+	}
+
+	static void
+	print_nodes(antixtransfer::Node_list *node_list) {
+		const antixtransfer::Node_list::Node *node;
+		for (int i = 0; i < node_list->node_size(); i++) {
+			node = node_list->mutable_node(i);
+			cout << "\tNode id: " << node->id() << " IP: " << node->ip_addr() << " x offset: " << node->x_offset() << endl;
 		}
 	}
 };

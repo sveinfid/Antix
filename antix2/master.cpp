@@ -41,7 +41,16 @@ antixtransfer::Node_list node_list;
 */
 void
 set_node_offsets() {
-	int offset_size = world_size / node_list.node_size();
+	double offset_size = world_size / node_list.node_size();
+	double position = 0;
+
+	antixtransfer::Node_list::Node *node;
+	for (int i = 0; i < node_list.node_size(); i++) {
+		node = node_list.mutable_node(i);
+		node->set_x_offset(position);
+		cout << "Assign node with id " << node->id() << " x offset " << position << endl;
+		position = position + offset_size;
+	}
 }
 
 int main() {
@@ -124,9 +133,14 @@ int main() {
 			set_node_offsets();
 
 			// send message on publish_socket containing a list of nodes
+			antix::send_pb(&publish_socket, &node_list);
+			cout << "Sent node list to nodes & clients." << endl;
+			cout << "Nodes sent:" << endl;
+			antix::print_nodes(&node_list);
+
+			cout << "Simulation begun." << endl;
 
 			// any nodes/clients that connect after this get unexpected results
-			// right now
 		}
 	}
 

@@ -55,7 +55,13 @@ int main(int argc, char **argv) {
 	// blocks until master publishes list of nodes
 	antixtransfer::Node_list node_list;
 	antix::recv_pb(&master_publish_sock, &node_list);
-	cout << "Received list of nodes" << endl;
+	cout << "Received list of nodes:" << endl;
+	antix::print_nodes(&node_list);
+
+	if (node_list.node_size() < 3) {
+		cout << "Error: we need at least 3 nodes. Only received " << node_list.node_size() << " node(s)." << endl;
+		return -1;
+	}
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
