@@ -112,8 +112,15 @@ int main() {
 			clients_socket.recv(&message);
 			// this message should be client giving its ip & port
 			// respond with an id for the client
-			antixtransfer::connect_init_response init_response;
-			init_response.set_id(next_client_id++);
+			antixtransfer::MasterServerClientInitialization init_response;
+			//init_response.set_id(next_client_id++);
+			init_response.set_robotsallocated(10);
+			init_response.set_velocity(10.0);
+			init_response.set_visionrange(1.0);
+			init_response.set_fieldofview(2.0);
+			init_response.set_serverwidth(1.0);
+			init_response.set_serverheight(1.0);
+			init_response.set_homeradius(1.0);
 			/*set stuff later*/
 			antix::send_pb(&clients_socket, &init_response);
 
