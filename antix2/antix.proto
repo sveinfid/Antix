@@ -116,8 +116,9 @@ message RobotRequestMap {
 message SendMap {
 	message Robot {
 		required int32 team = 1;
-		required double x = 2;
-		required double y = 3;
+		required int32 id = 2;
+		required double x = 3;
+		required double y = 4;
 	}
 
 	message Puck {
@@ -165,13 +166,18 @@ message PuckActionUpdate {
 	required bool actionSuccess  = 1;
 }
 
-message RequestRobotTransfer{
-	required int32 robotID = 1;
-	required double robotx = 2;
-	required double roboty = 3;
-	required bool hasPuck = 4;
+message RequestRobotTransfer {
+	required int32 id = 1;
+	required int32 team = 2;
+	required double x = 3;
+	required double y = 4;
+	required double a = 5;
+	required double v = 6;
+	required double w = 7;
+	required bool has_puck = 8;
 }
 
+// not needed if send message over PUB socket?
 message TransferUpdate {
 	required bool transferSuccess = 1;
 }

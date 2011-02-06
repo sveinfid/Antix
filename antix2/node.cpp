@@ -27,6 +27,8 @@ vector<Robot> robots;
 vector<Puck> foreign_pucks;
 vector<Robot> foreign_robots;
 
+zmq::socket_t *send_to_neighbour_sock;
+
 /*
 	Find our offset in node_list and set my_min_x, my_max_x
 */
@@ -55,11 +57,15 @@ generate_pucks() {
 	}
 }
 
+/*
+	Given a map which may or may not contain entities, add any entities therein
+	to our internal records of foreign robots & pucks
+*/
 void
 update_foreign_entities(antixtransfer::SendMap *map) {
 	// foreign robots
 	for (int i = 0; i < map->robot_size(); i++) {
-		foreign_robots.push_back( Robot( map->robot(i).x(), map->robot(i).y(), map->robot(i).team() ) );
+		foreign_robots.push_back( Robot( map->robot(i).x(), map->robot(i).y(), map->robot(i).id(), map->robot(i).team() ) );
 	}
 	// foreign pucks
 	for (int i = 0; i < map->puck_size(); i++) {
@@ -96,6 +102,10 @@ send_border_entities(zmq::socket_t *send_to_neighbour_sock) {
 	antix::send_pb(send_to_neighbour_sock, &send_map);
 }
 
+/*
+	Clear old foreign robots/pucks and attempt to re-fill based on msgs from our
+	neighbours
+*/
 void
 recv_border_entities(zmq::socket_t *neighbour_publish_sock) {
 	foreign_robots.clear();
@@ -113,6 +123,83 @@ recv_border_entities(zmq::socket_t *neighbour_publish_sock) {
 	//antix::recv_pb(neighbour_publish_sock, &map_foreign_2, 0);
 	cout << "Received " << map_foreign_2.puck_size() << " pucks and " << map_foreign_2.robot_size() << " robots from neighbour 2" << endl;
 	update_foreign_entities(&map_foreign_2);
+}
+
+/*
+	Remove given robot from local robots
+*/
+void
+remove_robot(Robot *r) {
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if (it->id == r->id && it->team == r->team) {
+			robots.erase(it);
+		}
+	}
+}
+
+/*
+	Robot has been found to be outside of our map portion
+	Transfer the robot (and possibly its puck) to the given node
+	Remove robot (and puck) from our local list
+*/
+void
+move_robot(Robot *r, antixtransfer::Node_list::Node *node) {
+	// transfer the robot
+	antixtransfer::RequestRobotTransfer transfer_msg;
+	transfer_msg.set_id(r->id);
+	transfer_msg.set_team(r->team);
+	transfer_msg.set_x(r->x);
+	transfer_msg.set_y(r->y);
+	transfer_msg.set_a(r->a);
+	transfer_msg.set_v(r->v);
+	transfer_msg.set_w(r->w);
+	transfer_msg.set_has_puck(r->has_puck);
+
+	// XXX using the PUB socket has potential to lose robots...?
+	antix::send_pb(send_to_neighbour_sock, &transfer_msg);
+
+	// remove from our local list
+	// XXX do this
+}
+
+/*
+	update the pose of a single robot
+	Taken from rtv's Antix
+*/
+void
+update_pose(Robot r) {
+	double dx = r.v * cos(r.a);
+	double dy = r.v * sin(r.a);
+	double da = r.w;
+
+	r.x = antix::DistanceNormalize(r.x + dx, world_size);
+	r.y = antix::DistanceNormalize(r.y + dy, world_size);
+	r.a = antix::AngleNormalize(r.a + da);
+
+	// If we're holding a puck, it must move also
+	if (r.has_puck) {
+		r.puck->x = r.x;
+		r.puck->y = r.y;
+	}
+
+	// XXX deal with collision
+
+	// if our new location is in another node, move robot
+	if (r.x < my_min_x)
+		move_robot(&r, &left_node);
+	else if (r.x >= my_max_x)
+		move_robot(&r, &right_node);
+}
+
+/*
+	Go through our local robots & update their poses
+*/
+void
+update_poses() {
+	// For each robot, update its pose
+	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		update_pose(*it);
+	}
 }
 
 void
@@ -197,8 +284,8 @@ int main(int argc, char **argv) {
 	cout << "Connected to neighbour on right: " << right_node.ip_addr() << ":" << right_node.neighbour_port() << endl;
 
 	// open PUB socket neighbours where we publish entities close to the borders
-	zmq::socket_t send_to_neighbour_sock(context, ZMQ_PUB);
-	send_to_neighbour_sock.bind(antix::make_endpoint( argv[1], argv[2] ));
+	send_to_neighbour_sock = new zmq::socket_t(context, ZMQ_PUB);
+	send_to_neighbour_sock->bind(antix::make_endpoint( argv[1], argv[2] ));
 
 	// create REP socket that receives messages from clients
 	// (add_bot, sense, setspeed, pickup, drop)
@@ -215,7 +302,7 @@ int main(int argc, char **argv) {
 	// enter main loop
 	while (1) {
 		// send entities within sight_range of our borders to our neighbours
-		send_border_entities(&send_to_neighbour_sock);
+		send_border_entities(send_to_neighbour_sock);
 		cout << "Sent border entities to neighbours." << endl;
 
 		// read from our neighbour SUB socket & update our foreign entity knowledge
@@ -227,6 +314,8 @@ int main(int argc, char **argv) {
 			cout << "Puck at " << it->x << ", " << it->y << endl;
 
 		// update poses for internal robots
+		update_poses();
+		cout << "Poses updated for all robots." << endl;
 
 		// service client messages on REP socket
 		// (add_bot, sense, setspeed, pickup, drop)

@@ -22,23 +22,6 @@ using namespace std;
 class antix {
 public:
 	/*
-		Radians to degrees
-		From rtv's Antix
-	*/
-	double
-	rtod(double r) {
-		return (r * 180.0 / M_PI);
-	}
-	/*
-		Degrees to radians
-		From rtv's Antix
-	*/
-	double
-	dtor(double d) {
-		return (d * M_PI / 180.0);
-	}
-
-	/*
 		Take a host and a port, return c_str
 	*/
 	static const char *
@@ -145,9 +128,67 @@ public:
 		}
 	}
 
+	/*
+		Random double between the two given doubles
+	*/
 	static double
 	rand_between(double min, double max) {
 		return ( (drand48() * (max - min) ) + min );
+	}
+
+	/*
+		Radians to degrees
+		From rtv's Antix
+	*/
+	static double
+	rtod(double r) {
+		return (r * 180.0 / M_PI);
+	}
+	/*
+		Degrees to radians
+		From rtv's Antix
+	*/
+	static double
+	dtor(double d) {
+		return (d * M_PI / 180.0);
+	}
+
+	/*
+		wrap around torus
+		from rtv's Antix
+	*/
+	static double
+	WrapDistance(double d, double world_size) {
+		const double halfworld( world_size * 0.5 );
+
+		if( d > halfworld )
+		d -= world_size;
+		else if( d < -halfworld )
+		d += world_size;
+
+		return d;
+	}
+
+	/*
+		Normalize a length to within 0 to worldsize
+		from rtv's Antix
+	*/
+	static double
+	DistanceNormalize(double d, double world_size) {
+		while( d < 0 ) d += world_size;
+		while( d > world_size ) d -= world_size;
+		return d; 
+	}
+
+	/*
+		Normalize an angle to within +/- M_PI
+		from rtv's Antix
+	*/
+	static double
+	AngleNormalize(double a) {
+		while( a < -M_PI ) a += 2.0*M_PI;
+		while( a >  M_PI ) a -= 2.0*M_PI;	 
+		return a;
 	}
 };
 
@@ -181,7 +222,7 @@ public:
 	Home(double r, double world_size) : r(r) {
 		x = antix::rand_between(0, world_size);
 		y = antix::rand_between(0, world_size);
-		colour = Colour;
+		colour = Colour();
 	}
 };
 
@@ -202,8 +243,7 @@ public:
 
 class Robot {
 public:
-	double x;
-	double y;
+	double x, y;
 	// orientation
 	double a;
 	// forward speed
@@ -211,12 +251,19 @@ public:
 	// turn speed
 	double w;
 
+	// together uniquely identifies the robot
+	// team = client id, essentially
 	int team;
-	bool has_puck;
+	int id;
 
-	Robot(double x, double y, int team) : x(x), y(y), team(team) {
+	bool has_puck;
+	Puck *puck;
+
+	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
 		a = 0;
 		v = 0;
 		w = 0;
+		puck = NULL;
+		has_puck = false;
 	}
 };

@@ -20,8 +20,7 @@ const int initial_pucks_per_node = 100;
 // range of robot sight
 const double sight_range = 0.1;
 // robot fov
-//const double fov = dtor(90.0);
-const double fov = 1.5;
+const double fov = antix::dtor(90.0);
 
 // listening on
 string host = "127.0.0.1";
