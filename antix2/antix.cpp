@@ -58,7 +58,6 @@ public:
 
 		// If we did a non blocking call, it's possible we don't actually have a msg
 		// But this return code doesn't match the ZMQ docs...
-		cout << "Retval: " << retval << endl;
 		if (retval != 1)
 			return retval;
 

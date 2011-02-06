@@ -156,6 +156,8 @@ move_robot(Robot *r, antixtransfer::Node_list::Node *node) {
 	transfer_msg.set_has_puck(r->has_puck);
 
 	// XXX using the PUB socket has potential to lose robots...?
+	// XXX this isn't right... nodes expect to only receive foreign entitie msg
+	// on their SUB socket. Move it to a control socket?
 	antix::send_pb(send_to_neighbour_sock, &transfer_msg);
 
 	// remove from our local list
