@@ -1,6 +1,8 @@
 /*
 	Some library functions & object defs
 
+	Most of the objects are essentially copied from rtv's Antix
+
 	send_pb/recv_pb motivated by s_send/s_recv from
 	https://github.com/imatix/zguide/blob/master/examples/C%2B%2B/zhelpers.hpp
 */
@@ -19,6 +21,23 @@ using namespace std;
 
 class antix {
 public:
+	/*
+		Radians to degrees
+		From rtv's Antix
+	*/
+	double
+	rtod(double r) {
+		return (r * 180.0 / M_PI);
+	}
+	/*
+		Degrees to radians
+		From rtv's Antix
+	*/
+	double
+	dtor(double d) {
+		return (d * M_PI / 180.0);
+	}
+
 	/*
 		Take a host and a port, return c_str
 	*/
@@ -125,6 +144,45 @@ public:
 			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}
+
+	static double
+	rand_between(double min, double max) {
+		return ( (drand48() * (max - min) ) + min );
+	}
+};
+
+/*
+	from rtv's Antix
+*/
+class Colour {
+	public:
+	double r, g, b;
+
+	Colour() {
+		r = drand48();
+		g = drand48();
+		b = drand48();
+	}
+	Colour (double r, double g, double b) : r(r), g(g), b(b) { }
+};
+
+class Home {
+public:
+	double x, y;
+	double r;
+	Colour colour;
+
+	Home(double x, double y, double r) : x(x), y(y), r(r) {
+		colour = Colour();
+	}
+
+	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) { }
+
+	Home(double r, double world_size) : r(r) {
+		x = antix::rand_between(0, world_size);
+		y = antix::rand_between(0, world_size);
+		colour = Colour;
+	}
 };
 
 class Puck {
@@ -135,9 +193,8 @@ public:
 
 	// random pose stuff is from rtv's Antix
 	Puck(double min_x, double max_x, double world_size) {
-		double x_size = max_x - min_x;
-		x = (drand48() * x_size) + min_x;
-		y = drand48() * world_size;
+		x = antix::rand_between(min_x, max_x);
+		y = antix::rand_between(0, world_size);
 		held = false;
 	}
 	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
