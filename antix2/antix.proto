@@ -110,15 +110,15 @@ message RobotRequestMap {
 
 message SendMap {
 	message Robot {
-		required int32 robotTeam = 1;
-		required double robotX = 2;
-		required double robotY = 3;
+		required int32 team = 1;
+		required double x = 2;
+		required double y = 3;
 	}
 
 	message Puck {
-		required double puckX = 1;
-		required double puckY = 2;
-		required bool isCarried = 3;
+		required double x = 1;
+		required double y = 2;
+		required bool held = 3;
 	}
 
 	repeated Robot robot = 1;

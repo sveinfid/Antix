@@ -16,7 +16,7 @@ const double world_size = 1.0;
 // 5 seconds
 const int sleep_time = 5000;
 // pucks per node to initially create
-const int node_pucks = 100;
+const int initial_pucks_per_node = 100;
 // range of robot sight
 const double sight_range = 0.1;
 // robot fov
@@ -88,13 +88,14 @@ int main() {
 		if (items[0].revents & ZMQ_POLLIN) {
 			// this message should be node giving its ip (& port maybe?)
 			antixtransfer::connect_init_node init_msg;
-			antix::recv_pb(&nodes_socket, &init_msg);
+			antix::recv_pb(&nodes_socket, &init_msg, 0);
 
 			// respond with an id for the node & config info
 			antixtransfer::connect_init_response init_response;
 			init_response.set_id(next_node_id++);
 			init_response.set_world_size(world_size);
 			init_response.set_sleep_time(sleep_time);
+			init_response.set_puck_amount(initial_pucks_per_node);
 			antix::send_pb(&nodes_socket, &init_response);
 
 			// add node to internal listing of nodes

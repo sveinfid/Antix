@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 	antix::send_pb(&client_master_sock, &init_connect);
 	
 	antixtransfer::MasterServerClientInitialization init_response;
-	antix::recv_pb(&client_master_sock, &init_response);
+	antix::recv_pb(&client_master_sock, &init_response, 0);
 	int num_robots = init_response.robotsallocated();
 	cout << "the numer of robots allocated " << num_robots << endl;
 	

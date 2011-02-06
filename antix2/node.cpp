@@ -23,6 +23,9 @@ int initial_puck_amount;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 vector<Puck> pucks;
+vector<Robot> robots;
+vector<Puck> foreign_pucks;
+vector<Robot> foreign_robots;
 
 /*
 	Find our offset in node_list and set my_min_x, my_max_x
@@ -50,6 +53,69 @@ generate_pucks() {
 	for (int i = 0; i < initial_puck_amount; i++) {
 		pucks.push_back( Puck(my_min_x, my_max_x, world_size) );
 	}
+}
+
+void
+update_foreign_entities(antixtransfer::SendMap *map) {
+	// foreign robots
+	for (int i = 0; i < map->robot_size(); i++) {
+		foreign_robots.push_back( Robot( map->robot(i).x(), map->robot(i).y(), map->robot(i).team() ) );
+	}
+	// foreign pucks
+	for (int i = 0; i < map->puck_size(); i++) {
+		foreign_pucks.push_back( Puck( map->puck(i).x(), map->puck(i).y(), map->puck(i).held() ) );
+	}
+}
+
+/*
+	Send entities which are within sight distance of our left border
+	and within sight distance of our right border
+*/
+void
+send_border_entities(zmq::socket_t *send_to_neighbour_sock) {
+	// container for robots & pucks
+	antixtransfer::SendMap send_map;
+	// XXX Right now we only have one big list of robots, so all are sent
+	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		antixtransfer::SendMap::Robot *robot = send_map.add_robot();
+		robot->set_x( it->x );
+		robot->set_y( it->y );
+		// not implemented
+		robot->set_team(0);
+	}
+
+	// XXX only one list of pucks right now
+	for(vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		antixtransfer::SendMap::Puck *puck = send_map.add_puck();
+		puck->set_x( it->x );
+		puck->set_y( it->y );
+		puck->set_held( it->held );
+	}
+	cout << "Sending " << send_map.puck_size() << " pucks and " << send_map.robot_size() << " robots." << endl;
+
+	antix::send_pb(send_to_neighbour_sock, &send_map);
+}
+
+void
+recv_border_entities(zmq::socket_t *neighbour_publish_sock) {
+	foreign_robots.clear();
+	foreign_pucks.clear();
+
+	// We expect two messages: One from left, one from right
+	antixtransfer::SendMap map_foreign_1;
+	antix::recv_pb(neighbour_publish_sock, &map_foreign_1, ZMQ_NOBLOCK);
+	cout << "Received " << map_foreign_1.puck_size() << " pucks and " << map_foreign_1.robot_size() << " robots from neighbour 1" << endl;
+	update_foreign_entities(&map_foreign_1);
+
+	antixtransfer::SendMap map_foreign_2;
+	antix::recv_pb(neighbour_publish_sock, &map_foreign_2, ZMQ_NOBLOCK);
+	cout << "Received " << map_foreign_2.puck_size() << " pucks and " << map_foreign_2.robot_size() << " robots from neighbour 2" << endl;
+	update_foreign_entities(&map_foreign_2);
+}
+
+void
+add_robot() {
+
 }
 
 int main(int argc, char **argv) {
@@ -84,7 +150,7 @@ int main(int argc, char **argv) {
 
 	// receive message back stating our unique ID
 	antixtransfer::connect_init_response init_response;
-	antix::recv_pb(&node_master_sock, &init_response);
+	antix::recv_pb(&node_master_sock, &init_response, 0);
 	my_id = init_response.id();
 	world_size = init_response.world_size();
 	sleep_time = init_response.sleep_time();
@@ -96,7 +162,7 @@ int main(int argc, char **argv) {
 	// receive node list
 	// blocks until master publishes list of nodes
 	antixtransfer::Node_list node_list;
-	antix::recv_pb(&master_publish_sock, &node_list);
+	antix::recv_pb(&master_publish_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
 
@@ -125,13 +191,14 @@ int main(int argc, char **argv) {
 	// connect to the neighbours on this socket
 	neighbour_publish_sock.connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
 	neighbour_publish_sock.connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
+	cout << "Connected to neighbour on left: " << left_node.ip_addr() << ":" << left_node.neighbour_port() << endl;
 
 	// open PUB socket neighbours where we publish entities close to the borders
 	zmq::socket_t send_to_neighbour_sock(context, ZMQ_PUB);
 	send_to_neighbour_sock.bind(antix::make_endpoint( argv[1], argv[2] ));
 
 	// create REP socket that receives messages from clients
-	// (sense, setspeed, pickup, drop)
+	// (add_bot, sense, setspeed, pickup, drop)
 	zmq::socket_t client_sock(context, ZMQ_REP);
 	client_sock.bind(antix::make_endpoint( argv[1], argv[3] ));
 
@@ -144,14 +211,23 @@ int main(int argc, char **argv) {
 
 	// enter main loop
 	while (1) {
-		// publish data to neighbours of entities near left border
-		// publish data to neighbours of entities near right border
+		// send entities within sight_range of our borders to our neighbours
+		send_border_entities(&send_to_neighbour_sock);
+		cout << "Sent border entities to neighbours." << endl;
 
 		// read from our neighbour SUB socket & update our foreign entity knowledge
+		recv_border_entities(&neighbour_publish_sock);
+		cout << "Current foreign entities: " << endl;
+		for (vector<Robot>::iterator it = foreign_robots.begin(); it != foreign_robots.end(); it++)
+			cout << "Robot at " << it->x << ", " << it->y << endl;
+		cout << endl;
+		for (vector<Puck>::iterator it = foreign_pucks.begin(); it != foreign_pucks.end(); it++)
+			cout << "Puck at " << it->x << ", " << it->y << endl;
 
 		// update poses for internal robots
 
 		// service client messages on REP socket
+		// (add_bot, sense, setspeed, pickup, drop)
 
 		// sleep
 		// code from rtv's Antix

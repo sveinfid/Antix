@@ -1,5 +1,5 @@
 /*
-	Some library functions
+	Some library functions & object defs
 
 	send_pb/recv_pb motivated by s_send/s_recv from
 	https://github.com/imatix/zguide/blob/master/examples/C%2B%2B/zhelpers.hpp
@@ -50,9 +50,9 @@ public:
 		http://www.mail-archive.com/protobuf@googlegroups.com/msg05381.html
 	*/
 	static void
-	recv_pb(zmq::socket_t *socket, google::protobuf::Message *pb_obj) {
+	recv_pb(zmq::socket_t *socket, google::protobuf::Message *pb_obj, int flags) {
 		zmq::message_t msg;
-		socket->recv(&msg);
+		socket->recv(&msg, flags);
 
 		char raw_pb[msg.size()];
 		memcpy(raw_pb, msg.data(), msg.size());
@@ -131,5 +131,27 @@ public:
 		x = (drand48() * x_size) + min_x;
 		y = drand48() * world_size;
 		held = false;
+	}
+	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
+};
+
+class Robot {
+public:
+	double x;
+	double y;
+	// orientation
+	double a;
+	// forward speed
+	double v;
+	// turn speed
+	double w;
+
+	int team;
+	bool has_puck;
+
+	Robot(double x, double y, int team) : x(x), y(y), team(team) {
+		a = 0;
+		v = 0;
+		w = 0;
 	}
 };
