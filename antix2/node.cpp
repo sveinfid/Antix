@@ -159,7 +159,8 @@ move_robot(Robot *r, antixtransfer::Node_list::Node *node) {
 	antix::send_pb(send_to_neighbour_sock, &transfer_msg);
 
 	// remove from our local list
-	// XXX do this
+	cout << "Transferred robot " << r->id << " on team " << r->team << endl;
+	remove_robot(r);
 }
 
 /*
@@ -264,6 +265,17 @@ synchronize_neighbours(zmq::context_t *context, zmq::socket_t *control_sock) {
 	}
 }
 
+/*
+	add_bot, sense, setspeed, pickup, drop
+*/
+void
+service_clients(zmq::socket_t *control_sock) {
+	antixtransfer::control_message msg;
+	while (antix::recv_pb(control_sock, &msg, ZMQ_NOBLOCK) == 1) {
+		cout << "Received a control message" << endl;
+	}
+}
+
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
@@ -332,6 +344,8 @@ int main(int argc, char **argv) {
 	// as the neighbours will be publishing data for both of its neighbours
 	// on the same port
 	// right now we receive all messages
+	// however, at the moment this does not make any difference as the map is
+	// the same for entire node
 	neighbour_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
 	// connect to the neighbours on this socket
@@ -382,9 +396,10 @@ int main(int argc, char **argv) {
 
 		// service client messages on REP socket
 		// (add_bot, sense, setspeed, pickup, drop)
+		service_clients(&control_sock);
 
 		// sleep (code from rtv's Antix)
-		usleep( sleep_time * 1e3);
+		usleep(sleep_time * 1e3);
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

@@ -181,3 +181,25 @@ message RequestRobotTransfer {
 message TransferUpdate {
 	required bool transferSuccess = 1;
 }
+
+message control_message {
+	enum Type {
+		ADD_BOT = 1;
+		SENSE = 2;
+		SETSPEED = 3;
+		PICKUP = 4;
+		DROP = 5;
+	}
+
+	message Robot {
+		required int32 id = 1;
+		optional double v = 2;
+		optional double w = 3;
+	}
+
+	// all robots in message with type TYPE get the action done to them
+
+	required int32 team = 1;
+	required Type type = 2;
+	repeated Robot robot = 3;
+}

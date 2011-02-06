@@ -51,10 +51,16 @@ public:
 		Parsing from bytes -> string from
 		http://www.mail-archive.com/protobuf@googlegroups.com/msg05381.html
 	*/
-	static void
+	static int
 	recv_pb(zmq::socket_t *socket, google::protobuf::Message *pb_obj, int flags) {
 		zmq::message_t msg;
-		socket->recv(&msg, flags);
+		int retval = socket->recv(&msg, flags);
+
+		// If we did a non blocking call, it's possible we don't actually have a msg
+		// But this return code doesn't match the ZMQ docs...
+		cout << "Retval: " << retval << endl;
+		if (retval != 1)
+			return retval;
 
 		char raw_pb[msg.size()];
 		memcpy(raw_pb, msg.data(), msg.size());
@@ -64,6 +70,7 @@ public:
 		s.assign(raw_pb, msg.size() + 1);
 
 		pb_obj->ParseFromString(s);
+		return retval;
 	}
 
 	/*
