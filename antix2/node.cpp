@@ -97,7 +97,7 @@ send_border_entities(zmq::socket_t *send_to_neighbour_sock) {
 		puck->set_y( it->y );
 		puck->set_held( it->held );
 	}
-	cout << "Sending " << send_map.puck_size() << " pucks and " << send_map.robot_size() << " robots." << endl;
+	cout << "Sending " << send_map.puck_size() << " pucks and " << send_map.robot_size() << " robots to our neighbours..." << endl;
 
 	antix::send_pb(send_to_neighbour_sock, &send_map);
 }
@@ -207,11 +207,68 @@ add_robot() {
 
 }
 
+/*
+	Wait for a response from our neighbours which indicates synchronization
+	Without this messages are lost on the neighbour_publish_socket
+
+	XXX Not absolutely correct?
+
+	This is based on the example from
+	http://github.com/imatix/zguide/blob/master/examples/C%2B%2B/syncsub.cpp
+*/
+void
+synchronize_neighbours(zmq::context_t *context, zmq::socket_t *control_sock) {
+	// First we send a blank message to both of our neighbours
+	zmq::socket_t left_sync_sock(*context, ZMQ_REQ);
+	zmq::socket_t right_sync_sock(*context, ZMQ_REQ);
+	left_sync_sock.connect(antix::make_endpoint(left_node.ip_addr(), left_node.control_port()));
+	right_sync_sock.connect(antix::make_endpoint(right_node.ip_addr(), right_node.control_port()));
+	zmq::message_t blank_left(1);
+	left_sync_sock.send(blank_left);
+	zmq::message_t blank_right(1);
+	right_sync_sock.send(blank_right);
+
+	int acks_received = 0;
+	int syncs_responded = 0;
+	// same polling as in master
+	zmq::pollitem_t items[] = {
+		{ *control_sock, 0, ZMQ_POLLIN, 0},
+		{ left_sync_sock, 0, ZMQ_POLLIN, 0},
+		{ right_sync_sock, 0, ZMQ_POLLIN, 0}
+	};
+	// Then we wait for a response & respond to those sent to us
+	while (acks_received < 2 || syncs_responded < 2) {
+		zmq::message_t response;
+		zmq::poll(&items [0], 3, -1);
+
+		// sync requested on control port
+		if (items[0].revents & ZMQ_POLLIN) {
+			cout << "Received sync request. Sending response..." << endl;
+			control_sock->recv(&response);
+			zmq::message_t blank(1);
+			control_sock->send(blank);
+			syncs_responded++;
+		}
+		// left sync response
+		if (items[1].revents & ZMQ_POLLIN) {
+			cout << "Received sync response from left node" << endl;
+			left_sync_sock.recv(&response);
+			acks_received++;
+		}
+		// right sync response
+		if (items[2].revents & ZMQ_POLLIN) {
+			cout << "Received sync response from right node" << endl;
+			right_sync_sock.recv(&response);
+			acks_received++;
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	
 	if (argc != 4) {
-		cerr << "Usage: " << argv[0] << " <IP to listen on> <node-node port> <client-node port>" << endl;
+		cerr << "Usage: " << argv[0] << " <IP to listen on> <node-node port> <control/client port>" << endl;
 		return -1;
 	}
 
@@ -234,7 +291,7 @@ int main(int argc, char **argv) {
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr( string(argv[1]) );
 	pb_init_msg.set_neighbour_port( string(argv[2]) );
-	pb_init_msg.set_client_port( string(argv[3]) );
+	pb_init_msg.set_control_port( string(argv[3]) );
 	antix::send_pb(&node_master_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
@@ -287,10 +344,16 @@ int main(int argc, char **argv) {
 	send_to_neighbour_sock = new zmq::socket_t(context, ZMQ_PUB);
 	send_to_neighbour_sock->bind(antix::make_endpoint( argv[1], argv[2] ));
 
-	// create REP socket that receives messages from clients
+	// create REP control socket that receives messages from clients & is used
+	// to synchronize node connection
 	// (add_bot, sense, setspeed, pickup, drop)
-	zmq::socket_t client_sock(context, ZMQ_REP);
-	client_sock.bind(antix::make_endpoint( argv[1], argv[3] ));
+	zmq::socket_t control_sock(context, ZMQ_REP);
+	control_sock.bind(antix::make_endpoint( argv[1], argv[3] ));
+
+	// Before we enter main loop, we must synchronize our connection to our
+	// neighbours PUB sockets (neighbour_publish_sock), or else we risk losing
+	// the initial messages
+	synchronize_neighbours(&context, &control_sock);
 
 	// generate pucks
 	generate_pucks();
@@ -309,9 +372,9 @@ int main(int argc, char **argv) {
 		recv_border_entities(&neighbour_publish_sock);
 		cout << "Current foreign entities: " << endl;
 		for (vector<Robot>::iterator it = foreign_robots.begin(); it != foreign_robots.end(); it++)
-			cout << "Robot at " << it->x << ", " << it->y << endl;
+			cout << "\tRobot at " << it->x << ", " << it->y << endl;
 		for (vector<Puck>::iterator it = foreign_pucks.begin(); it != foreign_pucks.end(); it++)
-			cout << "Puck at " << it->x << ", " << it->y << endl;
+			cout << "\tPuck at " << it->x << ", " << it->y << endl;
 
 		// update poses for internal robots
 		update_poses();
@@ -320,8 +383,7 @@ int main(int argc, char **argv) {
 		// service client messages on REP socket
 		// (add_bot, sense, setspeed, pickup, drop)
 
-		// sleep
-		// code from rtv's Antix
+		// sleep (code from rtv's Antix)
 		usleep( sleep_time * 1e3);
 	}
 

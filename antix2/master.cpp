@@ -53,6 +53,7 @@ set_node_offsets() {
 }
 
 int main() {
+	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
 
 	// nodes/client socket are for nodes/clients connecting & giving their
@@ -102,9 +103,9 @@ int main() {
 			node->set_ip_addr( init_msg.ip_addr() );
 			node->set_id( next_node_id - 1 );
 			node->set_neighbour_port( init_msg.neighbour_port() );
-			node->set_client_port( init_msg.client_port() );
+			node->set_control_port( init_msg.control_port() );
 
-			cout << "Node connected. IP: " << node->ip_addr() << " Client port: " << node->client_port() << " Neighbour port: " << node->neighbour_port() << " Assigned id " << node->id() << "." << endl;
+			cout << "Node connected. IP: " << node->ip_addr() << " Neighbour port: " << node->neighbour_port() << " Control port: " << node->control_port() << " Assigned id " << node->id() << "." << endl;
 			cout << "Total nodes: " << node_list.node_size() << "." << endl;
 		}
 
@@ -163,5 +164,6 @@ int main() {
 		}
 	}
 
+	google::protobuf::ShutdownProtobufLibrary();
 	return 0;
 }

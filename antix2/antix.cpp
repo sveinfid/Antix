@@ -74,7 +74,7 @@ public:
 		dest->set_id( src->id() );
 		dest->set_ip_addr( src->ip_addr() );
 		dest->set_neighbour_port( src->neighbour_port() );
-		dest->set_client_port( src->client_port() );
+		dest->set_control_port( src->control_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
 
@@ -122,7 +122,7 @@ public:
 			node = node_list->mutable_node(i);
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
-			cout << " Client Port: " << node->client_port();
+			cout << " Control Port: " << node->control_port();
 			cout << " Neighbour Port: " << node->neighbour_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}

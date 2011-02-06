@@ -4,7 +4,7 @@ package antixtransfer;
 message connect_init_node {
 	required string ip_addr = 1;
 	required string neighbour_port = 2;
-	required string client_port = 3;
+	required string control_port = 3;
 }
 
 message connect_init_client {
@@ -28,7 +28,7 @@ message Node_list {
 	message Node {
 		required string ip_addr = 1;
 		required string neighbour_port = 2;
-		required string client_port = 3;
+		required string control_port = 3;
 		required int32 id = 4;
 		// optional as we only set this right before sending out node list
 		optional double x_offset = 5;
