@@ -113,7 +113,7 @@ int main() {
 		if (items[1].revents & ZMQ_POLLIN) {
 			cout << "Got msg from a client" << endl;
 			antixtransfer::connect_init_client init_msg;
-			antix::recv_pb(&clients_socket, &init_msg);
+			antix::recv_pb(&clients_socket, &init_msg, 0);
 			init_msg.set_pid(next_client_id++);
 			int num_robots = init_msg.number_of_robots_requested();
 			// this message should be client giving its ip & port
