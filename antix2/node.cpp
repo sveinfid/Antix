@@ -104,11 +104,13 @@ recv_border_entities(zmq::socket_t *neighbour_publish_sock) {
 	// We expect two messages: One from left, one from right
 	antixtransfer::SendMap map_foreign_1;
 	antix::recv_pb(neighbour_publish_sock, &map_foreign_1, ZMQ_NOBLOCK);
+	//antix::recv_pb(neighbour_publish_sock, &map_foreign_1, 0);
 	cout << "Received " << map_foreign_1.puck_size() << " pucks and " << map_foreign_1.robot_size() << " robots from neighbour 1" << endl;
 	update_foreign_entities(&map_foreign_1);
 
 	antixtransfer::SendMap map_foreign_2;
 	antix::recv_pb(neighbour_publish_sock, &map_foreign_2, ZMQ_NOBLOCK);
+	//antix::recv_pb(neighbour_publish_sock, &map_foreign_2, 0);
 	cout << "Received " << map_foreign_2.puck_size() << " pucks and " << map_foreign_2.robot_size() << " robots from neighbour 2" << endl;
 	update_foreign_entities(&map_foreign_2);
 }
@@ -176,8 +178,8 @@ int main(int argc, char **argv) {
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
-	cout << "Left neighbour: " << left_node.id() << endl;
-	cout << "Right neighbour: " << right_node.id() << endl;
+	cout << "Left neighbour id: " << left_node.id() << " " << left_node.ip_addr() << " neighbour port " << left_node.neighbour_port() << endl;
+	cout << "Right neighbour id: " << right_node.id() << " " << right_node.ip_addr() << " neighbour port " << right_node.neighbour_port() << endl;
 
 	// connect & subscribe to both neighbour's PUB sockets
 	// this socket will receive foreign entities that are near our border
@@ -192,6 +194,7 @@ int main(int argc, char **argv) {
 	neighbour_publish_sock.connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
 	neighbour_publish_sock.connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
 	cout << "Connected to neighbour on left: " << left_node.ip_addr() << ":" << left_node.neighbour_port() << endl;
+	cout << "Connected to neighbour on right: " << right_node.ip_addr() << ":" << right_node.neighbour_port() << endl;
 
 	// open PUB socket neighbours where we publish entities close to the borders
 	zmq::socket_t send_to_neighbour_sock(context, ZMQ_PUB);
@@ -220,7 +223,6 @@ int main(int argc, char **argv) {
 		cout << "Current foreign entities: " << endl;
 		for (vector<Robot>::iterator it = foreign_robots.begin(); it != foreign_robots.end(); it++)
 			cout << "Robot at " << it->x << ", " << it->y << endl;
-		cout << endl;
 		for (vector<Puck>::iterator it = foreign_pucks.begin(); it != foreign_pucks.end(); it++)
 			cout << "Puck at " << it->x << ", " << it->y << endl;
 

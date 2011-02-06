@@ -65,6 +65,18 @@ public:
 	}
 
 	/*
+		Copy the data from src to dest
+	*/
+	static void
+	copy_node(antixtransfer::Node_list::Node *dest, antixtransfer::Node_list::Node *src) {
+		dest->set_id( src->id() );
+		dest->set_ip_addr( src->ip_addr() );
+		dest->set_neighbour_port( src->neighbour_port() );
+		dest->set_client_port( src->client_port() );
+		dest->set_x_offset( src->x_offset() );
+	}
+
+	/*
 		Go through given Node_list looking for the node with id, and set the
 		neighbour pointers
 	*/
@@ -94,12 +106,8 @@ public:
 					index_left = i - 1;
 					index_right = i + 1;
 				}
-
-				left->set_id( node_list->node( index_left ).id() );
-				left->set_ip_addr ( node_list->node( index_left ).ip_addr() );
-
-				right->set_id( node_list->node( index_right ).id() );
-				right->set_ip_addr ( node_list->node( index_right ).ip_addr() );
+				copy_node(left, node_list->mutable_node( index_left ) );
+				copy_node(right, node_list->mutable_node( index_right ) );
 				return;
 			}
 		}
