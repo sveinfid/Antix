@@ -16,7 +16,7 @@ const double world_size = 1.0;
 // 5 seconds
 const int sleep_time = 5000;
 // pucks per node to initially create
-const int initial_pucks_per_node = 100;
+const int initial_pucks_per_node = 10;
 // range of robot sight
 const double sight_range = 0.1;
 // robot fov
@@ -102,10 +102,11 @@ int main() {
 			antixtransfer::Node_list::Node *node = node_list.add_node();
 			node->set_ip_addr( init_msg.ip_addr() );
 			node->set_id( next_node_id - 1 );
-			node->set_neighbour_port( init_msg.neighbour_port() );
+			node->set_left_port( init_msg.left_port() );
+			node->set_right_port( init_msg.right_port() );
 			node->set_control_port( init_msg.control_port() );
 
-			cout << "Node connected. IP: " << node->ip_addr() << " Neighbour port: " << node->neighbour_port() << " Control port: " << node->control_port() << " Assigned id " << node->id() << "." << endl;
+			cout << "Node connected. IP: " << node->ip_addr() << " Left port: " << node->left_port() << " Right port: " << node->right_port() << " Control port: " << node->control_port() << " Assigned id " << node->id() << "." << endl;
 			cout << "Total nodes: " << node_list.node_size() << "." << endl;
 		}
 

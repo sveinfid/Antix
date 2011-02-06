@@ -3,8 +3,9 @@ package antixtransfer;
 // node -> master initial connection message
 message connect_init_node {
 	required string ip_addr = 1;
-	required string neighbour_port = 2;
-	required string control_port = 3;
+	required string left_port = 2;
+	required string right_port = 3;
+	required string control_port = 4;
 }
 
 message connect_init_client {
@@ -27,11 +28,12 @@ message connect_init_response {
 message Node_list {
 	message Node {
 		required string ip_addr = 1;
-		required string neighbour_port = 2;
-		required string control_port = 3;
-		required int32 id = 4;
+		required string left_port = 2;
+		required string right_port = 3;
+		required string control_port = 4;
+		required int32 id = 5;
 		// optional as we only set this right before sending out node list
-		optional double x_offset = 5;
+		optional double x_offset = 6;
 	}
 	repeated Node node = 1;
 }
@@ -179,7 +181,7 @@ message RequestRobotTransfer {
 
 // not needed if send message over PUB socket?
 message TransferUpdate {
-	required bool transferSuccess = 1;
+	required bool success = 1;
 }
 
 message control_message {
