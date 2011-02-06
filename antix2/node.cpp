@@ -14,8 +14,43 @@ string master_node_port = "7770";
 string master_publish_port = "7773";
 
 int my_id;
+double world_size;
+double my_min_x;
+// where neighbour begins
+double my_max_x;
+int sleep_time;
+int initial_puck_amount;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
+vector<Puck> pucks;
+
+/*
+	Find our offset in node_list and set my_min_x, my_max_x
+*/
+void
+set_dimensions(antixtransfer::Node_list *node_list) {
+	antixtransfer::Node_list::Node *node;
+	double offset_size = world_size / node_list->node_size();
+
+	for (int i = 0; i < node_list->node_size(); i++) {
+		node = node_list->mutable_node(i);
+		if (node->id() == my_id) {
+			my_min_x = node->x_offset();
+			my_max_x = my_min_x + offset_size;
+			return;
+		}
+	}
+}
+
+/*
+	Place pucks randomly within our region
+*/
+void
+generate_pucks() {
+	for (int i = 0; i < initial_puck_amount; i++) {
+		pucks.push_back( Puck(my_min_x, my_max_x, world_size) );
+	}
+}
 
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -51,6 +86,11 @@ int main(int argc, char **argv) {
 	antixtransfer::connect_init_response init_response;
 	antix::recv_pb(&node_master_sock, &init_response);
 	my_id = init_response.id();
+	world_size = init_response.world_size();
+	sleep_time = init_response.sleep_time();
+	// XXX need to add this in master
+	// initial_puck_amount = init_response.puck_amount();
+	initial_puck_amount = 10;
 	cout << "We are now node id " << my_id << endl;
 
 	// receive node list
@@ -65,6 +105,9 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
+	// calculate our min / max x from the offset assigned to us in node_list
+	set_dimensions(&node_list);
+
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
 	cout << "Left neighbour: " << left_node.id() << endl;
@@ -73,35 +116,46 @@ int main(int argc, char **argv) {
 	// connect & subscribe to both neighbour's PUB sockets
 	// this socket will receive foreign entities that are near our border
 	zmq::socket_t neighbour_publish_sock(context, ZMQ_SUB);
-	// subscribe to all messages on this socket: should just be a list of nodes
+	// XXX subscribe only to messages intended for us?
+	// as the neighbours will be publishing data for both of its neighbours
+	// on the same port
+	// right now we receive all messages
 	neighbour_publish_sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	// connect to left neighbour
+
+	// connect to the neighbours on this socket
 	neighbour_publish_sock.connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
+	neighbour_publish_sock.connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
 
-	// ensure socket is set to filter to recv all messages
-	//connect(left)
-	//connect(right)
-
-	// open PUB socket for left neighbour where we publish entities close to left
-	// do the same for the right neighbour (2 sockets)
+	// open PUB socket neighbours where we publish entities close to the borders
+	zmq::socket_t send_to_neighbour_sock(context, ZMQ_PUB);
+	send_to_neighbour_sock.bind(antix::make_endpoint( argv[1], argv[2] ));
 
 	// create REP socket that receives messages from clients
 	// (sense, setspeed, pickup, drop)
+	zmq::socket_t client_sock(context, ZMQ_REP);
+	client_sock.bind(antix::make_endpoint( argv[1], argv[3] ));
 
 	// generate pucks
+	generate_pucks();
+	cout << "Created " << pucks.size() << " pucks." << endl;
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		cout << "Puck at " << it->x << "," << it->y << endl;
+	}
 
 	// enter main loop
 	while (1) {
-		// publish data to left neighbour containing foreign entities
-		// publish data to right neighbour containing foreign entities
+		// publish data to neighbours of entities near left border
+		// publish data to neighbours of entities near right border
 
-		// read from our SUB socket & update our foreign entity knowledge
+		// read from our neighbour SUB socket & update our foreign entity knowledge
 
 		// update poses for internal robots
 
 		// service client messages on REP socket
 
 		// sleep
+		// code from rtv's Antix
+		usleep( sleep_time * 1e3);
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

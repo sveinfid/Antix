@@ -118,3 +118,18 @@ public:
 		}
 	}
 };
+
+class Puck {
+public:
+	double x,
+		y;
+	bool held;
+
+	// random pose stuff is from rtv's Antix
+	Puck(double min_x, double max_x, double world_size) {
+		double x_size = max_x - min_x;
+		x = (drand48() * x_size) + min_x;
+		y = drand48() * world_size;
+		held = false;
+	}
+};
