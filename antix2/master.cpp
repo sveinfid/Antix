@@ -24,7 +24,7 @@ const double sight_range = 0.1;
 const double fov = 1.5;
 
 // listening on
-string host = "*";
+string host = "127.0.0.1";
 string node_port = "7770";
 string client_port = "7771";
 string operator_port = "7772";
@@ -112,12 +112,15 @@ int main() {
 		// message from a client
 		if (items[1].revents & ZMQ_POLLIN) {
 			cout << "Got msg from a client" << endl;
-			clients_socket.recv(&message);
+			antixtransfer::connect_init_client init_msg;
+			antix::recv_pb(&clients_socket, &init_msg);
+			init_msg.set_pid(next_client_id++);
+			int num_robots = init_msg.number_of_robots_requested();
 			// this message should be client giving its ip & port
 			// respond with an id for the client
 			antixtransfer::MasterServerClientInitialization init_response;
 			//init_response.set_id(next_client_id++);
-			init_response.set_robotsallocated(10);
+			init_response.set_robotsallocated(num_robots);
 			init_response.set_velocity(10.0);
 			init_response.set_visionrange(1.0);
 			init_response.set_fieldofview(2.0);

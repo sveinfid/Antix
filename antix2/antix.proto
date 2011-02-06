@@ -7,6 +7,11 @@ message connect_init_node {
 	required string client_port = 3;
 }
 
+message connect_init_client {
+	required int32 number_of_robots_requested = 1;
+	required int32 ip_addr = 2;
+	optional int32 pid = 3;
+}
 // master -> node/client response upon initial connect
 message connect_init_response {
 	required int32 id = 1;

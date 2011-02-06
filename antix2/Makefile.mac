@@ -1,13 +1,29 @@
-# You must set the environment variable
+# You must set the environment variables
+#
 # export ZMQ_PATH=/pathto/zeromq
-# e.g. export ZMQ_PATH=/home/wjs2/zeromq
+# export PROTOBUF_PATH=/path/to/protobuf
+#
+# e.g.
+# export ZMQ_PATH=/home/wjs2/zeromq
+export PROTOBUF_PATH=/usr/local
+#
 
+build_dir=.
 targets=master operator node client
+objs=antix.pb.o
 
-all: $(targets)
+includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include
+lib_paths=-L$(ZMQ_PATH)/lib -L$(PROTOBUF_PATH)/lib
+libraries=-lzmq -lprotobuf
 
-.cpp:
-	g++ -o $@ $< -lzmq
+all: $(objs) $(targets)
+
+.cpp: $(objs)
+	g++ -o $(build_dir)/$@ $< $(objs) $(libraries)
+
+antix.pb.o: antix.proto
+	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
+	g++ -c antix.pb.cc $(libraries)
 
 clean:
-	rm -f $(targets)
+	rm -f $(targets) antix.pb.*

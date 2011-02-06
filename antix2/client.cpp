@@ -10,15 +10,13 @@ using namespace std;
 string master_host = "localhost";
 string master_client_port = "7771";
 string master_publish_port = "7773";
-enum connectionType{
-	CLIENT = 0, 
-	SERVER = 1
-};
+
+int pid;
 
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
-	if (argc != 2){
-		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
+	if (argc != 3){
+		cerr << "Usage: " << argv[0] << " <IP to listen on> <# of robots>" << endl;
 		return -1;
 	}
 	zmq::context_t context(1);
@@ -28,9 +26,10 @@ int main(int argc, char **argv) {
 	// send message giving our IP
 	printf("connecting to master...\n");
 	client_master_sock.connect(antix::make_endpoint(master_host, master_client_port));
-
-	antixtransfer::connect init_connect;
-	//init_connect.set_type(CLIENT); //i dont know if you need to tell a type either, just need an initial connetion
+	antixtransfer::connect_init_client init_connect;
+	assert(atoi(argv[2]) > 0);
+	init_connect.set_number_of_robots_requested(atoi(argv[2]));
+	init_connect.set_ip_addr(atoi(argv[1]));
 	antix::send_pb(&client_master_sock, &init_connect);
 	
 	antixtransfer::MasterServerClientInitialization init_response;
