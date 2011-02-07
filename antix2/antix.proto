@@ -9,10 +9,10 @@ message connect_init_node {
 }
 
 message connect_init_client {
-	required int32 number_of_robots_requested = 1;
-	required int32 ip_addr = 2;
-	optional int32 pid = 3;
+	required int32 ip_addr = 1;
+	optional int32 pid = 2;
 }
+
 // master -> node/client response upon initial connect
 message connect_init_response {
 	required int32 id = 1;
@@ -39,7 +39,7 @@ message Node_list {
 }
 
 message connect {
-	enum connectionType{
+	enum connectionType {
 	     CLIENT = 0;
 	     SERVER = 1;
 	}
@@ -68,28 +68,24 @@ message MasterServerSlaveServerIntialization {
 	optional string rightServersIP = 10;
 }
 
-message MasterServerClientInitialization{
-	required int32 robotsAllocated = 1;
-	required double velocity = 2;
-	required double visionrange = 3; 
-	required double fieldofview = 4;	
-	required double serverwidth = 5;
-	required double serverheight = 6;
-	required double homeradius = 7;
-
-	optional int32 numberofserver = 8;
-	repeated string servers = 9;
-
-
+message MasterServerClientInitialization {
+	required double visionrange = 1;
+	required double fieldofview = 2;	
+	required double serverwidth = 3;
+	required double serverheight = 4;
+	required double homeradius = 5;
+	// id assigned to the client
+	required int32 id = 6;
+	required int32 sleep_time = 7;
 
 	message HomeLocations {
 		required int32 team = 1;
-		required double homeX = 2;
-		required double homeY = 3;
+		required double x = 2;
+		required double y = 3;
 		required string server = 4;
 	}
 
-	repeated HomeLocations homelocations  = 10;
+	repeated HomeLocations homelocations = 8;
 }	
 
 message ClientSlaveServerStartup{

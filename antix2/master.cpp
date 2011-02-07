@@ -18,9 +18,14 @@ const int sleep_time = 5000;
 // pucks per node to initially create
 const int initial_pucks_per_node = 10;
 // range of robot sight
-const double sight_range = 0.1;
+const double vision_range = 0.1;
 // robot fov
 const double fov = antix::dtor(90.0);
+// radius of homes
+const double home_radius = 0.01;
+// radius of robot
+const double robot_radius = 0.1;
+const double pickup_range = vision_range / 5.0;
 
 // listening on
 string host = "127.0.0.1";
@@ -113,26 +118,19 @@ int main() {
 		// message from a client
 		if (items[1].revents & ZMQ_POLLIN) {
 			cout << "Got msg from a client" << endl;
+			// this message should be client giving its ip & port
 			antixtransfer::connect_init_client init_msg;
 			antix::recv_pb(&clients_socket, &init_msg, 0);
-			init_msg.set_pid(next_client_id++);
-			int num_robots = init_msg.number_of_robots_requested();
-			// this message should be client giving its ip & port
 			// respond with an id for the client
 			antixtransfer::MasterServerClientInitialization init_response;
-			//init_response.set_id(next_client_id++);
-			init_response.set_robotsallocated(num_robots);
-			init_response.set_velocity(10.0);
-			init_response.set_visionrange(1.0);
-			init_response.set_fieldofview(2.0);
-			init_response.set_serverwidth(1.0);
-			init_response.set_serverheight(1.0);
-			init_response.set_homeradius(1.0);
-			/*set stuff later*/
+			init_response.set_id(next_client_id++);
+			init_response.set_visionrange(vision_range);
+			init_response.set_fieldofview(fov);
+			init_response.set_serverwidth(world_size);
+			init_response.set_serverheight(world_size);
+			init_response.set_homeradius(home_radius);
+			init_response.set_sleep_time(sleep_time);
 			antix::send_pb(&clients_socket, &init_response);
-
-
-
 		}
 
 		// message from an operator

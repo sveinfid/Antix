@@ -564,8 +564,7 @@ int main(int argc, char **argv) {
 		// service control messages on our REP socket
 		service_control_messages();
 
-		// sleep (code from rtv's Antix)
-		usleep(sleep_time * 1e3);
+		antix::sleep(sleep_time);
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

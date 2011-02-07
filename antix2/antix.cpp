@@ -31,6 +31,15 @@ public:
 		return s.c_str();
 	}
 
+	/*
+		sleep for the given milliseconds
+		usleep() usage taken from rtv's Antix
+	*/
+	static void
+	sleep(int ms) {
+		usleep(ms * 1e3);
+	}
+
 	static void
 	send_blank(zmq::socket_t *sock) {
 		zmq::message_t blank(1);
