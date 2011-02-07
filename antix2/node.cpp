@@ -68,9 +68,10 @@ set_dimensions(antixtransfer::Node_list *node_list) {
 		if (node->id() == my_id) {
 			my_min_x = node->x_offset();
 			my_max_x = my_min_x + offset_size;
-			return;
+			break;
 		}
 	}
+	cout << "Set dimensions of this node. min x: " << my_min_x << " max x: " << my_max_x << endl;
 }
 
 /*
