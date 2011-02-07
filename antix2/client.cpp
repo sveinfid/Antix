@@ -39,27 +39,27 @@ choose_random_node() {
 }
 
 /*
-	Right now only creates one robot per turn as we must wait for response from
-	the node. This can be avoided if we create all robots at once in one node,
-	or create one per node per turn.
+	Generate one message with n robots, send to a random node
+	XXX
 */
 void
-generate_robot (int id) {
+generate_robots (int n) {
 	int node = choose_random_node();
-	CRobot r(id, node);
-	robots.push_back(r);
-	// send an ADD_BOT message to the node the new robot is on
 	antixtransfer::control_message msg;
 	msg.set_team(my_id);
 	msg.set_type(antixtransfer::control_message::ADD_BOT);
-	antixtransfer::control_message::Robot *r_pb = msg.add_robot();
-	r_pb->set_id(id);
+	for (int i = 0; i < n; i++) {
+		CRobot r(i, node);
+		robots.push_back(r);
+		antixtransfer::control_message::Robot *r_pb = msg.add_robot();
+		r_pb->set_id(i);
+	}
 
 	antix::send_pb(node_map[node], &msg);
 
 	// We must receive a message in response due to REQ socket
 	antix::recv_blank(node_map[node]);
-	cout << "Created robot with id " << id << " on " << node << endl;
+	cout << "Created " << n << " robots on " << node << endl;
 }
 
 /*
@@ -156,9 +156,7 @@ main(int argc, char **argv) {
 	
 	// generate robots
 	// message each node to tell it about the robot to be created on it
-	for (int i = 0; i < num_robots; i++) {
-		generate_robot(i);
-	}
+	generate_robots(num_robots);
 
 	// enter main loop
 	while (1) {
