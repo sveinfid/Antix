@@ -31,6 +31,12 @@ public:
 		return s.c_str();
 	}
 
+	static void
+	send_blank(zmq::socket_t *sock) {
+		zmq::message_t blank(1);
+		sock->send(blank);
+	}
+
 	/*
 		Send the protobuf message pb_obj on socket
 	*/

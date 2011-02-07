@@ -349,18 +349,106 @@ synchronize_neighbours(zmq::context_t *context, zmq::socket_t *control_sock) {
 }
 */
 
+Robot *
+find_robot(int team, int id) {
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if (it->team == team && it->id == id)
+			return &*it;
+	}
+	return NULL;
+}
+
+/*
+	A client has sent an add_bot message with an arbitrary number of robots
+*/
+void
+add_bot(antixtransfer::control_message *msg) {
+	for (int i = 0; i < msg->robot_size(); i++) {
+		Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), msg->robot(i).id(), msg->team());
+		robots.push_back(r);
+	}
+	// required response, but nothing much to say
+	antix::send_blank(control_sock);
+}
+
+/*
+	A client has sent a sense message. We send the map for each of its robots as
+	a response
+*/
+void
+sense(antixtransfer::control_message *msg) {
+	// XXX right now there is only one map, so just reply with all our entities
+	antixtransfer::SendMap map;
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		antixtransfer::SendMap::Puck *puck = map.add_puck();
+		puck->set_x( it->x );
+		puck->set_y( it->y );
+		puck->set_held( it->held );
+	}
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		antixtransfer::SendMap::Robot *robot = map.add_robot();
+		robot->set_team( it->team );
+		robot->set_id( it->id );
+		robot->set_x( it->x );
+		robot->set_y( it->y );
+	}
+
+	antix::send_pb(control_sock, &map);
+}
+
+/*
+	For each robot, update the speed entry (if the robot is held by us)
+*/
+void
+setspeed(antixtransfer::control_message *msg) {
+	for (int i = 0; i < msg->robot_size(); i++) {
+		// XXX unacceptable cost to find each robot this way!
+		Robot *r = find_robot(msg->team(), msg->robot(i).id());
+		if (r != NULL) {
+			r->v = msg->robot(i).v();
+			r->w = msg->robot(i).w();
+		}
+	}
+
+	antix::send_blank(control_sock);
+}
+
+void
+pickup(antixtransfer::control_message *msg) {
+	// TODO
+
+	// XXX must send a response
+	antix::send_blank(control_sock);
+}
+
+void
+drop(antixtransfer::control_message *msg) {
+	// TODO
+
+	// XXX must send a response
+	antix::send_blank(control_sock);
+}
+
 /*
 	Service control messages from clients
 */
 void
 service_control_messages() {
-	return;
-	cout << "Receiving a client control message..." << endl;
 	antixtransfer::control_message msg;
-	antix::recv_pb(control_sock, &msg, 0);
-	cout << "Done: Received a client control message" << endl;
-	cout << "XXX not sending response yet!" << endl;
-	// XXX must send response or die
+	while (antix::recv_pb(control_sock, &msg, ZMQ_NOBLOCK) == 1) {
+		cout << "Received a client control message" << endl;
+		if (msg.type() == antixtransfer::control_message::ADD_BOT) {
+			add_bot(&msg);
+		} else if (msg.type() == antixtransfer::control_message::SENSE) {
+			sense(&msg);
+		} else if (msg.type() == antixtransfer::control_message::SETSPEED) {
+			setspeed(&msg);
+		} else if (msg.type() == antixtransfer::control_message::PICKUP) {
+			pickup(&msg);
+		} else {
+			drop(&msg);
+		}
+	}
 }
 
 int main(int argc, char **argv) {

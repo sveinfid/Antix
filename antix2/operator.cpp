@@ -3,8 +3,7 @@
 	simulation begin
 */
 
-#include <zmq.hpp>
-#include <iostream>
+#include "antix.cpp"
 
 using namespace std;
 
@@ -20,8 +19,7 @@ int main() {
 	sock.connect(master_s.c_str());
 
 	// send message with no content to indicate begin
-	zmq::message_t begin(1);
-	sock.send(begin);
+	antix::send_blank(&sock);
 	cout << "Sent master begin command" << endl;
 
 	// get a blank ACK or else the REP socket will hang
