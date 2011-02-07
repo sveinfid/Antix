@@ -53,6 +53,41 @@ generate_robot (int id) {
 }
 
 /*
+	Get map data from nodes for each of our robots
+	TODO
+	Right now this just requests the entire map from each node
+*/
+void
+update_map_data() {
+	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
+		// XXX right now just request whole map from each node
+		antixtransfer::control_message msg;
+		msg.set_type(antixtransfer::control_message::SENSE);
+		msg.set_team(my_id);
+		antix::send_pb(it->second, &msg);
+	}
+	// Separate loops so that all the messages go out at once
+	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
+
+		// Receive map back, but do nothing with it right now
+		antixtransfer::SendMap map;
+		antix::recv_pb(it->second, &map, 0);
+		cout << "Got " << map.robot_size() << " robots and " << map.puck_size() << " pucks from node " << it->first << endl;
+	}
+}
+
+void
+update_senses() {
+	// XXX cpu work
+}
+
+void
+controller() {
+	// XXX
+	// Say for each robot we want to SETSPEED & PICKUP _or_ DROP
+}
+
+/*
 	Map nodes sockets by id & connect to all nodes
 */
 map<int, zmq::socket_t *>
@@ -68,7 +103,8 @@ get_node_map(zmq::context_t *context, antixtransfer::Node_list *node_list) {
 	return node_map;
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	if (argc != 3) {
 		cerr << "Usage: " << argv[0] << " <IP to listen on> <# of robots>" << endl;
@@ -116,15 +152,14 @@ int main(int argc, char **argv) {
 
 	// enter main loop
 	while (1) {
-		// request sense data for our robots
+		// request map data for our robots
+		update_map_data();
 
-		// receive it
+		// update what each robot can see
+		update_senses();
 
-		// decide commands to send for each robot
-
-		// send them
-
-		// receive response?
+		// decide & send what commands for each robot
+		controller();
 
 		// sleep
 		antix::sleep(sleep_time);

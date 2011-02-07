@@ -329,3 +329,7 @@ public:
 
 	CRobot(int id, int node_ide) : id(id), node_id(node_id) {}
 };
+
+class CMap {
+
+};
