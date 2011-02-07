@@ -22,7 +22,7 @@ void make_node_map(antixtransfer::Node_list *node_list){
 	for (int i = 0; i < node_list->node_size(); i++) {
 		node = node_list->mutable_node(i);
 		zmq::socket_t *client_node_sock = new zmq::socket_t(context, ZMQ_REQ);
-		node_map.insert(pair<int, &zmq::socket_t> (node->id(), client_node_sock));
+		node_map.insert(pair<int, zmq::socket_t*> (node->id(), client_node_sock));
 	}
 	//return node_map;
 }
