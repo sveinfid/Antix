@@ -12,6 +12,7 @@ using namespace std;
 string master_host = "localhost";
 string master_client_port = "7771";
 string master_publish_port = "7773";
+string client_node_port = "7774";
 
 int pid;
 typedef map<int, zmq::socket_t*> node_map;
@@ -65,6 +66,17 @@ int main(int argc, char **argv) {
 
 	map<int, zmq::socket_t*> map;
 	map = get_node_map(&node_list);
+	cout << "made a map of node_list" << endl;
+	
+	/*TODO: need to iterate through a map and make connection with nodes
+	map<int, zmq::socket_t*>::iterator it;
+	for(it = map.begin; map.end(); it++)
+	{
+		pair<map<int, zmq::socket_t*>> p = *it;
+		//client_node_sock.connect(antix::make_endpoint(master_host, client_node_sock));
+
+	}
+	*/
 
 	//antixtransfer::Node_list::Node 		
 	
