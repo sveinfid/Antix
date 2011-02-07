@@ -42,11 +42,12 @@ int main(int argc, char **argv) {
 	master_publish_sock->connect(antix::make_endpoint(master_host, master_publish_port));
 
 	// receive message from master to receive a list of nodes from master
-	antixtransfer::Node_list pub_msg;
+	antixtransfer::Node_list node_list;
 	//waiting for master to send a list of nodes
-	antix::recv_pb(master_publish_sock, &pub_msg, 0);
+	antix::recv_pb(master_publish_sock, &node_list, 0);
 	cout << "Received pub_msg from master" << endl;
-
+	antix::print_nodes(&node_list);
+	//antixtransfer::Node_list::Node 		
 	
 		
 	// get message giving our ID
@@ -76,6 +77,7 @@ int main(int argc, char **argv) {
 
 		// sleep
 	}
+	google::protobuf::ShutdownProtobufLibrary();
 
 	return 0;
 }
