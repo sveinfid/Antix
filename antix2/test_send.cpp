@@ -68,22 +68,55 @@ main(int argc, char **argv) {
 	} else if (msg_type == 2) {
 		antixtransfer::control_message ctl;
 		ctl.set_team(1);
-		ctl.set_type(antixtransfer::ADD_BOT);
-		antixtransfer::control_message::Robot *r = ctl.add_bot();
-		ctl.set_id(1);
+		ctl.set_type(antixtransfer::control_message::ADD_BOT);
+		for (int i = 0; i < num_robots; i++) {
+			antixtransfer::control_message::Robot *r = ctl.add_robot();
+			r->set_id(1);
+		}
 		antix::send_pb(&sock, &ctl);
 		cout << "Sending ADD_BOT msg containing N robots..." << endl;
 		cout << "Waiting for response..." << endl;
-		antix::recv_blank();
+		antix::recv_blank(&sock);
 
 	// SENSE ctl message
 	} else if (msg_type == 3) {
+		antixtransfer::control_message ctl;
+		ctl.set_team(1);
+		ctl.set_type(antixtransfer::control_message::SENSE);
+		antix::send_pb(&sock, &ctl);
+		cout << "Sending SENSE msg ..." << endl;
+		cout << "Waiting for response..." << endl;
+		antix::recv_blank(&sock);
 
 	// SETSPEED ctl message
 	} else if (msg_type == 4) {
+		antixtransfer::control_message ctl;
+		ctl.set_team(1);
+		ctl.set_type(antixtransfer::control_message::SETSPEED);
+		for (int i = 0; i < num_robots; i++) {
+			antixtransfer::control_message::Robot *r = ctl.add_robot();
+			r->set_id(1);
+			r->set_v(0.5);
+			r->set_w(0.004);
+		}
+		cout << "Sending SETSPEED msg containing N robots..." << endl;
+		antix::send_pb(&sock, &ctl);
+		cout << "Waiting for response..." << endl;
+		antix::recv_blank(&sock);
 
 	// PICKUP/DROP ctl message
 	} else if (msg_type == 5) {
+		antixtransfer::control_message ctl;
+		ctl.set_team(1);
+		ctl.set_type(antixtransfer::control_message::PICKUP);
+		for (int i = 0; i < num_robots; i++) {
+			antixtransfer::control_message::Robot *r = ctl.add_robot();
+			r->set_id(1);
+		}
+		cout << "Sending PICKUP/DROP msg containing N robots..." << endl;
+		antix::send_pb(&sock, &ctl);
+		cout << "Waiting for response..." << endl;
+		antix::recv_blank(&sock);
 
 	// Invalid message given
 	} else {
