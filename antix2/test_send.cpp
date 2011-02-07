@@ -74,7 +74,7 @@ main(int argc, char **argv) {
 			r->set_id(1);
 		}
 		antix::send_pb(&sock, &ctl);
-		cout << "Sending ADD_BOT msg containing N robots..." << endl;
+		cout << "Sending ADD_BOT msg containing " << num_robots << " robots..." << endl;
 		cout << "Waiting for response..." << endl;
 		antix::recv_blank(&sock);
 
@@ -99,7 +99,7 @@ main(int argc, char **argv) {
 			r->set_v(0.5);
 			r->set_w(0.004);
 		}
-		cout << "Sending SETSPEED msg containing N robots..." << endl;
+		cout << "Sending SETSPEED msg containing " << num_robots << " robots..." << endl;
 		antix::send_pb(&sock, &ctl);
 		cout << "Waiting for response..." << endl;
 		antix::recv_blank(&sock);
@@ -113,7 +113,7 @@ main(int argc, char **argv) {
 			antixtransfer::control_message::Robot *r = ctl.add_robot();
 			r->set_id(1);
 		}
-		cout << "Sending PICKUP/DROP msg containing N robots..." << endl;
+		cout << "Sending PICKUP/DROP msg containing " << num_robots << " robots..." << endl;
 		antix::send_pb(&sock, &ctl);
 		cout << "Waiting for response..." << endl;
 		antix::recv_blank(&sock);
