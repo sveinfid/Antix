@@ -3,7 +3,8 @@
 
 	The majority of the ZMQ stuff is based on examples from the ZMQ guide:
 	http://zguide.zeromq.org/chapter:all
-	Most notably the pub/sub message enveloping example from
+	Most notably the pub/sub message enveloping example used in the functions
+	move_robot() and parse_neighbour_message(). Similar to:
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvpub.cpp
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvsub.cpp
 
@@ -259,10 +260,6 @@ move_robot(Robot *r) {
 	// Then we send our content msg
 	antix::send_pb(pub_sock, &transfer_msg);
 
-	// Wait for response
-	//antixtransfer::TransferUpdate response;
-	//antix::recv_pb(node_control_sock, &response, 0);
-
 	cout << "Transferred robot " << r->id << " on team " << r->team << endl;
 }
 
@@ -454,9 +451,6 @@ int main(int argc, char **argv) {
 	// the initial messages
 	// Buggy, interferes with control sockets currently
 	//synchronize_neighbours(&context, &control_sock);
-
-	// XXX test code
-	robots.push_back(Robot(0.5, 0.5, 1, 1));
 
 	// generate pucks
 	generate_pucks();
