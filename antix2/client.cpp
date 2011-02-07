@@ -3,7 +3,9 @@
 	and then connects to all nodes
 */
 
+#include <map>
 #include "antix.cpp"
+
 
 using namespace std;
 
@@ -12,6 +14,18 @@ string master_client_port = "7771";
 string master_publish_port = "7773";
 
 int pid;
+
+void make_node_map(antixtransfer::Node_list *node_list){
+	map<int, zmq::socket_t*> node_map;
+	antixtransfer::Node_list::Node *node;
+	zmq::context_t context(1);
+	for (int i = 0; i < node_list->node_size(); i++) {
+		node = node_list->mutable_node(i);
+		zmq::socket_t *client_node_sock = new zmq::socket_t(context, ZMQ_REQ);
+		node_map.insert(pair<int, &zmq::socket_t> (node->id(), client_node_sock));
+	}
+	//return node_map;
+}
 
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -47,6 +61,9 @@ int main(int argc, char **argv) {
 	antix::recv_pb(master_publish_sock, &node_list, 0);
 	cout << "Received pub_msg from master" << endl;
 	antix::print_nodes(&node_list);
+
+	make_node_map(&node_list);
+
 	//antixtransfer::Node_list::Node 		
 	
 		
