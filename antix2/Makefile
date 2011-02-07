@@ -4,12 +4,13 @@
 # export PROTOBUF_PATH=/path/to/protobuf
 #
 # e.g.
-# export ZMQ_PATH=/home/wjs2/zeromq
-# export PROTOBUF_PATH=/home/wjs2/protobuf
-#
+
+
+export ZMQ_PATH=/home/gpa7/sfuhome/zeromq
+export PROTOBUF_PATH=/home/gpa7/sfuhome/protobuf
 
 build_dir=.
-targets=master operator node client
+targets=master operator node client master-gptest
 objs=antix.pb.o
 
 includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include

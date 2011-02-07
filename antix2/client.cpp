@@ -3,6 +3,8 @@
 	and then connects to all nodes
 */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <map>
 #include "antix.cpp"
 
@@ -24,8 +26,16 @@ vector<CRobot> robots;
 int
 choose_random_node() {
 	// TODO. right now selects first node in map always
-	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++)
-		return it->first;
+	
+
+	//for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++)
+	return rand() % node_map.size();
+		
+	//	return it->first;
+
+	
+	
+
 }
 
 /*
