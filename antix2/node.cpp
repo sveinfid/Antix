@@ -273,7 +273,6 @@ update_poses() {
 	vector<Robot>::iterator it = robots.begin();
 	// while loop as it can be updated other than from for iteration
 	while (it != robots.end()) {
-		cout << "Updating poses!" << endl;
 		it->update_pose(world_size);
 
 		// Then check each robot for being outside of our range
@@ -367,6 +366,7 @@ add_bot(antixtransfer::control_message *msg) {
 	for (int i = 0; i < msg->robot_size(); i++) {
 		Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), msg->robot(i).id(), msg->team());
 		robots.push_back(r);
+		cout << "Created a bot: Team: " << r.team << " id: " << r.id << endl;
 	}
 	// required response, but nothing much to say
 	antix::send_blank(control_sock);
@@ -437,7 +437,7 @@ void
 service_control_messages() {
 	antixtransfer::control_message msg;
 	while (antix::recv_pb(control_sock, &msg, ZMQ_NOBLOCK) == 1) {
-		cout << "Received a client control message" << endl;
+		cout << "Received a client control message: " << msg.type() << endl;
 		if (msg.type() == antixtransfer::control_message::ADD_BOT) {
 			add_bot(&msg);
 		} else if (msg.type() == antixtransfer::control_message::SENSE) {

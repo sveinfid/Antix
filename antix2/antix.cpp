@@ -46,6 +46,12 @@ public:
 		sock->send(blank);
 	}
 
+	static void
+	recv_blank(zmq::socket_t *sock) {
+		zmq::message_t blank(1);
+		sock->recv(&blank);
+	}
+
 	/*
 		Send the protobuf message pb_obj on socket
 	*/
@@ -313,4 +319,13 @@ public:
 			puck->y = y;
 		}
 	}
+};
+
+// Robot class for clients
+class CRobot {
+public:
+	int id;
+	int node_id;
+
+	CRobot(int id, int node_ide) : id(id), node_id(node_id) {}
 };

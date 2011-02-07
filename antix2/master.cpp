@@ -117,7 +117,6 @@ int main() {
 
 		// message from a client
 		if (items[1].revents & ZMQ_POLLIN) {
-			cout << "Got msg from a client" << endl;
 			// this message should be client giving its ip & port
 			antixtransfer::connect_init_client init_msg;
 			antix::recv_pb(&clients_socket, &init_msg, 0);
@@ -130,6 +129,7 @@ int main() {
 			init_response.set_serverheight(world_size);
 			init_response.set_homeradius(home_radius);
 			init_response.set_sleep_time(sleep_time);
+			cout << "Client connected (" << init_msg.ip_addr() << "). Assigned id " << init_response.id() << endl;
 			antix::send_pb(&clients_socket, &init_response);
 		}
 

@@ -9,7 +9,7 @@ message connect_init_node {
 }
 
 message connect_init_client {
-	required int32 ip_addr = 1;
+	required string ip_addr = 1;
 	optional int32 pid = 2;
 }
 
