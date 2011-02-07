@@ -277,4 +277,25 @@ public:
 		puck = NULL;
 		has_puck = false;
 	}
+
+	/*
+		update the pose of a single robot
+		Taken from rtv's Antix
+	*/
+	void
+	update_pose(double world_size) {
+		double dx = v * cos(a);
+		double dy = v * sin(a);
+		double da = w;
+
+		x = antix::DistanceNormalize(x + dx, world_size);
+		y = antix::DistanceNormalize(y + dy, world_size);
+		a = antix::AngleNormalize(a + da);
+
+		// If we're holding a puck, it must move also
+		if (has_puck) {
+			puck->x = x;
+			puck->y = y;
+		}
+	}
 };

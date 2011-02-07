@@ -6,6 +6,10 @@
 	Most notably the pub/sub message enveloping example from
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvpub.cpp
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvsub.cpp
+
+	Bugs:
+	- Synchronization issue with pub/sub sockets: some initial messages may/will
+	be lost
 */
 
 #include "antix.cpp"
@@ -78,6 +82,19 @@ generate_pucks() {
 	}
 }
 
+void
+print_foreign_entities() {
+	cout << "Current foreign entities: " << endl;
+	for (vector<Robot>::iterator it = left_foreign_robots.begin(); it != left_foreign_robots.end(); it++)
+		cout << "\tRobot at " << it->x << ", " << it->y << endl;
+	for (vector<Robot>::iterator it = right_foreign_robots.begin(); it != right_foreign_robots.end(); it++)
+		cout << "\tRobot at " << it->x << ", " << it->y << endl;
+	for (vector<Puck>::iterator it = left_foreign_pucks.begin(); it != left_foreign_pucks.end(); it++)
+		cout << "\tPuck at " << it->x << ", " << it->y << endl;
+	for (vector<Puck>::iterator it = right_foreign_pucks.begin(); it != right_foreign_pucks.end(); it++)
+		cout << "\tPuck at " << it->x << ", " << it->y << endl;
+}
+
 /*
 	Given a map which may or may not contain entities, add any entities therein
 	to our internal records of foreign robots & pucks
@@ -109,8 +126,8 @@ send_border_entities() {
 		antixtransfer::SendMap::Robot *robot = send_map.add_robot();
 		robot->set_x( it->x );
 		robot->set_y( it->y );
-		// not implemented
-		robot->set_team(0);
+		robot->set_team( it->team );
+		robot->set_id( it->id );
 	}
 
 	// XXX only one list of pucks right now
@@ -186,6 +203,7 @@ recv_neighbour_messages() {
 	while (right_sub_sock->recv(&type_msg, ZMQ_NOBLOCK) == 1) {
 		parse_neighbour_message(right_sub_sock, &type_msg, &right_foreign_robots, &right_foreign_pucks);
 	}
+	print_foreign_entities();
 }
 
 /*
@@ -216,11 +234,12 @@ move_robot(Robot *r) {
 	if (r->x < my_min_x) {
 		node = &left_node;
 		pub_sock = left_pub_sock;
+		cout << "Moving robot to left_pub_sock" << endl;
 	} else {
 		node = &right_node;
 		pub_sock = right_pub_sock;
+		cout << "Moving robot to right_pub_sock" << endl;
 	}
-	cout << "Here" << endl;
 
 	// transfer the robot
 	antixtransfer::RequestRobotTransfer transfer_msg;
@@ -237,10 +256,8 @@ move_robot(Robot *r) {
 	zmq::message_t type(2);
 	memcpy(type.data(), "m", 2);
 	pub_sock->send(type, ZMQ_SNDMORE);
-	cout << "Here2" << endl;
 	// Then we send our content msg
 	antix::send_pb(pub_sock, &transfer_msg);
-	cout << "Here3" << endl;
 
 	// Wait for response
 	//antixtransfer::TransferUpdate response;
@@ -250,36 +267,16 @@ move_robot(Robot *r) {
 }
 
 /*
-	update the pose of a single robot
-	Taken from rtv's Antix
-*/
-void
-update_pose(Robot *r) {
-	double dx = r->v * cos(r->a);
-	double dy = r->v * sin(r->a);
-	double da = r->w;
-
-	r->x = antix::DistanceNormalize(r->x + dx, world_size);
-	r->y = antix::DistanceNormalize(r->y + dy, world_size);
-	r->a = antix::AngleNormalize(r->a + da);
-
-	// If we're holding a puck, it must move also
-	if (r->has_puck) {
-		r->puck->x = r->x;
-		r->puck->y = r->y;
-	}
-
-	// XXX deal with collision
-}
-
-/*
 	Go through our local robots & update their poses
 */
 void
 update_poses() {
 	// For each robot, update its pose
-	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		update_pose(&*it);
+	vector<Robot>::iterator it = robots.begin();
+	// while loop as it can be updated other than from for iteration
+	while (it != robots.end()) {
+		cout << "Updating poses!" << endl;
+		it->update_pose(world_size);
 
 		// Then check each robot for being outside of our range
 		// separate from update_pose() as we must be careful deleting from vector
@@ -289,24 +286,15 @@ update_poses() {
 			// Remove puck if robot is carrying one
 			remove_puck(&*it);
 			move_robot(&*it);
+			cout << "Past move robot " <<endl;
 			it = robots.erase(it);
+			cout << "Past robot erase" << endl;
+		} else {
+			it++;
 		}
 	}
 	cout << "Poses updated for all robots." << endl;
 }
-
-/*
-	Initiate connections to our neighbour's control sockets
-*/
-/*
-void
-connect_neighbour_control_socks(zmq::context_t *context) {
-	left_control_sock = new zmq::socket_t(*context, ZMQ_REQ);
-	right_control_sock = new zmq::socket_t(*context, ZMQ_REQ);
-	left_control_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.control_port()));
-	right_control_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.control_port()));
-}
-*/
 
 /*
 	Wait for a response from our neighbours which indicates synchronization
@@ -377,62 +365,6 @@ service_control_messages() {
 	cout << "XXX not sending response yet!" << endl;
 	// XXX must send response or die
 }
-
-/*
-	Control messages from neighbouring nodes
-	move_bot messages
-*/
-/*
-void
-node_control(zmq::socket_t *control_sock, string *type) {
-	cout << "Received a node control message" << endl;
-	antixtransfer::RequestRobotTransfer transfer_msg;
-	antix::recv_pb(control_sock, &transfer_msg, 0);
-
-	// Add the robot to our records
-	Robot r(transfer_msg.x(), transfer_msg.y(), transfer_msg.id(), transfer_msg.team());
-	r.a = transfer_msg.a();
-	r.v = transfer_msg.v();
-	r.w = transfer_msg.w();
-	r.has_puck = transfer_msg.has_puck();
-	// If the robot is carrying a puck, we have to add a puck to our records
-	if (r.has_puck) {
-		Puck p(r.x, r.y, true);
-		pucks.push_back(p);
-		r.puck = &p;
-	}
-	robots.push_back(r);
-	cout << "Robot transferred to this node." << endl;
-	cout << "Current robots:" << endl;
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		cout << "Robot id " << it->id << " on team " << it->team << " at " << it->x << ", " << it->y << endl;
-	}
-}
-*/
-
-/*
-	add_bot, sense, setspeed, pickup, drop from client
-	move_bot from neighbours
-*/
-/*
-XXX example of recving enveloped
-void
-service_control_messages(zmq::socket_t *control_sock) {
-	zmq::message_t type_msg;
-	while(control_sock->recv(&type_msg, ZMQ_NOBLOCK) == 1) {
-		// First we read the envelope address (specifies from neighbour or a client)
-		// type_msg contains this
-		string s = string((char *) type_msg.data());
-		cout << "Received a control message: " << s << endl;
-
-		// Then the actual message
-		if (s == "c")
-			client_control(control_sock);
-		else if (s == "n")
-			node_control(control_sock, &s);
-	}
-}
-*/
 
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -524,7 +456,7 @@ int main(int argc, char **argv) {
 	//synchronize_neighbours(&context, &control_sock);
 
 	// XXX test code
-	//robots.push_back(Robot(0.5, 0.5, 1, 1));
+	robots.push_back(Robot(0.5, 0.5, 1, 1));
 
 	// generate pucks
 	generate_pucks();
@@ -542,16 +474,6 @@ int main(int argc, char **argv) {
 		// - update our foreign entity knowledge
 		// - handle any move_bot messages
 		recv_neighbour_messages();
-
-		cout << "Current foreign entities: " << endl;
-		for (vector<Robot>::iterator it = left_foreign_robots.begin(); it != left_foreign_robots.end(); it++)
-			cout << "\tRobot at " << it->x << ", " << it->y << endl;
-		for (vector<Robot>::iterator it = right_foreign_robots.begin(); it != right_foreign_robots.end(); it++)
-			cout << "\tRobot at " << it->x << ", " << it->y << endl;
-		for (vector<Puck>::iterator it = left_foreign_pucks.begin(); it != left_foreign_pucks.end(); it++)
-			cout << "\tPuck at " << it->x << ", " << it->y << endl;
-		for (vector<Puck>::iterator it = right_foreign_pucks.begin(); it != right_foreign_pucks.end(); it++)
-			cout << "\tPuck at " << it->x << ", " << it->y << endl;
 
 		// update poses for internal robots & move any robots outside our control
 		update_poses();
