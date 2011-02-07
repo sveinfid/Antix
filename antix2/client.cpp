@@ -14,8 +14,9 @@ string master_client_port = "7771";
 string master_publish_port = "7773";
 
 int pid;
+typedef map<int, zmq::socket_t*> node_map;
 
-void make_node_map(antixtransfer::Node_list *node_list){
+node_map get_node_map(antixtransfer::Node_list *node_list){
 	map<int, zmq::socket_t*> node_map;
 	antixtransfer::Node_list::Node *node;
 	zmq::context_t context(1);
@@ -24,7 +25,7 @@ void make_node_map(antixtransfer::Node_list *node_list){
 		zmq::socket_t *client_node_sock = new zmq::socket_t(context, ZMQ_REQ);
 		node_map.insert(pair<int, zmq::socket_t*> (node->id(), client_node_sock));
 	}
-	//return node_map;
+	return node_map;
 }
 
 int main(int argc, char **argv) {
@@ -62,7 +63,8 @@ int main(int argc, char **argv) {
 	cout << "Received pub_msg from master" << endl;
 	antix::print_nodes(&node_list);
 
-	make_node_map(&node_list);
+	map<int, zmq::socket_t*> map;
+	map = get_node_map(&node_list);
 
 	//antixtransfer::Node_list::Node 		
 	
