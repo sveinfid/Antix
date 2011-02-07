@@ -36,6 +36,17 @@ int main(int argc, char **argv) {
 	antix::recv_pb(&client_master_sock, &init_response, 0);
 	int num_robots = init_response.robotsallocated();
 	cout << "the numer of robots allocated " << num_robots << endl;
+
+	zmq::socket_t *master_publish_sock = new zmq::socket_t(context, ZMQ_SUB);
+	master_publish_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	master_publish_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+
+	// receive message from master to receive a list of nodes from master
+	antixtransfer::Node_list pub_msg;
+	//waiting for master to send a list of nodes
+	antix::recv_pb(master_publish_sock, &pub_msg, 0);
+	cout << "Received pub_msg from master" << endl;
+
 	
 		
 	// get message giving our ID
