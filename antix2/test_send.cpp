@@ -13,6 +13,7 @@ main(int argc, char **argv) {
 		cerr << "\t3 - SENSE control message" << endl;
 		cerr << "\t4 - SETSPEED control message for N robots" << endl;
 		cerr << "\t5 - PICKUP/DROP control message for N robots" << endl;
+		cout << "\t6 - Redesign: sendmap2" << endl;
 		return -1;
 	}
 	int msg_type = atoi(argv[2]);
@@ -117,6 +118,30 @@ main(int argc, char **argv) {
 		antix::send_pb(&sock, &ctl);
 		cout << "Waiting for response..." << endl;
 		antix::recv_blank(&sock);
+
+	// SendMap2 message
+	} else if (msg_type == 6) {
+		cout << "Sending SendMap2 message with " << num_robots << " robots." << endl;
+
+		antixtransfer::SendMap2 map;
+		for (int i = 0; i < num_robots; i++) {
+			antixtransfer::SendMap2::Robot *r = map.add_robot();
+			r->set_x(0.0030345);
+			r->set_y(0.0005678);
+			r->set_puck_id(999999);
+			r->set_puck_action(true);
+		}
+		/*
+		for (int i = 0; i < num_pucks; i++) {
+			antixtransfer::SendMap::Puck *p = map.add_puck();
+			p->set_x(0.9999998);
+			p->set_y(0.1123456);
+			p->set_held(false);
+		}
+		*/
+		antix::send_pb(&sock, &map);
+		antix::recv_blank(&sock);
+		cout << "Received response." << endl;
 
 	// Invalid message given
 	} else {

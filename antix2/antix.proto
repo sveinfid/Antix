@@ -129,6 +129,17 @@ message SendMap {
 	repeated Puck puck = 2;
 }
 
+// potentially used for redesign
+message SendMap2 {
+	message Robot {
+		required double x = 1;
+		required double y = 2;
+		optional int32 puck_id = 3;
+		optional bool puck_action = 4;
+	}
+	repeated Robot robot = 1;
+}
+
 message ServerRequestMap {
 	message MapLocation {
 		required double mapX = 1;
