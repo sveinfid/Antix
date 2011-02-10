@@ -7,7 +7,8 @@
 
 using namespace std;
 
-string master_host = "localhost";
+//string master_host = "localhost";
+string master_host = "142.58.35.225";
 // operator port
 string master_port = "7772";
 

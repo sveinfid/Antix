@@ -17,7 +17,8 @@
 
 using namespace std;
 
-string master_host = "localhost";
+//string master_host = "localhost";
+string master_host = "142.58.35.225";
 string master_node_port = "7770";
 string master_publish_port = "7773";
 
@@ -349,6 +350,58 @@ synchronize_neighbours(zmq::context_t *context, zmq::socket_t *control_sock) {
 }
 */
 
+void
+synchronize_nodes(zmq::socket_t *master_control_sock,
+	zmq::socket_t *master_pub_sock,
+	antixtransfer::Node_list *node_list,
+	zmq::socket_t *left_sub_sock,
+	zmq::socket_t *left_pub_sock) {
+
+	cout << "Beginning synchronization..." << endl;
+	for (int i = 0; i < node_list->node_size(); i++) {
+		if (node_list->node(i).id() != my_id)
+			left_sub_sock->connect(antix::make_endpoint( node_list->node(i).ip_addr(), node_list->node(i).left_port() ));
+	}
+	cout << "Connected to all node PUB ports." << endl;
+
+	// Never finish until we are synchronized
+	while (1) {
+		// Send a message on our PUB sock, hopefully others hear it
+		antixtransfer::node_node_sync send_sync_msg;
+		send_sync_msg.set_id(my_id);
+		antix::send_pb(left_pub_sock, &send_sync_msg);
+		cout << "Sent a message to other nodes." << endl;
+
+		// We are synced if master has sent us a message
+		zmq::message_t msg;
+		if (master_pub_sock->recv(&msg, ZMQ_NOBLOCK) == 1) {
+			cout << "Successfully synchronized." << endl;
+			return;
+		}
+
+		// Receive any messages from other nodes
+		// Tell our master what we can hear
+		antixtransfer::node_node_sync sync_msg;
+		while (antix::recv_pb(left_sub_sock, &sync_msg, ZMQ_NOBLOCK) == 1) {
+			cout << "Got a message from node " << sync_msg.id() << endl;
+			// first indicate type
+			zmq::message_t type(2);
+			memcpy(type.data(), "h", 2);
+			master_control_sock->send(type, ZMQ_SNDMORE);
+			// then actual msg
+			antixtransfer::node_master_sync heard_msg;
+			heard_msg.set_my_id( my_id );
+			heard_msg.set_heard_id( sync_msg.id() );
+			antix::send_pb( master_control_sock, &heard_msg );
+
+			// must get a response since rep socket
+			antix::recv_blank( master_control_sock );
+		}
+
+		antix::sleep(1000);
+	}
+}
+
 Robot *
 find_robot(int team, int id) {
 	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
@@ -452,6 +505,35 @@ service_control_messages() {
 	}
 }
 
+void
+test_design(zmq::socket_t *left_pub_sock, zmq::socket_t *left_sub_sock) {
+	int num_nodes = 10;
+	antixtransfer::SendMap2 map;
+	// create a message with
+	// 10 nodes => 100,000 robot message
+	for (int i = 0; i < 100000; i++) {
+		antixtransfer::SendMap2::Robot *r = map.add_robot();
+		r->set_x(0.555);
+		r->set_y(0.66234);
+		r->set_puck_id(1);
+		r->set_puck_action(true);
+	}
+
+	int turn_count = 0;
+	while (1) {
+		cout << "Sending map to other nodes..." << endl;
+		antix::send_pb(left_pub_sock, &map);
+		for (int i = 0; i < num_nodes-1; i++) {
+			antixtransfer::SendMap2 recvd_map;
+			antix::recv_pb(left_sub_sock, &recvd_map, 0);
+			cout << "Got map from a node. Map count: " << i << endl;
+		}
+		cout << "Got all maps. Turn " << turn_count << " completed." << endl;
+		turn_count++;
+	}
+
+}
+
 int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
@@ -476,6 +558,12 @@ int main(int argc, char **argv) {
 	cout << "Sending master our existence notification..." << endl;
 
 	// create & send pb msg identifying ourself
+	// first indicate type
+	zmq::message_t type(8);
+	memcpy(type.data(), "connect", 8);
+	master_control_sock->send(type, ZMQ_SNDMORE);
+
+	// then the actual id message
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr( string(argv[1]) );
 	pb_init_msg.set_left_port( string(argv[2]) );
@@ -516,17 +604,17 @@ int main(int argc, char **argv) {
 	// these receive foreign entities that are near our border
 	left_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	left_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	left_sub_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.right_port()));
+	//left_sub_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.right_port()));
 
-	right_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	right_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	right_sub_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.left_port()));
+	//right_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	//right_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	//right_sub_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.left_port()));
 
 	// open PUB socket neighbours where we publish entities close to the borders
 	left_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
 	left_pub_sock->bind(antix::make_endpoint( argv[1], argv[2] ));
-	right_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	right_pub_sock->bind(antix::make_endpoint( argv[1], argv[3] ));
+	//right_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
+	//right_pub_sock->bind(antix::make_endpoint( argv[1], argv[3] ));
 
 	// create REP socket that receives control messages from clients
 	control_sock = new zmq::socket_t(context, ZMQ_REP);
@@ -540,6 +628,12 @@ int main(int argc, char **argv) {
 	// the initial messages
 	// Buggy, interferes with control sockets currently
 	//synchronize_neighbours(&context, &control_sock);
+	synchronize_nodes(master_control_sock, master_publish_sock, &node_list, left_sub_sock, left_pub_sock);
+
+	test_design(left_pub_sock, left_sub_sock);
+
+	cout << "Not running actual simulation now" << endl;
+	return 0;
 
 	// generate pucks
 	generate_pucks();

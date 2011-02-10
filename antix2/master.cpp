@@ -28,7 +28,8 @@ const double robot_radius = 0.1;
 const double pickup_range = vision_range / 5.0;
 
 // listening on
-string host = "127.0.0.1";
+//string host = "127.0.0.1";
+string host = "142.58.35.225";
 string node_port = "7770";
 string client_port = "7771";
 string operator_port = "7772";
@@ -38,6 +39,9 @@ int next_node_id = 0;
 int next_client_id = 0;
 
 antixtransfer::Node_list node_list;
+
+// used for synchronization
+map<int, map<int, bool> > nodes_heard;
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -55,6 +59,26 @@ set_node_offsets() {
 		cout << "Assign node with id " << node->id() << " x offset " << position << endl;
 		position = position + offset_size;
 	}
+}
+
+int
+check_sync_done() {
+	for (map<int, map<int, bool> >::iterator it = nodes_heard.begin(); it != nodes_heard.end(); it++) {
+		// -1 since node won't hear from itself!
+		if (it->second.size() != nodes_heard.size()-1)
+			return 0;
+	}
+	return 1;
+}
+
+int
+add_heard(int id, int heard_id) {
+	map<int, bool> nodes_heard_i = nodes_heard[id];
+	// node hasn't heard of heard_id yet
+	if (nodes_heard_i.count(heard_id) == 0) {
+		nodes_heard[id].insert( pair<int, bool>(heard_id, true) );
+	}
+	return check_sync_done();
 }
 
 int main() {
@@ -91,28 +115,47 @@ int main() {
 
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
-			// this message should be node giving its ip (& port maybe?)
-			antixtransfer::connect_init_node init_msg;
-			antix::recv_pb(&nodes_socket, &init_msg, 0);
+			nodes_socket.recv(&message, 0);
+			string type = string( (char *) message.data() );
+			// Two types of messages expected from node:
+			// - an initial connection
+			// - an msg of having heard another node
+			if (type == "connect") { 
+				// this message should be node giving its ip (& port maybe?)
+				antixtransfer::connect_init_node init_msg;
+				antix::recv_pb(&nodes_socket, &init_msg, 0);
 
-			// respond with an id for the node & config info
-			antixtransfer::connect_init_response init_response;
-			init_response.set_id(next_node_id++);
-			init_response.set_world_size(world_size);
-			init_response.set_sleep_time(sleep_time);
-			init_response.set_puck_amount(initial_pucks_per_node);
-			antix::send_pb(&nodes_socket, &init_response);
+				// respond with an id for the node & config info
+				antixtransfer::connect_init_response init_response;
+				init_response.set_id(next_node_id++);
+				init_response.set_world_size(world_size);
+				init_response.set_sleep_time(sleep_time);
+				init_response.set_puck_amount(initial_pucks_per_node);
+				antix::send_pb(&nodes_socket, &init_response);
 
-			// add node to internal listing of nodes
-			antixtransfer::Node_list::Node *node = node_list.add_node();
-			node->set_ip_addr( init_msg.ip_addr() );
-			node->set_id( next_node_id - 1 );
-			node->set_left_port( init_msg.left_port() );
-			node->set_right_port( init_msg.right_port() );
-			node->set_control_port( init_msg.control_port() );
+				// add node to internal listing of nodes
+				antixtransfer::Node_list::Node *node = node_list.add_node();
+				node->set_ip_addr( init_msg.ip_addr() );
+				node->set_id( next_node_id - 1 );
+				node->set_left_port( init_msg.left_port() );
+				node->set_right_port( init_msg.right_port() );
+				node->set_control_port( init_msg.control_port() );
 
-			cout << "Node connected. IP: " << node->ip_addr() << " Left port: " << node->left_port() << " Right port: " << node->right_port() << " Control port: " << node->control_port() << " Assigned id " << node->id() << "." << endl;
-			cout << "Total nodes: " << node_list.node_size() << "." << endl;
+				cout << "Node connected. IP: " << node->ip_addr() << " Left port: " << node->left_port() << " Right port: " << node->right_port() << " Control port: " << node->control_port() << " Assigned id " << node->id() << "." << endl;
+				cout << "Total nodes: " << node_list.node_size() << "." << endl;
+			
+			// Otherwise it's a node sync message
+			} else {
+				antixtransfer::node_master_sync sync_msg;
+				antix::recv_pb(&nodes_socket, &sync_msg, 0);
+				cout << "Got a sync message from node " << sync_msg.my_id() << " saying it heard " << sync_msg.heard_id() << endl;
+				// reply with a blank since this is a rep socket
+				antix::send_blank(&nodes_socket);
+				// everyone's heard everyone
+				if (add_heard(sync_msg.my_id(), sync_msg.heard_id()) == 1) {
+					antix::send_blank(&publish_socket);
+				}
+			}
 		}
 
 		// message from a client
@@ -135,6 +178,13 @@ int main() {
 
 		// message from an operator
 		if (items[2].revents & ZMQ_POLLIN) {
+			// setup our sync map
+			// map<int, map<int, bool> > nodes_heard;
+			for (int i = 0; i < next_node_id; i++) {
+				map<int, bool> blank_map;
+				nodes_heard.insert( pair<int, map<int, bool> >(i, blank_map) );
+			}
+
 			// only message is begin right now
 			cout << "Got begin message from an operator" << endl;
 			operators_socket.recv(&message);

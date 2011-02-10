@@ -24,6 +24,15 @@ message connect_init_response {
 	// more... same as MasterServerClient/NodeInitialization?
 }
 
+message node_node_sync {
+	required int32 id = 1;
+}
+
+message node_master_sync {
+	required int32 my_id = 1;
+	required int32 heard_id = 2;
+}
+
 // master -> node/client list of nodes
 message Node_list {
 	message Node {
