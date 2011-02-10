@@ -2,6 +2,5 @@
 
 for line in `cat workstations.txt`
 do
-	echo $line
-	ssh -p 24 wjs2@$line.csil.sfu.ca uname -a &
+	ssh -p 24 wjs2@$line.csil.sfu.ca /home/wjs2/Antix/antix2/run_node.tcl &
 done

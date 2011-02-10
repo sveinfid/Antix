@@ -17,10 +17,14 @@
 
 using namespace std;
 
-//string master_host = "localhost";
-string master_host = "142.58.35.225";
+string master_host;
 string master_node_port = "7770";
 string master_publish_port = "7773";
+
+string my_ip;
+string my_left_port;
+string my_right_port;
+string my_control_port;
 
 int my_id;
 double world_size;
@@ -37,6 +41,7 @@ vector<Robot> left_foreign_robots;
 vector<Puck> right_foreign_pucks;
 vector<Robot> right_foreign_robots;
 
+antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
@@ -507,11 +512,12 @@ service_control_messages() {
 
 void
 test_design(zmq::socket_t *left_pub_sock, zmq::socket_t *left_sub_sock) {
-	int num_nodes = 10;
+	int num_nodes = node_list.node_size();
+	int robots_per_node = 1000000/num_nodes;
 	antixtransfer::SendMap2 map;
 	// create a message with
 	// 10 nodes => 100,000 robot message
-	for (int i = 0; i < 100000; i++) {
+	for (int i = 0; i < robots_per_node; i++) {
 		antixtransfer::SendMap2::Robot *r = map.add_robot();
 		r->set_x(0.555);
 		r->set_y(0.66234);
@@ -538,10 +544,16 @@ int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
 	
-	if (argc != 5) {
-		cerr << "Usage: " << argv[0] << " <IP to listen on> <left node port> <right node port> <control port>" << endl;
+	if (argc != 6) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <left node port> <right node port> <control port>" << endl;
 		return -1;
 	}
+
+	master_host = string(argv[1]);
+	my_ip = string(argv[2]);
+	my_left_port = string(argv[3]);
+	my_right_port = string(argv[4]);
+	my_control_port = string(argv[5]);
 
 	// socket to announce ourselves to master on
 	master_control_sock = new zmq::socket_t(context, ZMQ_REQ);
@@ -565,10 +577,10 @@ int main(int argc, char **argv) {
 
 	// then the actual id message
 	antixtransfer::connect_init_node pb_init_msg;
-	pb_init_msg.set_ip_addr( string(argv[1]) );
-	pb_init_msg.set_left_port( string(argv[2]) );
-	pb_init_msg.set_right_port( string(argv[3]) );
-	pb_init_msg.set_control_port( string(argv[4]) );
+	pb_init_msg.set_ip_addr(my_ip);
+	pb_init_msg.set_left_port(my_left_port);
+	pb_init_msg.set_right_port(my_right_port);
+	pb_init_msg.set_control_port(my_control_port);
 	antix::send_pb(master_control_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
@@ -582,7 +594,6 @@ int main(int argc, char **argv) {
 
 	// receive node list
 	// blocks until master publishes list of nodes
-	antixtransfer::Node_list node_list;
 	antix::recv_pb(master_publish_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
@@ -612,13 +623,13 @@ int main(int argc, char **argv) {
 
 	// open PUB socket neighbours where we publish entities close to the borders
 	left_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	left_pub_sock->bind(antix::make_endpoint( argv[1], argv[2] ));
+	left_pub_sock->bind(antix::make_endpoint(my_ip, my_left_port));
 	//right_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	//right_pub_sock->bind(antix::make_endpoint( argv[1], argv[3] ));
+	//right_pub_sock->bind(antix::make_endpoint(my_ip, my_right_port));
 
 	// create REP socket that receives control messages from clients
 	control_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_sock->bind(antix::make_endpoint( argv[1], argv[4] ));
+	control_sock->bind(antix::make_endpoint(my_ip, my_control_port));
 
 	// connect out to the control sockets of our neighbours
 	//connect_neighbour_control_socks(&context);

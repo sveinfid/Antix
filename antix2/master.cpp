@@ -28,8 +28,7 @@ const double robot_radius = 0.1;
 const double pickup_range = vision_range / 5.0;
 
 // listening on
-//string host = "127.0.0.1";
-string host = "142.58.35.225";
+string host;
 string node_port = "7770";
 string client_port = "7771";
 string operator_port = "7772";
@@ -42,6 +41,13 @@ antixtransfer::Node_list node_list;
 
 // used for synchronization
 map<int, map<int, bool> > nodes_heard;
+
+void
+print_sync_status() {
+	for(map<int, map<int, bool> >::iterator it = nodes_heard.begin(); it != nodes_heard.end(); it++) {
+		cout << "Node " << it->first << " has heard " << it->second.size() << " others" << endl;
+	}
+}
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -81,9 +87,16 @@ add_heard(int id, int heard_id) {
 	return check_sync_done();
 }
 
-int main() {
+int main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
+
+	if (argc != 2) {
+		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
+		return -1;
+	}
+
+	host = string(argv[1]);
 
 	// nodes/client socket are for nodes/clients connecting & giving their
 	// ip. in return they get assigned an id
@@ -149,6 +162,7 @@ int main() {
 				antixtransfer::node_master_sync sync_msg;
 				antix::recv_pb(&nodes_socket, &sync_msg, 0);
 				cout << "Got a sync message from node " << sync_msg.my_id() << " saying it heard " << sync_msg.heard_id() << endl;
+				print_sync_status();
 				// reply with a blank since this is a rep socket
 				antix::send_blank(&nodes_socket);
 				// everyone's heard everyone
