@@ -387,7 +387,7 @@ synchronize_nodes(zmq::socket_t *master_control_sock,
 			cout << "Got a message from node " << sync_msg.id() << endl;
 			// first indicate type
 			zmq::message_t type(2);
-			memcpy(type.data(), "h", 2);
+			memcpy(type.data(), "heard", 2);
 			master_control_sock->send(type, ZMQ_SNDMORE);
 			// then actual msg
 			antixtransfer::node_master_sync heard_msg;

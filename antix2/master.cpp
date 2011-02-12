@@ -46,6 +46,9 @@ antixtransfer::Node_list node_list;
 // used for synchronization
 map<int, map<int, bool> > nodes_heard;
 
+// used for synchronous turns
+set<int> nodes_done;
+
 void
 print_sync_status() {
 	for(map<int, map<int, bool> >::iterator it = nodes_heard.begin(); it != nodes_heard.end(); it++) {
@@ -150,6 +153,30 @@ handle_node_sync(zmq::socket_t *nodes_socket, zmq::socket_t *publish_socket) {
 	}
 }
 
+/*
+	Node has said it has finished its turn
+	Add to list of completed nodes
+	If every node is in the list, send out next turn message
+*/
+void
+handle_node_done(zmq::socket_t *nodes_socket, zmq::socket_t *publish_socket) {
+	antixtransfer::node_master_done done_msg;
+	antix::recv_pb(nodes_socket, &done_msg, 0);
+
+	// we must respond to the node since this is a REP socket
+	antix::send_blank(nodes_socket);
+
+	// Record node if we haven't heard from it before
+	if (nodes_done.count(done_msg.my_id()) == 0) {
+		nodes_done.insert(done_msg.my_id());
+	}
+	
+	// If we've heard from every node, start next turn
+	if (nodes_done.size() == node_list.node_size()) {
+		antix::send_blank(publish_socket);
+	}
+}
+
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -195,15 +222,23 @@ main(int argc, char **argv) {
 			nodes_socket.recv(&message, 0);
 			string type = string( (char *) message.data() );
 
-			// Two types of messages expected from a node
+			// Multiple possible messages from node
 
 			// a message upon initial connection
 			if (type == "connect") { 
 				handle_node_init(&nodes_socket);
 
-			// Otherwise it's a node sync message
-			} else {
+			// a node sync message (on simulation start up
+			} else if (type == "heard") {
 				handle_node_sync(&nodes_socket, &publish_socket);
+
+			// a node stating it has finished its work for this turn
+			} else if (type == "done") {
+				handle_node_done(&nodes_socket, &publish_socket);
+
+			// should never get here...
+			} else {
+				cerr << "Error: Unknown node message!" << endl;
 			}
 		}
 

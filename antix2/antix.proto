@@ -26,6 +26,11 @@ message node_master_sync {
 	required int32 heard_id = 2;
 }
 
+// used to have synchronous turns
+message node_master_done {
+	required int32 my_id = 1;
+}
+
 // master -> node/client list of nodes
 message Node_list {
 	message Node {
