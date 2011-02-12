@@ -18,9 +18,7 @@ string master_node_port = "7770";
 string master_publish_port = "7773";
 
 string my_ip;
-string my_left_port;
-string my_right_port;
-string my_control_port;
+string my_announce_port;
 
 int my_id;
 double world_size;
@@ -32,30 +30,18 @@ int initial_puck_amount;
 
 vector<Puck> pucks;
 vector<Robot> robots;
-vector<Puck> left_foreign_pucks;
-vector<Robot> left_foreign_robots;
-vector<Puck> right_foreign_pucks;
-vector<Robot> right_foreign_robots;
+vector<Robot> foreign_robots;
 
 antixtransfer::Node_list node_list;
-antixtransfer::Node_list::Node left_node;
-antixtransfer::Node_list::Node right_node;
 
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_control_sock;
 // Master publishes list of nodes to us when beginning simulation
 zmq::socket_t *master_publish_sock;
-// neighbours publish foreign entities & move bot msgs on these
-zmq::socket_t *left_sub_sock;
-zmq::socket_t *right_sub_sock;
-// we publish our border entities to these sockets
-zmq::socket_t *left_pub_sock;
-zmq::socket_t *right_pub_sock;
-// control socket to service client commands
-zmq::socket_t *control_sock;
-// control sockets to speak to neighbours. useful for synchronization
-//zmq::socket_t *left_control_sock;
-//zmq::socket_t	*right_control_sock;
+// neighbours publish foreign robot location & puck pickup msgs to this
+zmq::socket_t *announce_sub_sock;
+// we publish our robot locations & puck pickups to this socket
+zmq::socket_t *announce_pub_sock;
 
 /*
 	Find our offset in node_list and set my_min_x, my_max_x
@@ -296,61 +282,14 @@ update_poses() {
 }
 
 /*
-	Wait for a response from our neighbours which indicates synchronization
-	Without this messages are lost on the neighbour_publish_socket
+	- Keep sending "hello" message to other nodes, and check if we hear the
+	  same from other nodes
+	- Tell master what we hear
+	- Only start once master has found that everyone hears everyone
 
-	XXX Not absolutely correct? Nodes can still start slightly unsynced - although
-	this is an improvement
-
-	This is based on the example from
-	http://github.com/imatix/zguide/blob/master/examples/C%2B%2B/syncsub.cpp
+	We have to do this as PUB/SUB can miss some initial messages
+	The setup to avoid this is from the ZMQ Guide
 */
-/*
-void
-synchronize_neighbours(zmq::context_t *context, zmq::socket_t *control_sock) {
-	// First we send a blank message to both of our neighbours
-	zmq::message_t blank_left(1);
-	left_control_sock->send(blank_left);
-	zmq::message_t blank_right(1);
-	right_control_sock->send(blank_right);
-
-	int acks_received = 0;
-	int syncs_responded = 0;
-	// same polling as in master
-	zmq::pollitem_t items[] = {
-		{ *control_sock, 0, ZMQ_POLLIN, 0},
-		{ *left_control_sock, 0, ZMQ_POLLIN, 0},
-		{ *right_control_sock, 0, ZMQ_POLLIN, 0}
-	};
-	// Then we wait for a response & respond to those sent to us
-	while (acks_received < 2 || syncs_responded < 2) {
-		zmq::message_t response;
-		zmq::poll(&items [0], 3, -1);
-
-		// sync requested on control port
-		if (items[0].revents & ZMQ_POLLIN) {
-			cout << "Received sync request. Sending response..." << endl;
-			control_sock->recv(&response);
-			zmq::message_t blank(1);
-			control_sock->send(blank);
-			syncs_responded++;
-		}
-		// left sync response
-		if (items[1].revents & ZMQ_POLLIN) {
-			cout << "Received sync response from left node" << endl;
-			left_control_sock->recv(&response);
-			acks_received++;
-		}
-		// right sync response
-		if (items[2].revents & ZMQ_POLLIN) {
-			cout << "Received sync response from right node" << endl;
-			right_control_sock->recv(&response);
-			acks_received++;
-		}
-	}
-}
-*/
-
 void
 synchronize_nodes(zmq::socket_t *master_control_sock,
 	zmq::socket_t *master_pub_sock,
@@ -536,20 +475,19 @@ test_design(zmq::socket_t *left_pub_sock, zmq::socket_t *left_sub_sock) {
 
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
 	
-	if (argc != 6) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <left node port> <right node port> <control port>" << endl;
+	if (argc != 4) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <port to announce on>" << endl;
 		return -1;
 	}
 
 	master_host = string(argv[1]);
 	my_ip = string(argv[2]);
-	my_left_port = string(argv[3]);
-	my_right_port = string(argv[4]);
-	my_control_port = string(argv[5]);
+	my_announce_port = string(argv[3]);
 
 	// socket to announce ourselves to master on
 	master_control_sock = new zmq::socket_t(context, ZMQ_REQ);
@@ -633,8 +571,6 @@ int main(int argc, char **argv) {
 	// Before we enter main loop, we must synchronize our connection to our
 	// neighbours PUB sockets (neighbour_publish_sock), or else we risk losing
 	// the initial messages
-	// Buggy, interferes with control sockets currently
-	//synchronize_neighbours(&context, &control_sock);
 	synchronize_nodes(master_control_sock, master_publish_sock, &node_list, left_sub_sock, left_pub_sock);
 
 	test_design(left_pub_sock, left_sub_sock);
