@@ -100,9 +100,7 @@ public:
 	copy_node(antixtransfer::Node_list::Node *dest, antixtransfer::Node_list::Node *src) {
 		dest->set_id( src->id() );
 		dest->set_ip_addr( src->ip_addr() );
-		dest->set_left_port( src->left_port() );
-		dest->set_right_port( src->right_port() );
-		dest->set_control_port( src->control_port() );
+		dest->set_announce_port( src->announce_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
 
@@ -150,9 +148,7 @@ public:
 			node = node_list->mutable_node(i);
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
-			cout << " Control Port: " << node->control_port();
-			cout << " Left Port: " << node->left_port();
-			cout << " Right Port: " << node->right_port();
+			cout << " Announce port: " << node->announce_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}

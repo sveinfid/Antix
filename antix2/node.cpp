@@ -7,10 +7,6 @@
 	move_robot() and parse_neighbour_message(). Similar to:
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvpub.cpp
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvsub.cpp
-
-	Bugs:
-	- Synchronization issue with pub/sub sockets: some initial messages may/will
-	be lost
 */
 
 #include "antix.cpp"
