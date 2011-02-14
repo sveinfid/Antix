@@ -29,11 +29,17 @@ double my_min_x;
 double my_max_x;
 int sleep_time;
 int initial_puck_amount;
+double vision_range;
 
+// the robots & pucks we control
 vector<Puck> pucks;
 vector<Robot> robots;
+// sent to us by neighbours
 vector<Puck> foreign_pucks;
 vector<Robot> foreign_robots;
+// robots & pucks near our borders that we send to our neighbours
+antixtransfer::SendMap border_map_left;
+antixtransfer::SendMap border_map_right;
 
 antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
@@ -372,11 +378,82 @@ neighbour_movement() {
 }
 
 /*
+	Add the given puck to the given map
+*/
+void
+add_border_puck(antixtransfer::SendMap *map, Puck *p) {
+	antixtransfer::SendMap::Puck *p_pb = map->add_puck();
+	p_pb->set_x( p->x );
+	p_pb->set_y( p->y );
+	p_pb->set_held( p->held );
+}
+
+/*
+	Add given robot to the given map
+*/
+void
+add_border_robot(antixtransfer::SendMap *map, Robot *r) {
+	antixtransfer::SendMap::Robot *r_pb = map->add_robot();
+	r_pb->set_x( r->x );
+	r_pb->set_y( r->y );
+	r_pb->set_team( r->team );
+	r_pb->set_id( r->id );
+}
+
+/*
+	Clear the last iteration's border entities, and place any of our robots &
+	pucks where they belong
+*/
+void
+rebuild_border_entities() {
+	border_map_left.clear_robot();
+	border_map_left.clear_puck();
+	border_map_right.clear_robot();
+	border_map_right.clear_puck();
+
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		if (it->x > my_max_x - vision_range)
+			add_border_puck(&border_map_right, &*it);
+		else if (it->x < my_min_x + vision_range)
+			add_border_puck(&border_map_left, &*it);
+	}
+
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if (it->x > my_max_x - vision_range)
+			add_border_robot(&border_map_right, &*it);
+		else if (it->x < my_min_x + vision_range)
+			add_border_robot(&border_map_left, &*it);
+	}
+
+	/*
+	// for debugging
+	cout << "Left border entities: " << endl;
+	for (int i = 0; i < border_map_left.robot_size(); i++) {
+		cout << "Robot at " << border_map_left.robot(i).x() << ", " << border_map_left.robot(i).y() << endl;
+	}
+	for (int i = 0; i < border_map_left.puck_size(); i++) {
+		cout << "Puck at " << border_map_left.puck(i).x() << ", " << border_map_left.puck(i).y() << endl;
+	}
+
+	cout << "Right border entities: " << endl;
+	for (int i = 0; i < border_map_right.robot_size(); i++) {
+		cout << "Robot at " << border_map_right.robot(i).x() << ", " << border_map_right.robot(i).y() << endl;
+	}
+	for (int i = 0; i < border_map_right.puck_size(); i++) {
+		cout << "Puck at " << border_map_right.puck(i).x() << ", " << border_map_right.puck(i).y() << endl;
+	}
+	*/
+}
+
+/*
 	Send our foreign/border entities to our 2 neighbours
 	Receive the same from each neighbour
 */
 void
 exchange_foreign_entities() {
+	// first we re-calculate what entities local to us are near borders
+	rebuild_border_entities();
+
 	// Request foreign entity data
 	// Receive response
 
@@ -413,7 +490,7 @@ add_bot(antixtransfer::control_message *msg) {
 	for (int i = 0; i < msg->robot_size(); i++) {
 		Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), msg->robot(i).id(), msg->team());
 		// XXX for testing
-		r.v = 0.05;
+		r.v = 0.01;
 		robots.push_back(r);
 		cout << "Created a bot: Team: " << r.team << " id: " << r.id << " at (" << r.x << ", " << r.y << ")" << endl;
 	}
@@ -564,6 +641,7 @@ main(int argc, char **argv) {
 	world_size = init_response.world_size();
 	sleep_time = init_response.sleep_time();
 	initial_puck_amount = init_response.puck_amount();
+	vision_range = init_response.vision_range();
 	cout << "We are now node id " << my_id << endl;
 
 	// receive node list
@@ -617,7 +695,7 @@ main(int argc, char **argv) {
 		print_local_robots();
 
 		// send & receive entity data from neighbours
-		//exchange_foreign_entities();
+		exchange_foreign_entities();
 
 		// service control messages on our REP socket
 		service_control_messages();
