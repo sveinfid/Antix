@@ -557,17 +557,11 @@ main(int argc, char **argv) {
 	cout << "Sending master our existence notification..." << endl;
 
 	// create & send pb msg identifying ourself
-	// first indicate type
-	zmq::message_t type(8);
-	memcpy(type.data(), "connect", 8);
-	master_req_sock->send(type, ZMQ_SNDMORE);
-
-	// then the actual id message
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr(my_ip);
 	pb_init_msg.set_neighbour_port(my_neighbour_port);
 	pb_init_msg.set_control_port(my_control_port);
-	antix::send_pb(master_req_sock, &pb_init_msg);
+	antix::send_pb_envelope(master_req_sock, &pb_init_msg, "connect");
 
 	// receive message back stating our unique ID
 	antixtransfer::connect_init_response init_response;
