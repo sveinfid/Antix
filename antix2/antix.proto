@@ -206,7 +206,8 @@ message move_bot {
     required double w = 7;
     required bool has_puck = 8;
   }
-  repeated Robot robot = 1;
+  required bool from_right = 1;
+  repeated Robot robot = 2;
 }
 
 // not needed if send message over PUB socket?

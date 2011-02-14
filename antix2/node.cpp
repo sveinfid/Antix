@@ -219,28 +219,16 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 	Read it and add all the robots in the message to our local robot listing
 */
 void
-handle_move_request() {
-	// move messages are enveloped, first take the address portion
-	zmq::message_t address;
-	neighbour_rep_sock->recv(&address, 0);
-	string address_s = string( (char *) address.data() );
-	if (address_s != "move") {
-		cerr << "Error: expected move message (handle_move_request()). Got " << address_s << endl;
-		exit(1);
-	}
-
+handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 	// now we get a message of type move_bot
-	antixtransfer::move_bot move_bot_msg;
-	antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
-
 	// for each robot in the message, add it to our list
 	int i;
-	for(i = 0; i < move_bot_msg.robot_size(); i++) {
-		Robot r(move_bot_msg.robot(i).x(), move_bot_msg.robot(i).y(), move_bot_msg.robot(i).id(), move_bot_msg.robot(i).team());
-		r.a = move_bot_msg.robot(i).a();
-		r.v = move_bot_msg.robot(i).v();
-		r.w = move_bot_msg.robot(i).w();
-		r.has_puck = move_bot_msg.robot(i).has_puck();
+	for(i = 0; i < move_bot_msg->robot_size(); i++) {
+		Robot r(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(), move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team());
+		r.a = move_bot_msg->robot(i).a();
+		r.v = move_bot_msg->robot(i).v();
+		r.w = move_bot_msg->robot(i).w();
+		r.has_puck = move_bot_msg->robot(i).has_puck();
 		// If the robot is carrying a puck, we have to add a puck to our records
 		if (r.has_puck) {
 			Puck p(r.x, r.y, true);
@@ -251,9 +239,6 @@ handle_move_request() {
 		robots.push_back(r);
 	}
 	cout << i << " robots transferred to this node." << endl;
-
-	// send response as an ACK (and since socket requires)
-	antix::send_blank(neighbour_rep_sock);
 }
 
 /*
@@ -264,53 +249,19 @@ handle_move_request() {
 	request (even if blank)
 */
 void
-neighbour_movement() {
+send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
 	antixtransfer::move_bot move_left_msg;
+	move_left_msg.set_from_right(true);
 	antixtransfer::move_bot move_right_msg;
+	move_right_msg.set_from_right(false);
 	build_move_message(&move_left_msg, &move_right_msg);
 
 	// Send our move messages
-	antix::send_pb_envelope(left_req_sock, &move_left_msg, "move");
-	antix::send_pb_envelope(right_req_sock, &move_right_msg, "move");
+	antix::send_pb(left_req_sock, &move_left_msg);
+	antix::send_pb(right_req_sock, &move_right_msg);
 
-	// Now we wait for the response to our move_bot messages & respond to the
-	// move_bot messages from our 2 neighbours
-	zmq::pollitem_t items [] = {
-		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
-		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
-		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
-	};
-	// Both of these must be 2 before we continue
-	int responses = 0;
-	int requests = 0;
-	// Keep waiting for messages until we've received the number we expect
-	while (responses < 2 || requests < 2) {
-		zmq::poll(&items [0], 3, -1);
-
-		// left_req response
-		if (items[0].revents & ZMQ_POLLIN) {
-			antix::recv_blank(left_req_sock);
-			responses++;
-			cout << "Received move response from left req sock" << endl;
-		}
-
-		// right_req response
-		else if (items[1].revents & ZMQ_POLLIN) {
-			antix::recv_blank(right_req_sock);
-			responses++;
-			cout << "Received move response from right req sock" << endl;
-		}
-
-		// neighbour request
-		else if (items[2].revents & ZMQ_POLLIN) {
-			handle_move_request();
-			requests++;
-			cout << "Received move request from a neighbour" << endl;
-		}
-	}
-
-	cout << "Done movement between neighbours." << endl;
+	cout << "Movement messages sent." << endl;
 }
 
 /*
@@ -394,13 +345,9 @@ exchange_foreign_entities() {
 	foreign_pucks.clear();
 	foreign_robots.clear();
 
-	// Request foreign entity data from both of our neighbours
-	// say we are the right neighbour
-	antix::send_str(left_req_sock, "r");
-	// say we are the left neighbour
-	antix::send_str(right_req_sock, "l");
-
-	// Wait for responses to our 2 foreign requests, & respond to requests in kind
+	// We wait for any requests (move requests in this case), to which we respond
+	// by giving the requester a list of our foreign entities
+	// We also wait for a response from our earlier move requests
 	zmq::pollitem_t items [] = {
 		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
 		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
@@ -429,17 +376,20 @@ exchange_foreign_entities() {
 
 		// neighbour request
 		if (items[2].revents & ZMQ_POLLIN) {
-			string side = antix::recv_str(neighbour_rep_sock);
-			if (side == "l")
+			antixtransfer::move_bot move_bot_msg;
+			antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
+			// we have received a move request: first update our local records with
+			// the sent bots
+			handle_move_request(&move_bot_msg);
+
+			// send back a list of foreign neighbours depending on which neighbour
+			// the move request was from
+			if (move_bot_msg.from_right() == false)
 				antix::send_pb(neighbour_rep_sock, &border_map_left);
-			else if (side == "r")
+			else
 				antix::send_pb(neighbour_rep_sock, &border_map_right);
-			else {
-				cerr << "Error: unexpected type (exchange_foreign_entities())" << endl;
-				exit(-1);
-			}
 			requests++;
-			cout << "Received foreign entities request from a neighbour" << endl;
+			cout << "Received move request from a neighbour, sent border entities" << endl;
 		}
 	}
 
@@ -670,20 +620,25 @@ main(int argc, char **argv) {
 
 	// enter main loop
 	while (1) {
-		// update poses for internal robots & move any robots outside our control
+		// update poses for internal robots
 		update_poses();
 
-		// send & receive any robots moving between nodes
-		neighbour_movement();
+		// the following two unrelated messages are part of the same conversation:
+		// movement only requires an ACK, so in this ACK we send a list of our
+		// foreign entities to the move message. Simplifies communication, but
+		// requires us to even send move message if its blank (which makes syncing
+		// behaviour easier
 
-		// XXX debug
-		print_local_robots();
-
-		// send & receive entity data from neighbours
+		// send movement requests to neighbouring nodes (a bot moved out of range)
+		send_move_messages();
+		// receive move requests & respond with foreign entities, receive move responses
 		exchange_foreign_entities();
 
 		// service control messages on our REP socket
 		service_control_messages();
+
+		// XXX debug
+		print_local_robots();
 
 		// tell master we're done the work for this turn & wait for signal
 		wait_for_next_turn();
