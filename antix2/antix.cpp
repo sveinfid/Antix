@@ -18,6 +18,12 @@
 
 #include "antix.pb.h"
 
+// handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
+// each item in a collection C.
+// from rtv's Antix
+#define VAR(V,init) __typeof(init) V=(init)
+#define FOR_EACH(I,C) for(VAR(I,(C).begin());I!=(C).end();I++)
+
 using namespace std;
 
 class antix {

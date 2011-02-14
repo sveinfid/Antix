@@ -612,6 +612,7 @@ main(int argc, char **argv) {
 	// generate pucks
 	generate_pucks();
 
+	int turns = 0;
 	// enter main loop
 	while (1) {
 		// update poses for internal robots
@@ -636,6 +637,7 @@ main(int argc, char **argv) {
 
 		// tell master we're done the work for this turn & wait for signal
 		wait_for_next_turn();
+		cout << "Turn " << turns++ << " done." << endl;
 
 		antix::sleep(sleep_time);
 	}
