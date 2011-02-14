@@ -77,11 +77,11 @@ message MasterServerSlaveServerIntialization {
 }
 
 message MasterServerClientInitialization {
-	required double visionrange = 1;
-	required double fieldofview = 2;	
-	required double serverwidth = 3;
-	required double serverheight = 4;
-	required double homeradius = 5;
+	required double vision_range = 1;
+	required double fov = 2;	
+  required double world_size = 3;
+  required double robot_radius = 4;
+	required double home_radius = 5;
 	// id assigned to the client
 	required int32 id = 6;
 	required int32 sleep_time = 7;

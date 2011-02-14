@@ -11,10 +11,20 @@ using namespace std;
 
 int winsize = 600;
 
+string master_host;
+// we use client port
+string master_req_port = 7771 ;
+string master_sub_port = 7773;
+
+zmq::socket_t *master_req_sock;
+zmq::socket_t *master_sub_sock;
+zmq::socket_t *node_sub_sock;
+
 // from master
 double world_size;
 double robot_radius;
 double robot_fov;
+double home_radius;
 // controls visualization of pixel data
 bool show_data = false;
 bool paused = false;
@@ -146,11 +156,11 @@ DrawAll()
   for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
     glColor3f( it->color.r, it->color.g, it->color.b );
 
-    GlDrawCircle( it->x, it->y, it->r, 16 );
-    GlDrawCircle( it->x+world_size, it->y, it->r, 16 );
-    GlDrawCircle( it->x-world_size, it->y, it->r, 16 );
-    GlDrawCircle( it->x, it->y+world_size, it->r, 16 );
-    GlDrawCircle( it->x, it->y-world_size, it->r, 16 );
+    GlDrawCircle( it->x, it->y, home_radius, 16 );
+    GlDrawCircle( it->x+world_size, it->y, home_radius, 16 );
+    GlDrawCircle( it->x-world_size, it->y, home_radius, 16 );
+    GlDrawCircle( it->x, it->y+world_size, home_radius, 16 );
+    GlDrawCircle( it->x, it->y-world_size, home_radius, 16 );
   }
 	
 	glColor3f( 1,1,1 ); // green
@@ -230,6 +240,53 @@ UpdateGui()
 
 int
 main(int argc, char **argv) {
+	GOOGLE_PROTOBUF_VERIFY_VERSION;
+	zmq::context_t context(1);
+	
+  if (argc != 2) {
+    cerr << "Usage: " << argv[0] << " <IP of master>" << endl;
+    return -1;
+  }
+  master_host = string(argv[1]);
+
+  // connect to master
+  cout << "Connecting to master..." << endl;
+  master_req_sock = new zmq::socket_t(context, ZMQ_REQ)
+  master_req_sock->connect(antix::make_endpoint(master_host, master_req_port));
+  antix::send_blank(master_req_sock);
+	
+	// Response from master contains simulation settings & our unique id (team id)
+	antixtransfer::MasterServerClientInitialization init_response;
+	antix::recv_pb(master_req_sock, &init_response, 0);
+  // we don't really need this, but rather than have different connection for gui  & for client...
+	string my_id = init_response.id();
+  robot_fov = init_response.fov();
+  world_size = init_response.world_size();
+  robot_radius = init_response.robot_radius();
+  home_radius = init_response.home_radius();
+
+	// Subscribe to master's publish socket. A node list will be received
+	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	master_sub_sock->connect(antix::make_endpoint(master_host, master_pub_port));
+
+	// block until receipt of list of nodes indicating simulation beginning
+	antixtransfer::Node_list node_list;
+	antix::recv_pb(master_sub_sock, &node_list, 0);
+	cout << "Received nodes from master" << endl;
+	antix::print_nodes(&node_list);
+
+	node_map = get_node_map(&context, &node_list);
+	cout << "Connected to all nodes" << endl;
+
+  // get simulation settings
+  
+  // block & wait for node list & home list
+
+  // populate home vector
+
+  // connect to all nodes & wait for updates
+
   InitGraphics(argc, argv);
   UpdateGui();
 

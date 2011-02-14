@@ -193,11 +193,10 @@ main(int argc, char **argv) {
 			// assign the client an id & give it simulation parameters
 			antixtransfer::MasterServerClientInitialization init_response;
 			init_response.set_id(next_client_id++);
-			init_response.set_visionrange(vision_range);
-			init_response.set_fieldofview(fov);
-			init_response.set_serverwidth(world_size);
-			init_response.set_serverheight(world_size);
-			init_response.set_homeradius(home_radius);
+			init_response.set_vision_range(vision_range);
+			init_response.set_fov(fov);
+			init_response.set_world_size(world_size);
+			init_response.set_home_radius(home_radius);
 			init_response.set_sleep_time(sleep_time);
 			antix::send_pb(&clients_socket, &init_response);
 			cout << "Client connected. Assigned ID " << init_response.id() << endl;

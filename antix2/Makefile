@@ -8,7 +8,7 @@
 # export PROTOBUF_PATH=/home/gpa7/sfuhome/protobuf
 
 build_dir=.
-targets=master operator node client test_send test_recv
+targets=master operator node client test_send test_recv gui
 objs=antix.pb.o
 
 includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include

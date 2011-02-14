@@ -10,7 +10,7 @@ using namespace std;
 
 string master_host;
 string master_client_port = "7771";
-string master_publish_port = "7773";
+string master_pub_port = "7773";
 string client_node_port = "7774";
 
 int my_id;
@@ -111,6 +111,8 @@ get_node_map(zmq::context_t *context, antixtransfer::Node_list *node_list) {
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
+	zmq::context_t context(1);
+
 	if (argc != 3) {
 		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots>" << endl;
 		return -1;
@@ -118,8 +120,6 @@ main(int argc, char **argv) {
   master_host = string(argv[1]);
 	assert(atoi(argv[2]) > 0);
 	num_robots = atoi(argv[2]);
-
-	zmq::context_t context(1);
 
 	// REQ socket to master_cli port
   cout << "Connecting to master..." << endl;
@@ -135,8 +135,7 @@ main(int argc, char **argv) {
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
-
+	master_sub_sock->connect(antix::make_endpoint(master_host, master_pub_port)); 
 	// block until receipt of list of nodes indicating simulation beginning
 	antixtransfer::Node_list node_list;
 	antix::recv_pb(master_sub_sock, &node_list, 0);
