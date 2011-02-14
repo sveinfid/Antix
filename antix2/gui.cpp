@@ -13,8 +13,8 @@ int winsize = 600;
 
 string master_host;
 // we use client port
-string master_req_port = 7771 ;
-string master_sub_port = 7773;
+string master_req_port = "7771";
+string master_sub_port = "7773";
 
 zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
@@ -30,7 +30,7 @@ bool show_data = false;
 bool paused = false;
 
 vector<Puck> pucks;
-vector<Robot> population;
+vector<Robot> robots;
 vector<Home> homes;
 
 /*
@@ -39,7 +39,7 @@ vector<Home> homes;
 */
 void
 UpdateAll() {
-
+  // XXX make sure to run antix::set_robot_home(*r, *vector<homes>)
 }
 
 // GLUT callback functions ---------------------------------------------------
@@ -68,7 +68,7 @@ Draw(Robot *r)
   glTranslatef( r->x, r->y, 0 );
   glRotatef( antix::rtod(r->a), 0,0,1 );
   
-	glColor3f( r->home->color.r, r->home->color.g, r->home->color.b ); 
+	glColor3f( r->home->colour.r, r->home->colour.g, r->home->colour.b ); 
 	
 	double radius = robot_radius;
 	
@@ -95,6 +95,7 @@ Draw(Robot *r)
 		 glEnd();
 	  }
 
+/* XXX not doing this for now
   if( show_data )
 	 {
 		glColor3f( 1,0,0 ); // red
@@ -140,9 +141,20 @@ Draw(Robot *r)
 		
 		glEnd();		
 	 }
+*/
 	
 	// shift out of local coordinate frame
   glPopMatrix();
+}
+
+// utility
+void
+GlDrawCircle( double x, double y, double r, double count )
+{
+	glBegin(GL_LINE_LOOP);
+	for( float a=0; a<(M_PI*2.0); a+=M_PI/count )
+		glVertex2f( x + sin(a) * r, y + cos(a) * r );
+	glEnd();
 }
 
 // render all robots in OpenGL
@@ -154,7 +166,7 @@ DrawAll()
   }
 	
   for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
-    glColor3f( it->color.r, it->color.g, it->color.b );
+    glColor3f( it->colour.r, it->colour.g, it->colour.b );
 
     GlDrawCircle( it->x, it->y, home_radius, 16 );
     GlDrawCircle( it->x+world_size, it->y, home_radius, 16 );
@@ -193,17 +205,6 @@ mouse_func(int button, int state, int x, int y)
 		paused = !paused;
 	 }
 }
-
-// utility
-void
-GlDrawCircle( double x, double y, double r, double count )
-{
-	glBegin(GL_LINE_LOOP);
-	for( float a=0; a<(M_PI*2.0); a+=M_PI/count )
-		glVertex2f( x + sin(a) * r, y + cos(a) * r );
-	glEnd();
-}
-
 
 //
 // Robot static member methods ---------------------------------------------
@@ -251,7 +252,7 @@ main(int argc, char **argv) {
 
   // connect to master
   cout << "Connecting to master..." << endl;
-  master_req_sock = new zmq::socket_t(context, ZMQ_REQ)
+  master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
   master_req_sock->connect(antix::make_endpoint(master_host, master_req_port));
   antix::send_blank(master_req_sock);
 	
@@ -259,7 +260,7 @@ main(int argc, char **argv) {
 	antixtransfer::MasterServerClientInitialization init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
   // we don't really need this, but rather than have different connection for gui  & for client...
-	string my_id = init_response.id();
+	int my_id = init_response.id();
   robot_fov = init_response.fov();
   world_size = init_response.world_size();
   robot_radius = init_response.robot_radius();
@@ -268,7 +269,7 @@ main(int argc, char **argv) {
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_sub_sock->connect(antix::make_endpoint(master_host, master_pub_port));
+	master_sub_sock->connect(antix::make_endpoint(master_host, master_sub_port));
 
 	// block until receipt of list of nodes indicating simulation beginning
 	antixtransfer::Node_list node_list;
@@ -276,12 +277,9 @@ main(int argc, char **argv) {
 	cout << "Received nodes from master" << endl;
 	antix::print_nodes(&node_list);
 
-	node_map = get_node_map(&context, &node_list);
+  // XXX
+	//node_map = get_node_map(&context, &node_list);
 	cout << "Connected to all nodes" << endl;
-
-  // get simulation settings
-  
-  // block & wait for node list & home list
 
   // populate home vector
 

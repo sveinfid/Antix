@@ -26,6 +26,150 @@
 
 using namespace std;
 
+/*
+	Random double between the two given doubles
+*/
+static double
+rand_between(double min, double max) {
+	return ( (drand48() * (max - min) ) + min );
+}
+
+/*
+	Normalize a length to within 0 to worldsize
+	from rtv's Antix
+*/
+static double
+DistanceNormalize(double d, double world_size) {
+	while( d < 0 ) d += world_size;
+	while( d > world_size ) d -= world_size;
+	return d; 
+}
+
+/*
+	Normalize an angle to within +/- M_PI
+	from rtv's Antix
+*/
+static double
+AngleNormalize(double a) {
+	while( a < -M_PI ) a += 2.0*M_PI;
+	while( a >  M_PI ) a -= 2.0*M_PI;	 
+	return a;
+}
+
+/*
+	from rtv's Antix
+*/
+class Colour {
+	public:
+	double r, g, b;
+
+	Colour() {
+		r = drand48();
+		g = drand48();
+		b = drand48();
+	}
+	Colour (double r, double g, double b) : r(r), g(g), b(b) { }
+};
+
+class Home {
+public:
+	double x, y;
+	double r;
+	Colour colour;
+	int team;
+
+	Home(double x, double y, double r) : x(x), y(y), r(r) {
+		colour = Colour();
+	}
+
+	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) { }
+
+	Home(double r, double world_size) : r(r) {
+		x = rand_between(0, world_size);
+		y = rand_between(0, world_size);
+		colour = Colour();
+	}
+};
+
+class Robot;
+
+class Puck {
+public:
+	double x,
+		y;
+	bool held;
+	Robot *robot;
+
+	// random pose stuff is from rtv's Antix
+	Puck(double min_x, double max_x, double world_size) {
+		x = rand_between(min_x, max_x);
+		y = rand_between(0, world_size);
+		held = false;
+	}
+	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
+};
+
+class Robot {
+public:
+	double x, y;
+	// orientation
+	double a;
+	// forward speed
+	double v;
+	// turn speed
+	double w;
+
+	// together uniquely identifies the robot
+	// team = client id, essentially
+	int team;
+	int id;
+
+	bool has_puck;
+	Puck *puck;
+	Home *home;
+
+	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
+		a = 0;
+		v = 0;
+		w = 0;
+		puck = NULL;
+		has_puck = false;
+	}
+
+	/*
+		update the pose of a single robot
+		Taken from rtv's Antix
+	*/
+	void
+	update_pose(double world_size) {
+		double dx = v * cos(a);
+		double dy = v * sin(a);
+		double da = w;
+
+		x = DistanceNormalize(x + dx, world_size);
+		y = DistanceNormalize(y + dy, world_size);
+		a = AngleNormalize(a + da);
+
+		// If we're holding a puck, it must move also
+		if (has_puck) {
+			puck->x = x;
+			puck->y = y;
+		}
+	}
+};
+
+// Robot class for clients
+class CRobot {
+public:
+	int id;
+	int node_id;
+
+	CRobot(int id, int node_ide) : id(id), node_id(node_id) {}
+};
+
+class CMap {
+
+};
 class antix {
 public:
 	/*
@@ -254,117 +398,18 @@ public:
 		while( a >  M_PI ) a -= 2.0*M_PI;	 
 		return a;
 	}
-};
-
-/*
-	from rtv's Antix
-*/
-class Colour {
-	public:
-	double r, g, b;
-
-	Colour() {
-		r = drand48();
-		g = drand48();
-		b = drand48();
-	}
-	Colour (double r, double g, double b) : r(r), g(g), b(b) { }
-};
-
-class Home {
-public:
-	double x, y;
-	double r;
-	Colour colour;
-
-	Home(double x, double y, double r) : x(x), y(y), r(r) {
-		colour = Colour();
-	}
-
-	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) { }
-
-	Home(double r, double world_size) : r(r) {
-		x = antix::rand_between(0, world_size);
-		y = antix::rand_between(0, world_size);
-		colour = Colour();
-	}
-};
-
-class Robot;
-
-class Puck {
-public:
-	double x,
-		y;
-	bool held;
-	Robot *robot;
-
-	// random pose stuff is from rtv's Antix
-	Puck(double min_x, double max_x, double world_size) {
-		x = antix::rand_between(min_x, max_x);
-		y = antix::rand_between(0, world_size);
-		held = false;
-	}
-	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
-};
-
-class Robot {
-public:
-	double x, y;
-	// orientation
-	double a;
-	// forward speed
-	double v;
-	// turn speed
-	double w;
-
-	// together uniquely identifies the robot
-	// team = client id, essentially
-	int team;
-	int id;
-
-	bool has_puck;
-	Puck *puck;
-
-	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
-		a = 0;
-		v = 0;
-		w = 0;
-		puck = NULL;
-		has_puck = false;
-	}
 
 	/*
-		update the pose of a single robot
-		Taken from rtv's Antix
+		Update the home pointer on the Robot r from the given homes vector
 	*/
-	void
-	update_pose(double world_size) {
-		double dx = v * cos(a);
-		double dy = v * sin(a);
-		double da = w;
-
-		x = antix::DistanceNormalize(x + dx, world_size);
-		y = antix::DistanceNormalize(y + dy, world_size);
-		a = antix::AngleNormalize(a + da);
-
-		// If we're holding a puck, it must move also
-		if (has_puck) {
-			puck->x = x;
-			puck->y = y;
+	static void
+	set_robot_home(Robot *r, vector<Home> *homes) {
+		for (vector<Home>::iterator it = homes->begin(); it != homes->end(); it++) {
+			if (r->team == it->team) {
+				r->home = &*it;
+			}
 		}
+		r->home = NULL;
 	}
 };
 
-// Robot class for clients
-class CRobot {
-public:
-	int id;
-	int node_id;
-
-	CRobot(int id, int node_ide) : id(id), node_id(node_id) {}
-};
-
-class CMap {
-
-};
