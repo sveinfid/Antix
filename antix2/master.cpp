@@ -43,18 +43,8 @@ int next_node_id = 0;
 int next_client_id = 0;
 antixtransfer::Node_list node_list;
 
-// used for synchronization
-map<int, map<int, bool> > nodes_heard;
-
 // used for synchronous turns
 set<int> nodes_done;
-
-void
-print_sync_status() {
-	for(map<int, map<int, bool> >::iterator it = nodes_heard.begin(); it != nodes_heard.end(); it++) {
-		cout << "Node " << it->first << " has heard " << it->second.size() << " others" << endl;
-	}
-}
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -72,33 +62,6 @@ set_node_offsets() {
 		cout << "Assign node with id " << node->id() << " x offset " << position << endl;
 		position = position + offset_size;
 	}
-}
-
-/*
-	Returns 1 if nodes are synced, 0 otherwise
-*/
-int
-check_sync_done() {
-	for (map<int, map<int, bool> >::iterator it = nodes_heard.begin(); it != nodes_heard.end(); it++) {
-		// -1 since node won't hear from itself!
-		if (it->second.size() != nodes_heard.size()-1)
-			return 0;
-	}
-	return 1;
-}
-
-/*
-	Register a node as having heard from node with id heard_id
-	Return whether syncing is complete
-*/
-int
-add_heard(int id, int heard_id) {
-	map<int, bool> nodes_heard_i = nodes_heard[id];
-	// node hasn't heard of heard_id yet
-	if (nodes_heard_i.count(heard_id) == 0) {
-		nodes_heard[id].insert( pair<int, bool>(heard_id, true) );
-	}
-	return check_sync_done();
 }
 
 /*
@@ -123,34 +86,15 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	antixtransfer::Node_list::Node *node = node_list.add_node();
 	node->set_ip_addr( init_msg.ip_addr() );
 	node->set_id( next_node_id - 1 );
-	node->set_announce_port( init_msg.announce_port() );
+	node->set_neighbour_port( init_msg.neighbour_port() );
+	node->set_control_port( init_msg.control_port() );
 
 	cout << "Node connected. IP: " << node->ip_addr();
-	cout << " Announce port: " << node->announce_port();
+	cout << " Neighbour port: " << node->neighbour_port();
+	cout << " Control port: " << node->control_port();
 	cout << " Assigned id " << node->id() << "." << endl;
 
 	cout << "Total nodes: " << node_list.node_size() << "." << endl;
-}
-
-/*
-	A node has sent a sync message
-	Record the sync and start the simulation if syncing complete
-*/
-void
-handle_node_sync(zmq::socket_t *nodes_socket, zmq::socket_t *publish_socket) {
-	antixtransfer::node_master_sync sync_msg;
-	antix::recv_pb(nodes_socket, &sync_msg, 0);
-
-	cout << "Node " << sync_msg.my_id() << " heard node " << sync_msg.heard_id() << endl;
-	print_sync_status();
-
-	// reply with a blank since this is a rep socket
-	antix::send_blank(nodes_socket);
-
-	// tell nodes once all nodes have heard each other
-	if (add_heard(sync_msg.my_id(), sync_msg.heard_id()) == 1) {
-		antix::send_blank(publish_socket);
-	}
 }
 
 /*
@@ -206,6 +150,8 @@ main(int argc, char **argv) {
 	operators_socket.bind(antix::make_endpoint(host, operator_port));
 	publish_socket.bind(antix::make_endpoint(host, publish_port));
 
+	cout << "Master started." << endl;
+
 	// polling set
 	zmq::pollitem_t items [] = {
 		{ nodes_socket, 0, ZMQ_POLLIN, 0 },
@@ -223,14 +169,9 @@ main(int argc, char **argv) {
 			string type = string( (char *) message.data() );
 
 			// Multiple possible messages from node
-
 			// a message upon initial connection
 			if (type == "connect") { 
 				handle_node_init(&nodes_socket);
-
-			// a node sync message (on simulation start up
-			} else if (type == "heard") {
-				handle_node_sync(&nodes_socket, &publish_socket);
 
 			// a node stating it has finished its work for this turn
 			} else if (type == "done") {
@@ -264,12 +205,6 @@ main(int argc, char **argv) {
 		// message from an operator
 		// this can only be a message indicating the beginning of a simulation
 		if (items[2].revents & ZMQ_POLLIN) {
-			// setup our sync map as we need it at the simulation beginning
-			for (int i = 0; i < next_node_id; i++) {
-				map<int, bool> blank_map;
-				nodes_heard.insert( pair<int, map<int, bool> >(i, blank_map) );
-			}
-
 			cout << "Operator sent begin signal." << endl;
 			antix::recv_blank(&operators_socket);
 			antix::send_blank(&operators_socket);

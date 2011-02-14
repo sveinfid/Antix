@@ -18,10 +18,12 @@ string master_node_port = "7770";
 string master_publish_port = "7773";
 
 string my_ip;
-string my_announce_port;
+string my_neighbour_port;
+string my_control_port;
 
 int my_id;
 double world_size;
+double offset_size;
 double my_min_x;
 // where neighbour begins
 double my_max_x;
@@ -30,18 +32,26 @@ int initial_puck_amount;
 
 vector<Puck> pucks;
 vector<Robot> robots;
+vector<Puck> foreign_pucks;
 vector<Robot> foreign_robots;
 
 antixtransfer::Node_list node_list;
+antixtransfer::Node_list::Node left_node;
+antixtransfer::Node_list::Node right_node;
 
 // Connect to master & identify ourselves. Get state
-zmq::socket_t *master_control_sock;
+zmq::socket_t *master_req_sock;
 // Master publishes list of nodes to us when beginning simulation
 zmq::socket_t *master_publish_sock;
-// neighbours publish foreign robot location & puck pickup msgs to this
-zmq::socket_t *announce_sub_sock;
-// we publish our robot locations & puck pickups to this socket
-zmq::socket_t *announce_pub_sock;
+
+// request border entities from neighbour on these REQ sockets
+zmq::socket_t *right_req_sock;
+zmq::socket_t *left_req_sock;
+// handle neighbours requesting border entities on this REP sock (neighbour port)
+zmq::socket_t *neighbour_rep_sock;
+
+// clients request commands on this sock;
+zmq::socket_t *control_rep_sock;
 
 /*
 	Find our offset in node_list and set my_min_x, my_max_x
@@ -49,7 +59,6 @@ zmq::socket_t *announce_pub_sock;
 void
 set_dimensions(antixtransfer::Node_list *node_list) {
 	antixtransfer::Node_list::Node *node;
-	double offset_size = world_size / node_list->node_size();
 
 	for (int i = 0; i < node_list->node_size(); i++) {
 		node = node_list->mutable_node(i);
@@ -70,19 +79,33 @@ generate_pucks() {
 	for (int i = 0; i < initial_puck_amount; i++) {
 		pucks.push_back( Puck(my_min_x, my_max_x, world_size) );
 	}
+	cout << "Created " << pucks.size() << " pucks." << endl;
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		cout << "Puck at " << it->x << "," << it->y << endl;
+	}
 }
 
+/*
+	Useful for debugging: Print out what foreign entities we know of
+*/
 void
 print_foreign_entities() {
 	cout << "Current foreign entities: " << endl;
-	for (vector<Robot>::iterator it = left_foreign_robots.begin(); it != left_foreign_robots.end(); it++)
+	for (vector<Robot>::iterator it = foreign_robots.begin(); it != foreign_robots.end(); it++)
 		cout << "\tRobot at " << it->x << ", " << it->y << endl;
-	for (vector<Robot>::iterator it = right_foreign_robots.begin(); it != right_foreign_robots.end(); it++)
-		cout << "\tRobot at " << it->x << ", " << it->y << endl;
-	for (vector<Puck>::iterator it = left_foreign_pucks.begin(); it != left_foreign_pucks.end(); it++)
+	for (vector<Puck>::iterator it = foreign_pucks.begin(); it != foreign_pucks.end(); it++)
 		cout << "\tPuck at " << it->x << ", " << it->y << endl;
-	for (vector<Puck>::iterator it = right_foreign_pucks.begin(); it != right_foreign_pucks.end(); it++)
-		cout << "\tPuck at " << it->x << ", " << it->y << endl;
+}
+
+/*
+	Output the information on our robots
+*/
+void
+print_local_robots() {
+	cout << "Current local robots:" << endl;
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		cout << "Robot " << it->id << " on team " << it->team << " at (" << it->x << ", " << it->y << ") a: " << it->a << " v: " << it->v << endl;
+	}
 }
 
 /*
@@ -107,6 +130,7 @@ update_foreign_entities(antixtransfer::SendMap *map, vector<Robot> *foreign_robo
 	Send entities which are within sight distance of our left border
 	and within sight distance of our right border
 */
+/*
 void
 send_border_entities() {
 	// container for robots & pucks
@@ -140,61 +164,7 @@ send_border_entities() {
 	antix::send_pb(right_pub_sock, &send_map);
 	cout << "Sent border entities to neighbours." << endl;
 }
-
-/*
-	Know there is a message waiting from a neighbour. Handle it
 */
-void
-parse_neighbour_message(zmq::socket_t *sub_sock, zmq::message_t *type_msg, vector<Robot> *foreign_robots, vector<Puck> *foreign_pucks) {
-	// First we read the envelope address (specifies from neighbour or a client)
-	// type_msg contains this
-	string s = string((char *) type_msg->data());
-	cout << "Received node control message: " << s << endl;
-
-	// Foreign entity update
-	if (s == "f") {
-		antixtransfer::SendMap map_foreign;
-		antix::recv_pb(sub_sock, &map_foreign, 0);
-		update_foreign_entities(&map_foreign, foreign_robots, foreign_pucks);
-		cout << "Received " << map_foreign.puck_size() << " pucks and " << map_foreign.robot_size() << " robots from a neighbour" << endl;
-	}
-	// Move bot
-	else if (s == "m") {
-		antixtransfer::RequestRobotTransfer move_msg;
-		antix::recv_pb(sub_sock, &move_msg, 0);
-		Robot r(move_msg.x(), move_msg.y(), move_msg.id(), move_msg.team());
-		r.a = move_msg.a();
-		r.v = move_msg.v();
-		r.w = move_msg.w();
-		r.has_puck = move_msg.has_puck();
-		// If the robot is carrying a puck, we have to add a puck to our records
-		if (r.has_puck) {
-			Puck p(r.x, r.y, true);
-			pucks.push_back(p);
-			r.puck = &p;
-		}
-		robots.push_back(r);
-		cout << "Robot transferred to this node." << endl;
-	}
-}
-
-/*
-	Clear old foreign robots/pucks and attempt to re-fill based on msgs from our
-	neighbours
-*/
-void
-recv_neighbour_messages() {
-	zmq::message_t type_msg;
-	// Not really fair, but good enough for now
-	// (as we first do all of the left node's, then the right's
-	while (left_sub_sock->recv(&type_msg, ZMQ_NOBLOCK) == 1) {
-		parse_neighbour_message(left_sub_sock, &type_msg, &left_foreign_robots, &left_foreign_pucks);
-	}
-	while (right_sub_sock->recv(&type_msg, ZMQ_NOBLOCK) == 1) {
-		parse_neighbour_message(right_sub_sock, &type_msg, &right_foreign_robots, &right_foreign_pucks);
-	}
-	print_foreign_entities();
-}
 
 /*
 	Remove the puck that robot r is carrying, if it is carrying one
@@ -213,43 +183,206 @@ remove_puck(Robot *r) {
 
 /*
 	Robot has been found to be outside of our map portion
-	Transfer the robot (and possibly its puck) to the given node
-	Note: Removal of robot from local records takes place elsewhere
+	Add the relevant data to a new Robot entry in the given move_bot message
 */
 void
-move_robot(Robot *r) {
-	antixtransfer::Node_list::Node *node;
-	zmq::socket_t *pub_sock;
+add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
+	antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
+	r_move->set_id(r->id);
+	r_move->set_team(r->team);
+	r_move->set_x(r->x);
+	r_move->set_y(r->y);
+	r_move->set_a(r->a);
+	r_move->set_v(r->v);
+	r_move->set_w(r->w);
+	r_move->set_has_puck(r->has_puck);
+}
 
-	if (r->x < my_min_x) {
-		node = &left_node;
-		pub_sock = left_pub_sock;
-		cout << "Moving robot to left_pub_sock" << endl;
-	} else {
-		node = &right_node;
-		pub_sock = right_pub_sock;
-		cout << "Moving robot to right_pub_sock" << endl;
+/*
+	Look through our list of robots to see if any are outside of our range
+	If found, add the relevant data to a move_bot message
+	and remove relevant data from our records
+*/
+void
+build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_bot *move_right_msg) {
+	vector<Robot>::iterator it = robots.begin();
+	// while loop as iterator may be updated other due to deletion
+	while (it != robots.end()) {
+		// We do these 4 cases as it's possible the robot has looped around the world
+		// where the robot will be less than our x but actually travels to the right
+		// node (one case)
+
+		// If robot's x is less than ours and bigger than our left neighbours, send
+		// to our left neighbour
+		if (it->x < my_min_x && it->x > my_min_x - offset_size) {
+			add_move_robot(&*it, move_left_msg);
+			remove_puck(&*it);
+			it = robots.erase(it);
+
+		// Otherwise if it's less than ours and smaller than our left neighbour's,
+		// assume that we are the far right node: send it to our right neighbour
+		} else if (it->x < my_min_x) {
+			add_move_robot(&*it, move_right_msg);
+			remove_puck(&*it);
+			it = robots.erase(it);
+
+		// If robot's x is bigger than ours and smaller than our right neighbour's, we
+		// send it to our right neighbour
+		} else if (it->x >= my_max_x && it->x < my_max_x + offset_size) {
+			add_move_robot(&*it, move_right_msg);
+			remove_puck(&*it);
+			it = robots.erase(it);
+
+		// Otherwise it's bigger than ours and bigger than our right neighbour's,
+		// assume we are the far left node: send it to our left neighbour
+		} else if (it->x >= my_max_x) {
+			add_move_robot(&*it, move_left_msg);
+			remove_puck(&*it);
+			it = robots.erase(it);
+
+		/*
+		if (it->x < my_min_x || it->x >= my_max_x) {
+			// move to left neighbour
+			if (it->x < my_min_x)
+				add_move_robot(&*it, move_left_msg);
+			// move to right neighbour
+			else
+				add_move_robot(&*it, move_right_msg);
+
+			// remove puck if needed
+			remove_puck(&*it);
+			it = robots.erase(it);
+		*/
+		} else {
+			it++;
+		}
+	}
+}
+
+/*
+	Send the move_bot msg to the given sock
+*/
+void
+send_move(zmq::socket_t *req_sock, antixtransfer::move_bot *move_msg) {
+	// First we send the address/type message
+	zmq::message_t type(5);
+	memcpy(type.data(), "move", 5);
+	req_sock->send(type, ZMQ_SNDMORE);
+	// Then we send our content msg
+	antix::send_pb(req_sock, move_msg);
+}
+
+/*
+	We know a node has sent a move request message
+	Read it and add all the robots in the message to our local robot listing
+*/
+void
+handle_move_request() {
+	// move messages are enveloped, first take the address portion
+	zmq::message_t address;
+	neighbour_rep_sock->recv(&address, 0);
+	string address_s = string( (char *) address.data() );
+	if (address_s != "move") {
+		cerr << "Error: expected move message (handle_move_request())" << endl;
+		exit(1);
 	}
 
-	// transfer the robot
-	antixtransfer::RequestRobotTransfer transfer_msg;
-	transfer_msg.set_id(r->id);
-	transfer_msg.set_team(r->team);
-	transfer_msg.set_x(r->x);
-	transfer_msg.set_y(r->y);
-	transfer_msg.set_a(r->a);
-	transfer_msg.set_v(r->v);
-	transfer_msg.set_w(r->w);
-	transfer_msg.set_has_puck(r->has_puck);
+	// now we get a message of type move_bot
+	antixtransfer::move_bot move_bot_msg;
+	antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
 
-	// First we send the address/type message
-	zmq::message_t type(2);
-	memcpy(type.data(), "m", 2);
-	pub_sock->send(type, ZMQ_SNDMORE);
-	// Then we send our content msg
-	antix::send_pb(pub_sock, &transfer_msg);
+	// for each robot in the message, add it to our list
+	int i;
+	for(i = 0; i < move_bot_msg.robot_size(); i++) {
+		Robot r(move_bot_msg.robot(i).x(), move_bot_msg.robot(i).y(), move_bot_msg.robot(i).id(), move_bot_msg.robot(i).team());
+		r.a = move_bot_msg.robot(i).a();
+		r.v = move_bot_msg.robot(i).v();
+		r.w = move_bot_msg.robot(i).w();
+		r.has_puck = move_bot_msg.robot(i).has_puck();
+		// If the robot is carrying a puck, we have to add a puck to our records
+		if (r.has_puck) {
+			Puck p(r.x, r.y, true);
+			p.robot = &r;
+			pucks.push_back(p);
+			r.puck = &p;
+		}
+		robots.push_back(r);
+	}
+	cout << i << " robots transferred to this node." << endl;
 
-	cout << "Transferred robot " << r->id << " on team " << r->team << endl;
+	// send response as an ACK (and since socket requires)
+	antix::send_blank(neighbour_rep_sock);
+}
+
+/*
+	Move any of our robots to neighbours if necessary
+	Receive any of the same
+
+	Each neighbour must send us one request (even if blank), and we must send one
+	request (even if blank)
+*/
+void
+neighbour_movement() {
+	// First we build our own move messages to be sent to our neighbours
+	antixtransfer::move_bot move_left_msg;
+	antixtransfer::move_bot move_right_msg;
+	build_move_message(&move_left_msg, &move_right_msg);
+
+	// Send our move messages
+	send_move(left_req_sock, &move_left_msg);
+	send_move(right_req_sock, &move_right_msg);
+
+	// Now we wait for the response to our move_bot messages & respond to the
+	// move_bot messages from our 2 neighbours
+	zmq::pollitem_t items [] = {
+		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
+		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
+		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
+	};
+	// Both of these must be 2 before we continue
+	int responses = 0;
+	int requests = 0;
+	// Keep waiting for messages until we've received the number we expect
+	while (responses < 2 || requests < 2) {
+		zmq::poll(&items [0], 3, -1);
+
+		// left_req response
+		if (items[0].revents & ZMQ_POLLIN) {
+			antix::recv_blank(left_req_sock);
+			responses++;
+			cout << "Received move response from left req sock" << endl;
+		}
+
+		// right_req response
+		if (items[1].revents & ZMQ_POLLIN) {
+			antix::recv_blank(right_req_sock);
+			responses++;
+			cout << "Received move response from right req sock" << endl;
+		}
+
+		// neighbour request
+		if (items[2].revents & ZMQ_POLLIN) {
+			handle_move_request();
+			requests++;
+			cout << "Received move request from a neighbour" << endl;
+		}
+	}
+
+	cout << "Done movement between neighbours." << endl;
+}
+
+/*
+	Send our foreign/border entities to our 2 neighbours
+	Receive the same from each neighbour
+*/
+void
+exchange_foreign_entities() {
+	// Request foreign entity data
+	// Receive response
+
+	// Respond to foreign entity requests
+
+	print_foreign_entities();
 }
 
 /*
@@ -257,89 +390,10 @@ move_robot(Robot *r) {
 */
 void
 update_poses() {
-	// For each robot, update its pose
-	vector<Robot>::iterator it = robots.begin();
-	// while loop as it can be updated other than from for iteration
-	while (it != robots.end()) {
+	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
 		it->update_pose(world_size);
-
-		// Then check each robot for being outside of our range
-		// separate from update_pose() as we must be careful deleting from vector
-		// while using an iterator
-		if (it->x < my_min_x || it->x >= my_max_x) {
-			cout << "Robot " << it->id << " team " << it->team << " out of range, moving..." << endl;
-			// Remove puck if robot is carrying one
-			remove_puck(&*it);
-			move_robot(&*it);
-			cout << "Past move robot " <<endl;
-			it = robots.erase(it);
-			cout << "Past robot erase" << endl;
-		} else {
-			it++;
-		}
 	}
 	cout << "Poses updated for all robots." << endl;
-}
-
-/*
-	- Keep sending "hello" message to other nodes, and check if we hear the
-	  same from other nodes
-	- Tell master what we hear
-	- Only start once master has found that everyone hears everyone
-
-	We have to do this as PUB/SUB can miss some initial messages
-	The setup to avoid this is from the ZMQ Guide
-*/
-void
-synchronize_nodes(zmq::socket_t *master_control_sock,
-	zmq::socket_t *master_pub_sock,
-	antixtransfer::Node_list *node_list,
-	zmq::socket_t *left_sub_sock,
-	zmq::socket_t *left_pub_sock) {
-
-	cout << "Beginning synchronization..." << endl;
-	for (int i = 0; i < node_list->node_size(); i++) {
-		if (node_list->node(i).id() != my_id)
-			left_sub_sock->connect(antix::make_endpoint( node_list->node(i).ip_addr(), node_list->node(i).left_port() ));
-	}
-	cout << "Connected to all node PUB ports." << endl;
-
-	// Never finish until we are synchronized
-	while (1) {
-		// Send a message on our PUB sock, hopefully others hear it
-		antixtransfer::node_node_sync send_sync_msg;
-		send_sync_msg.set_id(my_id);
-		antix::send_pb(left_pub_sock, &send_sync_msg);
-		cout << "Sent a message to other nodes." << endl;
-
-		// We are synced if master has sent us a message
-		zmq::message_t msg;
-		if (master_pub_sock->recv(&msg, ZMQ_NOBLOCK) == 1) {
-			cout << "Successfully synchronized." << endl;
-			return;
-		}
-
-		// Receive any messages from other nodes
-		// Tell our master what we can hear
-		antixtransfer::node_node_sync sync_msg;
-		while (antix::recv_pb(left_sub_sock, &sync_msg, ZMQ_NOBLOCK) == 1) {
-			cout << "Got a message from node " << sync_msg.id() << endl;
-			// first indicate type
-			zmq::message_t type(2);
-			memcpy(type.data(), "heard", 2);
-			master_control_sock->send(type, ZMQ_SNDMORE);
-			// then actual msg
-			antixtransfer::node_master_sync heard_msg;
-			heard_msg.set_my_id( my_id );
-			heard_msg.set_heard_id( sync_msg.id() );
-			antix::send_pb( master_control_sock, &heard_msg );
-
-			// must get a response since rep socket
-			antix::recv_blank( master_control_sock );
-		}
-
-		antix::sleep(1000);
-	}
 }
 
 Robot *
@@ -358,11 +412,13 @@ void
 add_bot(antixtransfer::control_message *msg) {
 	for (int i = 0; i < msg->robot_size(); i++) {
 		Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), msg->robot(i).id(), msg->team());
+		// XXX for testing
+		r.v = 0.05;
 		robots.push_back(r);
-		cout << "Created a bot: Team: " << r.team << " id: " << r.id << endl;
+		cout << "Created a bot: Team: " << r.team << " id: " << r.id << " at (" << r.x << ", " << r.y << ")" << endl;
 	}
 	// required response, but nothing much to say
-	antix::send_blank(control_sock);
+	antix::send_blank(control_rep_sock);
 }
 
 /*
@@ -387,7 +443,7 @@ sense(antixtransfer::control_message *msg) {
 		robot->set_y( it->y );
 	}
 
-	antix::send_pb(control_sock, &map);
+	antix::send_pb(control_rep_sock, &map);
 }
 
 /*
@@ -404,7 +460,7 @@ setspeed(antixtransfer::control_message *msg) {
 		}
 	}
 
-	antix::send_blank(control_sock);
+	antix::send_blank(control_rep_sock);
 }
 
 void
@@ -412,7 +468,7 @@ pickup(antixtransfer::control_message *msg) {
 	// TODO
 
 	// XXX must send a response
-	antix::send_blank(control_sock);
+	antix::send_blank(control_rep_sock);
 }
 
 void
@@ -420,7 +476,7 @@ drop(antixtransfer::control_message *msg) {
 	// TODO
 
 	// XXX must send a response
-	antix::send_blank(control_sock);
+	antix::send_blank(control_rep_sock);
 }
 
 /*
@@ -429,7 +485,7 @@ drop(antixtransfer::control_message *msg) {
 void
 service_control_messages() {
 	antixtransfer::control_message msg;
-	while (antix::recv_pb(control_sock, &msg, ZMQ_NOBLOCK) == 1) {
+	while (antix::recv_pb(control_rep_sock, &msg, ZMQ_NOBLOCK) == 1) {
 		cout << "Received a client control message: " << msg.type() << endl;
 		if (msg.type() == antixtransfer::control_message::ADD_BOT) {
 			add_bot(&msg);
@@ -445,34 +501,18 @@ service_control_messages() {
 	}
 }
 
+/*
+	Send our master a message stating we're done
+	Then wait until master contacts us so that all nodes are in sync
+*/
 void
-test_design(zmq::socket_t *left_pub_sock, zmq::socket_t *left_sub_sock) {
-	int num_nodes = node_list.node_size();
-	int robots_per_node = 1000000/num_nodes;
-	antixtransfer::SendMap2 map;
-	// create a message with
-	// 10 nodes => 100,000 robot message
-	for (int i = 0; i < robots_per_node; i++) {
-		antixtransfer::SendMap2::Robot *r = map.add_robot();
-		r->set_x(0.555);
-		r->set_y(0.66234);
-		r->set_puck_id(1);
-		r->set_puck_action(true);
-	}
-
-	int turn_count = 0;
-	while (1) {
-		cout << "Sending map to other nodes..." << endl;
-		antix::send_pb(left_pub_sock, &map);
-		for (int i = 0; i < num_nodes-1; i++) {
-			antixtransfer::SendMap2 recvd_map;
-			antix::recv_pb(left_sub_sock, &recvd_map, 0);
-			cout << "Got map from a node. Map count: " << i << endl;
-		}
-		cout << "Got all maps. Turn " << turn_count << " completed." << endl;
-		turn_count++;
-	}
-
+wait_for_next_turn() {
+	antixtransfer::node_master_done done_msg;
+	done_msg.set_my_id( my_id );
+	antix::send_pb_envelope(master_req_sock, &done_msg, "done");
+	cout << "Sent done signal to master" << endl;
+	antix::recv_blank(master_req_sock);
+	cout << "Received begin turn signal from master" << endl;
 }
 
 int
@@ -480,23 +520,24 @@ main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
 	
-	if (argc != 4) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <port to announce on>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <control port>" << endl;
 		return -1;
 	}
 
 	master_host = string(argv[1]);
 	my_ip = string(argv[2]);
-	my_announce_port = string(argv[3]);
+	my_neighbour_port = string(argv[3]);
+	my_control_port = string(argv[4]);
 
 	// socket to announce ourselves to master on
-	master_control_sock = new zmq::socket_t(context, ZMQ_REQ);
-	master_control_sock->connect(antix::make_endpoint(master_host, master_node_port));
+	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
 	cout << "Connecting to master..." << endl;
 
-	// socket to receive list of nodes on
+	// socket to receive list of nodes on (and receive turn begin signal)
 	master_publish_sock = new zmq::socket_t(context, ZMQ_SUB);
-	// subscribe to all messages on this socket: should just be a list of nodes
+	// subscribe to all messages on this socket
 	master_publish_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_publish_sock->connect(antix::make_endpoint(master_host, master_publish_port));
 
@@ -507,19 +548,18 @@ main(int argc, char **argv) {
 	// first indicate type
 	zmq::message_t type(8);
 	memcpy(type.data(), "connect", 8);
-	master_control_sock->send(type, ZMQ_SNDMORE);
+	master_req_sock->send(type, ZMQ_SNDMORE);
 
 	// then the actual id message
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr(my_ip);
-	pb_init_msg.set_left_port(my_left_port);
-	pb_init_msg.set_right_port(my_right_port);
+	pb_init_msg.set_neighbour_port(my_neighbour_port);
 	pb_init_msg.set_control_port(my_control_port);
-	antix::send_pb(master_control_sock, &pb_init_msg);
+	antix::send_pb(master_req_sock, &pb_init_msg);
 
 	// receive message back stating our unique ID
 	antixtransfer::connect_init_response init_response;
-	antix::recv_pb(master_control_sock, &init_response, 0);
+	antix::recv_pb(master_req_sock, &init_response, 0);
 	my_id = init_response.id();
 	world_size = init_response.world_size();
 	sleep_time = init_response.sleep_time();
@@ -527,7 +567,7 @@ main(int argc, char **argv) {
 	cout << "We are now node id " << my_id << endl;
 
 	// receive node list
-	// blocks until master publishes list of nodes
+	// blocks until master publishes list of nodes: indicates simulation begin
 	antix::recv_pb(master_publish_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
@@ -538,68 +578,52 @@ main(int argc, char **argv) {
 	}
 
 	// calculate our min / max x from the offset assigned to us in node_list
+	offset_size = world_size / node_list.node_size();
 	set_dimensions(&node_list);
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
-	cout << "Left neighbour id: " << left_node.id() << " " << left_node.ip_addr() << " left port " << left_node.left_port() << " right port " << left_node.right_port() << endl;
-	cout << "Right neighbour id: " << right_node.id() << " " << right_node.ip_addr() << " left port " << right_node.left_port() << " right port " << right_node.right_port() << endl;
+	cout << "Left neighbour id: " << left_node.id() << " " << left_node.ip_addr() << " neighbour port " << left_node.neighbour_port() << " control port " << left_node.control_port() << endl;
+	cout << "Right neighbour id: " << right_node.id() << " " << right_node.ip_addr() << " neighbour port " << right_node.neighbour_port() << " control port " << right_node.control_port() << endl;
 
-	// connect & subscribe to both neighbour's PUB sockets
-	// these receive foreign entities that are near our border
-	left_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	left_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	//left_sub_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.right_port()));
+	// connect to both of our neighbour's REP sockets
+	// we request foreign entities to this socket
+	left_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	left_req_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
 
-	//right_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	//right_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	//right_sub_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.left_port()));
+	right_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	right_req_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
 
-	// open PUB socket neighbours where we publish entities close to the borders
-	left_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	left_pub_sock->bind(antix::make_endpoint(my_ip, my_left_port));
-	//right_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	//right_pub_sock->bind(antix::make_endpoint(my_ip, my_right_port));
+	// open REP socket where neighbours request border entities
+	neighbour_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+	neighbour_rep_sock->bind(antix::make_endpoint(my_ip, my_neighbour_port));
 
 	// create REP socket that receives control messages from clients
-	control_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_sock->bind(antix::make_endpoint(my_ip, my_control_port));
-
-	// connect out to the control sockets of our neighbours
-	//connect_neighbour_control_socks(&context);
-
-	// Before we enter main loop, we must synchronize our connection to our
-	// neighbours PUB sockets (neighbour_publish_sock), or else we risk losing
-	// the initial messages
-	synchronize_nodes(master_control_sock, master_publish_sock, &node_list, left_sub_sock, left_pub_sock);
-
-	test_design(left_pub_sock, left_sub_sock);
-
-	cout << "Not running actual simulation now" << endl;
-	return 0;
+	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+	control_rep_sock->bind(antix::make_endpoint(my_ip, my_control_port));
 
 	// generate pucks
 	generate_pucks();
-	cout << "Created " << pucks.size() << " pucks." << endl;
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		cout << "Puck at " << it->x << "," << it->y << endl;
-	}
 
 	// enter main loop
 	while (1) {
-		// send entities within sight_range of our borders to our neighbours
-		send_border_entities();
-
-		// read from our neighbour SUB sockets
-		// - update our foreign entity knowledge
-		// - handle any move_bot messages
-		recv_neighbour_messages();
-
 		// update poses for internal robots & move any robots outside our control
 		update_poses();
 
+		// send & receive any robots moving between nodes
+		neighbour_movement();
+
+		// XXX debug
+		print_local_robots();
+
+		// send & receive entity data from neighbours
+		//exchange_foreign_entities();
+
 		// service control messages on our REP socket
 		service_control_messages();
+
+		// tell master we're done the work for this turn & wait for signal
+		wait_for_next_turn();
 
 		antix::sleep(sleep_time);
 	}

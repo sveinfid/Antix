@@ -53,6 +53,22 @@ public:
 		sock->recv(&blank);
 	}
 
+	static void
+	send_blank_envelope(zmq::socket_t *sock, string address) {
+		zmq::message_t type(address.size() + 1);
+		memcpy(type.data(), address.c_str(), address.size() + 1);
+		sock->send(type, ZMQ_SNDMORE);
+		send_blank(sock);
+	}
+
+	static void
+	send_pb_envelope(zmq::socket_t *sock, google::protobuf::Message *pb_obj, string address) {
+		zmq::message_t type(address.size() + 1);
+		memcpy(type.data(), address.c_str(), address.size() + 1);
+		sock->send(type, ZMQ_SNDMORE);
+		send_pb(sock, pb_obj);
+	}
+
 	/*
 		Send the protobuf message pb_obj on socket
 	*/
@@ -101,7 +117,8 @@ public:
 	copy_node(antixtransfer::Node_list::Node *dest, antixtransfer::Node_list::Node *src) {
 		dest->set_id( src->id() );
 		dest->set_ip_addr( src->ip_addr() );
-		dest->set_announce_port( src->announce_port() );
+		dest->set_neighbour_port( src->neighbour_port() );
+		dest->set_control_port( src->control_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
 
@@ -149,7 +166,8 @@ public:
 			node = node_list->mutable_node(i);
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
-			cout << " Announce port: " << node->announce_port();
+			cout << " Neighbour port: " << node->neighbour_port();
+			cout << " Control port: " << node->control_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}
