@@ -115,62 +115,24 @@ print_local_robots() {
 }
 
 /*
-	Given a map which may or may not contain entities, add any entities therein
+	A map is waiting to be read on given sock
+	The map may or may not contain entities, add any entities therein
 	to our internal records of foreign robots & pucks
 */
 void
-update_foreign_entities(antixtransfer::SendMap *map, vector<Robot> *foreign_robots, vector<Puck> *foreign_pucks) {
-	foreign_robots->clear();
-	foreign_pucks->clear();
+update_foreign_entities(zmq::socket_t *sock) {
+	antixtransfer::SendMap map;
+	antix::recv_pb(sock, &map, 0);
+
 	// foreign robots
-	for (int i = 0; i < map->robot_size(); i++) {
-		foreign_robots->push_back( Robot( map->robot(i).x(), map->robot(i).y(), map->robot(i).id(), map->robot(i).team() ) );
+	for (int i = 0; i < map.robot_size(); i++) {
+		foreign_robots.push_back( Robot( map.robot(i).x(), map.robot(i).y(), map.robot(i).id(), map.robot(i).team() ) );
 	}
 	// foreign pucks
-	for (int i = 0; i < map->puck_size(); i++) {
-		foreign_pucks->push_back( Puck( map->puck(i).x(), map->puck(i).y(), map->puck(i).held() ) );
+	for (int i = 0; i < map.puck_size(); i++) {
+		foreign_pucks.push_back( Puck( map.puck(i).x(), map.puck(i).y(), map.puck(i).held() ) );
 	}
 }
-
-/*
-	Send entities which are within sight distance of our left border
-	and within sight distance of our right border
-*/
-/*
-void
-send_border_entities() {
-	// container for robots & pucks
-	antixtransfer::SendMap send_map;
-	// XXX Right now we only have one big list of robots, so all are sent
-	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		antixtransfer::SendMap::Robot *robot = send_map.add_robot();
-		robot->set_x( it->x );
-		robot->set_y( it->y );
-		robot->set_team( it->team );
-		robot->set_id( it->id );
-	}
-
-	// XXX only one list of pucks right now
-	for(vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		antixtransfer::SendMap::Puck *puck = send_map.add_puck();
-		puck->set_x( it->x );
-		puck->set_y( it->y );
-		puck->set_held( it->held );
-	}
-
-	cout << "Sending " << send_map.puck_size() << " pucks and " << send_map.robot_size() << " robots to our neighbours..." << endl;
-	zmq::message_t type_left(2);
-	memcpy(type_left.data(), "f", 2);
-	left_pub_sock->send(type_left, ZMQ_SNDMORE);
-	antix::send_pb(left_pub_sock, &send_map);
-
-	zmq::message_t type_right(2);
-	memcpy(type_right.data(), "f", 2);
-	right_pub_sock->send(type_right, ZMQ_SNDMORE);
-	antix::send_pb(right_pub_sock, &send_map);
-	cout << "Sent border entities to neighbours." << endl;
-}
-*/
 
 /*
 	Remove the puck that robot r is carrying, if it is carrying one
@@ -246,36 +208,10 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			remove_puck(&*it);
 			it = robots.erase(it);
 
-		/*
-		if (it->x < my_min_x || it->x >= my_max_x) {
-			// move to left neighbour
-			if (it->x < my_min_x)
-				add_move_robot(&*it, move_left_msg);
-			// move to right neighbour
-			else
-				add_move_robot(&*it, move_right_msg);
-
-			// remove puck if needed
-			remove_puck(&*it);
-			it = robots.erase(it);
-		*/
 		} else {
 			it++;
 		}
 	}
-}
-
-/*
-	Send the move_bot msg to the given sock
-*/
-void
-send_move(zmq::socket_t *req_sock, antixtransfer::move_bot *move_msg) {
-	// First we send the address/type message
-	zmq::message_t type(5);
-	memcpy(type.data(), "move", 5);
-	req_sock->send(type, ZMQ_SNDMORE);
-	// Then we send our content msg
-	antix::send_pb(req_sock, move_msg);
 }
 
 /*
@@ -289,7 +225,7 @@ handle_move_request() {
 	neighbour_rep_sock->recv(&address, 0);
 	string address_s = string( (char *) address.data() );
 	if (address_s != "move") {
-		cerr << "Error: expected move message (handle_move_request())" << endl;
+		cerr << "Error: expected move message (handle_move_request()). Got " << address_s << endl;
 		exit(1);
 	}
 
@@ -335,8 +271,8 @@ neighbour_movement() {
 	build_move_message(&move_left_msg, &move_right_msg);
 
 	// Send our move messages
-	send_move(left_req_sock, &move_left_msg);
-	send_move(right_req_sock, &move_right_msg);
+	antix::send_pb_envelope(left_req_sock, &move_left_msg, "move");
+	antix::send_pb_envelope(right_req_sock, &move_right_msg, "move");
 
 	// Now we wait for the response to our move_bot messages & respond to the
 	// move_bot messages from our 2 neighbours
@@ -360,14 +296,14 @@ neighbour_movement() {
 		}
 
 		// right_req response
-		if (items[1].revents & ZMQ_POLLIN) {
+		else if (items[1].revents & ZMQ_POLLIN) {
 			antix::recv_blank(right_req_sock);
 			responses++;
 			cout << "Received move response from right req sock" << endl;
 		}
 
 		// neighbour request
-		if (items[2].revents & ZMQ_POLLIN) {
+		else if (items[2].revents & ZMQ_POLLIN) {
 			handle_move_request();
 			requests++;
 			cout << "Received move request from a neighbour" << endl;
@@ -454,11 +390,60 @@ exchange_foreign_entities() {
 	// first we re-calculate what entities local to us are near borders
 	rebuild_border_entities();
 
-	// Request foreign entity data
-	// Receive response
+	// clear old foreign entities
+	foreign_pucks.clear();
+	foreign_robots.clear();
 
-	// Respond to foreign entity requests
+	// Request foreign entity data from both of our neighbours
+	// say we are the right neighbour
+	antix::send_str(left_req_sock, "r");
+	// say we are the left neighbour
+	antix::send_str(right_req_sock, "l");
 
+	// Wait for responses to our 2 foreign requests, & respond to requests in kind
+	zmq::pollitem_t items [] = {
+		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
+		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
+		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
+	};
+	// Both of these must be 2 before we continue
+	int responses = 0;
+	int requests = 0;
+	// Keep waiting for messages until we've received the number we expect
+	while (responses < 2 || requests < 2) {
+		zmq::poll(&items [0], 3, -1);
+
+		// left_req response
+		if (items[0].revents & ZMQ_POLLIN) {
+			update_foreign_entities(left_req_sock);
+			responses++;
+			cout << "Received foreign entities response from left req sock" << endl;
+		}
+
+		// right_req response
+		if (items[1].revents & ZMQ_POLLIN) {
+			update_foreign_entities(right_req_sock);
+			responses++;
+			cout << "Received foreign entities response from right req sock" << endl;
+		}
+
+		// neighbour request
+		if (items[2].revents & ZMQ_POLLIN) {
+			string side = antix::recv_str(neighbour_rep_sock);
+			if (side == "l")
+				antix::send_pb(neighbour_rep_sock, &border_map_left);
+			else if (side == "r")
+				antix::send_pb(neighbour_rep_sock, &border_map_right);
+			else {
+				cerr << "Error: unexpected type (exchange_foreign_entities())" << endl;
+				exit(-1);
+			}
+			requests++;
+			cout << "Received foreign entities request from a neighbour" << endl;
+		}
+	}
+
+	cout << "Done exchanging foreign entities." << endl;
 	print_foreign_entities();
 }
 

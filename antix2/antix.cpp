@@ -54,6 +54,20 @@ public:
 	}
 
 	static void
+	send_str(zmq::socket_t *sock, string s) {
+		zmq::message_t msg(s.size() + 1);
+		memcpy(msg.data(), s.c_str(), s.size() + 1);
+		sock->send(msg);
+	}
+
+	static string
+	recv_str(zmq::socket_t *sock) {
+		zmq::message_t msg;
+		sock->recv(&msg);
+		return string( (char *) msg.data() );
+	}
+
+	static void
 	send_blank_envelope(zmq::socket_t *sock, string address) {
 		zmq::message_t type(address.size() + 1);
 		memcpy(type.data(), address.c_str(), address.size() + 1);
