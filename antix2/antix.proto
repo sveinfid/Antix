@@ -19,8 +19,9 @@ message connect_init_response {
 	required double world_size = 2;
 	required int32 sleep_time = 3;
   required double vision_range = 4;
+  required double fov = 5;
 	// only relevant for node
-	optional int32 puck_amount = 5;
+	optional int32 puck_amount = 6;
 
 	// more... same as MasterServerClient/NodeInitialization?
 }
@@ -174,4 +175,24 @@ message control_message {
 	required int32 team = 1;
 	required Type type = 2;
 	repeated Robot robot = 3;
+}
+
+message sense_data {
+  message Robot_Sees {
+    message Seen_Robot {
+      required double range = 1;
+      required double bearing = 2;
+    }
+
+    message Seen_Puck {
+      required double range = 1;
+      required double bearing = 2;
+      required bool held = 3;
+    }
+
+    repeated Seen_Robot seen_robot = 1;
+    repeated Seen_Puck seen_puck = 2;
+  }
+
+  repeated Robot_Sees robot_sees = 1;
 }

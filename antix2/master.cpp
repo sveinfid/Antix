@@ -118,6 +118,7 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	init_response.set_sleep_time(sleep_time);
 	init_response.set_puck_amount(initial_pucks_per_node);
 	init_response.set_vision_range(vision_range);
+	init_response.set_fov(fov);
 	antix::send_pb(nodes_socket, &init_response);
 
 	// add node to internal listing of nodes

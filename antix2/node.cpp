@@ -33,6 +33,7 @@ double my_max_x;
 int sleep_time;
 int initial_puck_amount;
 double vision_range;
+double fov;
 
 // the robots & pucks we control
 vector<Puck> pucks;
@@ -43,6 +44,9 @@ vector<Robot> foreign_robots;
 // robots & pucks near our borders that we send to our neighbours
 antixtransfer::SendMap border_map_left;
 antixtransfer::SendMap border_map_right;
+
+// what each robot can see by team
+map<int, antixtransfer::sense_data *> sense_map;
 
 antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
@@ -424,6 +428,149 @@ exchange_foreign_entities() {
 }
 
 /*
+	Build a map with one entry per team, each entry being a protobuf message stating
+	what the robots in that team see
+
+	The actual sense logic is from rtv's Antix
+
+	XXX Really ugly repeating code, but may be faster?
+*/
+void
+build_sense_messages() {
+	sense_map.clear();
+
+	// for every robot we have, build a message for it containing what it sees
+	for (vector<Robot>::iterator r = robots.begin(); r != robots.end(); r++) {
+		antixtransfer::sense_data *team_msg;
+
+		// if we already have an in progress sense msg for this team, use that
+		if (sense_map.count( r->team) > 0) {
+			team_msg = sense_map[r->team];
+		// otherwise make a new one and use it
+		} else {
+			team_msg = new antixtransfer::sense_data;
+			sense_map.insert( pair<int, antixtransfer::sense_data *>(r->team, team_msg) );
+		}
+
+		// create entry for this robot since it's first time we're looking at it
+		antixtransfer::sense_data::Robot_Sees *robot_sees = team_msg->add_robot_sees();
+
+		// look at all other robots to see if we can see them
+		for (vector<Robot>::iterator other = robots.begin(); other != robots.end(); other++) {
+			// we don't look at ourself
+			if (&*r == &*other)
+				continue;
+			
+			double dx( antix::WrapDistance( other->x - r->x, world_size ) );
+			if ( fabs(dx) > vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( other->y - r->y, world_size ) );
+			if ( fabs(dy) > vision_range )
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > vision_range )
+				continue;
+
+			// check that it's in fov
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			if ( fabs(relative_heading) > fov/2.0 )
+				continue;
+
+			// we can see the robot
+			antixtransfer::sense_data::Robot_Sees::Seen_Robot *seen_robot = robot_sees->add_seen_robot();
+			seen_robot->set_range( range );
+			seen_robot->set_bearing( relative_heading );
+		}
+
+		// now look at all the pucks
+		for (vector<Puck>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
+			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
+			if ( fabs(dx) > vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > vision_range)
+				continue;
+
+			// fov check
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			if ( fabs(relative_heading) > fov/2.0 )
+				continue;
+
+			// we can see the puck
+			antixtransfer::sense_data::Robot_Sees::Seen_Puck *seen_puck = robot_sees->add_seen_puck();
+			seen_puck->set_range( range );
+			seen_puck->set_bearing ( relative_heading );
+			seen_puck->set_held( puck->held );
+		}
+
+		// now look at foreign robots
+		for (vector<Robot>::iterator other = foreign_robots.begin(); other != foreign_robots.end(); other++) {
+			// we don't look at ourself
+			if (&*r == &*other)
+				continue;
+			
+			double dx( antix::WrapDistance( other->x - r->x, world_size ) );
+			if ( fabs(dx) > vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( other->y - r->y, world_size ) );
+			if ( fabs(dy) > vision_range )
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > vision_range )
+				continue;
+
+			// check that it's in fov
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			if ( fabs(relative_heading) > fov/2.0 )
+				continue;
+
+			// we can see the robot
+			antixtransfer::sense_data::Robot_Sees::Seen_Robot *seen_robot = robot_sees->add_seen_robot();
+			seen_robot->set_range( range );
+			seen_robot->set_bearing( relative_heading );
+		}
+
+		// and foreign pucks
+		for (vector<Puck>::iterator puck = foreign_pucks.begin(); puck != foreign_pucks.end(); puck++) {
+			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
+			if ( fabs(dx) > vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > vision_range)
+				continue;
+
+			// fov check
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			if ( fabs(relative_heading) > fov/2.0 )
+				continue;
+
+			// we can see the puck
+			antixtransfer::sense_data::Robot_Sees::Seen_Puck *seen_puck = robot_sees->add_seen_puck();
+			seen_puck->set_range( range );
+			seen_puck->set_bearing ( relative_heading );
+			seen_puck->set_held( puck->held );
+		}
+	}
+	cout << "Sensors re-calculated." << endl;
+}
+
+/*
 	Go through our local robots & update their poses
 */
 void
@@ -611,6 +758,7 @@ main(int argc, char **argv) {
 	sleep_time = init_response.sleep_time();
 	initial_puck_amount = init_response.puck_amount();
 	vision_range = init_response.vision_range();
+	fov = init_response.fov();
 	cout << "We are now node id " << my_id << endl;
 
 	// receive node list
@@ -675,6 +823,9 @@ main(int argc, char **argv) {
 		send_move_messages();
 		// receive move requests & respond with foreign entities, receive move responses
 		exchange_foreign_entities();
+
+		// build message for each client of what their robots can see
+		build_sense_messages();
 
 		// service control messages on our REP socket
 		service_control_messages();
