@@ -112,7 +112,8 @@ create_robots(antixtransfer::Node_list *node_list) {
 void
 generate_pucks() {
 	for (int i = 0; i < initial_puck_amount; i++) {
-		pucks.push_back( Puck(my_min_x, my_max_x, world_size) );
+		// XXX is this - needed?
+		pucks.push_back( Puck(my_min_x, my_max_x - 0.01, world_size) );
 	}
 	cout << "Created " << pucks.size() << " pucks." << endl;
 	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
@@ -161,6 +162,7 @@ update_foreign_entities(zmq::socket_t *sock) {
 	for (int i = 0; i < map.puck_size(); i++) {
 		foreign_pucks.push_back( Puck( map.puck(i).x(), map.puck(i).y(), map.puck(i).held() ) );
 	}
+	cout << "Done update_foreign_entities()" << endl;
 }
 
 /*
@@ -168,14 +170,24 @@ update_foreign_entities(zmq::socket_t *sock) {
 */
 void
 remove_puck(Robot *r) {
+	cout << "In remove_puck()" << endl;
 	if (!r->has_puck)
 		return;
+
 	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if (it->robot == r) {
+		// Puck isn't held
+		//if (it->robot == NULL)
+		if (!it->held)
+			continue;
+
+		//if (it->robot == r) {
+		if (it->robot->id == r->id && it->robot->team == r->team) {
+			cout << "Erasing a carrying puck" << endl;
 			pucks.erase(it);
 			break;
 		}
 	}
+	cout << "Done remove_puck()" << endl;
 }
 
 /*
@@ -184,6 +196,7 @@ remove_puck(Robot *r) {
 */
 void
 add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
+	cout << "In add_move_robot()" << endl;
 	antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
 	r_move->set_id(r->id);
 	r_move->set_team(r->team);
@@ -193,6 +206,7 @@ add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
 	r_move->set_v(r->v);
 	r_move->set_w(r->w);
 	r_move->set_has_puck(r->has_puck);
+	cout << "Done add_remove_robot()" << endl;
 }
 
 /*
@@ -262,14 +276,14 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		r.v = move_bot_msg->robot(i).v();
 		r.w = move_bot_msg->robot(i).w();
 		r.has_puck = move_bot_msg->robot(i).has_puck();
+		robots.push_back(r);
 		// If the robot is carrying a puck, we have to add a puck to our records
 		if (r.has_puck) {
 			Puck p(r.x, r.y, true);
-			p.robot = &r;
+			p.robot = &robots.back();
 			pucks.push_back(p);
-			r.puck = &p;
+			r.puck = &pucks.back();
 		}
-		robots.push_back(r);
 	}
 	cout << i << " robots transferred to this node." << endl;
 }
@@ -395,16 +409,16 @@ exchange_foreign_entities() {
 
 		// left_req response
 		if (items[0].revents & ZMQ_POLLIN) {
+			cout << "Received foreign entities response from left req sock" << endl;
 			update_foreign_entities(left_req_sock);
 			responses++;
-			cout << "Received foreign entities response from left req sock" << endl;
 		}
 
 		// right_req response
 		if (items[1].revents & ZMQ_POLLIN) {
+			cout << "Received foreign entities response from right req sock" << endl;
 			update_foreign_entities(right_req_sock);
 			responses++;
-			cout << "Received foreign entities response from right req sock" << endl;
 		}
 
 		// neighbour request
@@ -521,7 +535,6 @@ build_sense_messages() {
 				continue;
 
 			// we can see the puck
-			cout << "Robot " << r->id << " on team " << r->team << " can see a puck" << endl;
 			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
@@ -561,6 +574,7 @@ build_sense_messages() {
 		}
 
 		// and foreign pucks
+		/* XXX we don't deal with picking up foreign pucks right now
 		for (vector<Puck>::iterator puck = foreign_pucks.begin(); puck != foreign_pucks.end(); puck++) {
 			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
 			if ( fabs(dx) > vision_range )
@@ -586,6 +600,7 @@ build_sense_messages() {
 			seen_puck->set_bearing ( relative_heading );
 			seen_puck->set_held( puck->held );
 		}
+		*/
 	}
 	cout << "Sensors re-calculated." << endl;
 }
@@ -595,6 +610,7 @@ build_sense_messages() {
 */
 void
 update_poses() {
+	cout << "Updating poses for all robots..." << endl;
 	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
 		it->update_pose(world_size);
 	}
@@ -633,11 +649,6 @@ pickup(Robot *r) {
 	
 	// see if we can find an available puck to pick up
 	for (vector<SeePuck>::iterator it = r->see_pucks.begin(); it != r->see_pucks.end(); it++) {
-		if ( it->puck->held )
-			cout << "Attempted to pick up puck, but it's held" << endl;
-		if ( it->range < pickup_range )
-			cout << "Attempted to pick up puck, but it's out of range" << endl;
-
 		// If the puck isn't held and it's within range
 		if ( !it->puck->held && it->range < pickup_range ) {
 			r->has_puck = true;
