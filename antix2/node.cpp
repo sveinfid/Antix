@@ -11,6 +11,8 @@
 
 #include "antix.cpp"
 
+#define GUI 1
+
 using namespace std;
 
 string master_host;
@@ -20,6 +22,7 @@ string master_publish_port = "7773";
 string my_ip;
 string my_neighbour_port;
 string my_control_port;
+string my_gui_port;
 
 int my_id;
 double world_size;
@@ -58,6 +61,9 @@ zmq::socket_t *neighbour_rep_sock;
 
 // clients request commands on this sock;
 zmq::socket_t *control_rep_sock;
+
+// gui requests entities on this sock
+zmq::socket_t *gui_rep_sock;
 
 /*
 	Find our offset in node_list and set my_min_x, my_max_x
@@ -514,6 +520,36 @@ service_control_messages() {
 }
 
 /*
+	Respond to at most one GUI request per turn
+*/
+void
+service_gui_requests() {
+#if GUI
+	cout << "Checking GUI requests..." << endl;
+	antix::recv_blank(gui_rep_sock);
+	// Respond by sending a list of our entities
+	antixtransfer::SendMap_GUI map;
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		antixtransfer::SendMap_GUI::Puck *puck = map.add_puck();
+		puck->set_x( it->x );
+		puck->set_y( it->y );
+		puck->set_held( it->held );
+	}
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		antixtransfer::SendMap_GUI::Robot *robot = map.add_robot();
+		robot->set_team( it->team );
+		robot->set_id( it->id );
+		robot->set_x( it->x );
+		robot->set_y( it->y );
+		robot->set_a( it->a );
+	}
+
+	antix::send_pb(gui_rep_sock, &map);
+	cout << "Sent GUI response." << endl;
+#endif
+}
+
+/*
 	Send our master a message stating we're done
 	Then wait until master contacts us so that all nodes are in sync
 */
@@ -532,8 +568,8 @@ main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
 	
-	if (argc != 5) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <control port>" << endl;
+	if (argc != 6) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <control port> <GUI port>" << endl;
 		return -1;
 	}
 
@@ -541,6 +577,7 @@ main(int argc, char **argv) {
 	my_ip = string(argv[2]);
 	my_neighbour_port = string(argv[3]);
 	my_control_port = string(argv[4]);
+	my_gui_port = string(argv[5]);
 
 	// socket to announce ourselves to master on
 	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
@@ -561,6 +598,7 @@ main(int argc, char **argv) {
 	pb_init_msg.set_ip_addr(my_ip);
 	pb_init_msg.set_neighbour_port(my_neighbour_port);
 	pb_init_msg.set_control_port(my_control_port);
+	pb_init_msg.set_gui_port(my_gui_port);
 	antix::send_pb_envelope(master_req_sock, &pb_init_msg, "connect");
 
 	// receive message back stating our unique ID
@@ -609,6 +647,10 @@ main(int argc, char **argv) {
 	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
 	control_rep_sock->bind(antix::make_endpoint(my_ip, my_control_port));
 
+	// create REP socket that receives queries from GUI
+	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+	gui_rep_sock->bind(antix::make_endpoint(my_ip, my_gui_port));
+
 	// generate pucks
 	generate_pucks();
 
@@ -635,11 +677,14 @@ main(int argc, char **argv) {
 		// XXX debug
 		print_local_robots();
 
+		// service GUI entity requests
+		service_gui_requests();
+
 		// tell master we're done the work for this turn & wait for signal
 		wait_for_next_turn();
 		cout << "Turn " << turns++ << " done." << endl;
 
-		antix::sleep(sleep_time);
+		//antix::sleep(sleep_time);
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

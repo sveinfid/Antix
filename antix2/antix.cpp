@@ -78,7 +78,7 @@ public:
 	Colour colour;
 	int team;
 
-	Home(double x, double y, double r) : x(x), y(y), r(r) {
+	Home(double x, double y, double r, int team) : x(x), y(y), r(r), team(team) {
 		colour = Colour();
 	}
 
@@ -130,6 +130,14 @@ public:
 
 	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
 		a = 0;
+		v = 0;
+		w = 0;
+		puck = NULL;
+		has_puck = false;
+	}
+
+	Robot(double x, double y, int team, double a) : x(x), y(y), team(team), a(a) {
+		id = -1;
 		v = 0;
 		w = 0;
 		puck = NULL;
@@ -197,10 +205,16 @@ public:
 		sock->send(blank);
 	}
 
-	static void
+	static int
 	recv_blank(zmq::socket_t *sock) {
 		zmq::message_t blank(1);
-		sock->recv(&blank);
+		return sock->recv(&blank);
+	}
+
+	static int
+	recv_blank(zmq::socket_t *sock, int flags) {
+		zmq::message_t blank(1);
+		return sock->recv(&blank, flags);
 	}
 
 	static void
@@ -283,6 +297,7 @@ public:
 		dest->set_ip_addr( src->ip_addr() );
 		dest->set_neighbour_port( src->neighbour_port() );
 		dest->set_control_port( src->control_port() );
+		dest->set_gui_port( src->gui_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
 
@@ -332,6 +347,7 @@ public:
 			cout << " IP: " << node->ip_addr();
 			cout << " Neighbour port: " << node->neighbour_port();
 			cout << " Control port: " << node->control_port();
+			cout << " GUI port: " << node->gui_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}
 	}

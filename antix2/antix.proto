@@ -5,6 +5,7 @@ message connect_init_node {
 	required string ip_addr = 1;
   required string neighbour_port = 2;
   required string control_port = 3;
+  required string gui_port = 4;
 }
 
 // master -> node/client response upon initial connect
@@ -34,16 +35,25 @@ message node_master_done {
 }
 
 // master -> node/client list of nodes
+// XXX should probably rename this to reflect inclusion of Home
 message Node_list {
 	message Node {
 		required string ip_addr = 1;
     required string neighbour_port = 2;
     required string control_port = 3;
-		required int32 id = 4;
+    required string gui_port = 4;
+		required int32 id = 5;
 		// optional as we only set this right before sending out node list
-		optional double x_offset = 5;
+		optional double x_offset = 6;
 	}
+
+  message Home {
+    required int32 team = 1;
+    required double x = 2;
+    required double y = 3;
+  }
 	repeated Node node = 1;
+  repeated Home home = 2;
 }
 
 message connect {
@@ -53,27 +63,6 @@ message connect {
 	}
 
 	required connectionType type = 1 [default = CLIENT];
-}
-
-message MasterServerSlaveServerIntialization {
-	required int32 robotsAmt  = 1;
-	required int32 teamAmt = 2;
-	required int32 minRobotID = 3;
-	required int32 maxRobotID = 4;
-	required int32 puckAmt = 5;
-	required double visionrange = 6; 
-	required double fieldofview = 7;	
-
-	message Home {
-		required int32 homeRadius = 6;
-		required int32 homeX = 7;
-		required int32 homeY = 8;
-		required int32 homeID = 9;
-	}
-
-	repeated Home home = 8;
-	optional string leftServersIP = 9;
-	optional string rightServersIP = 10;
 }
 
 message MasterServerClientInitialization {
@@ -125,6 +114,26 @@ message SendMap {
 		required int32 id = 2;
 		required double x = 3;
 		required double y = 4;
+	}
+
+	message Puck {
+		required double x = 1;
+		required double y = 2;
+		required bool held = 3;
+	}
+
+	repeated Robot robot = 1;
+	repeated Puck puck = 2;
+}
+
+// GUI needs a bit more information
+message SendMap_GUI {
+	message Robot {
+		required int32 team = 1;
+		required int32 id = 2;
+		required double x = 3;
+		required double y = 4;
+    required double a = 5;
 	}
 
 	message Puck {

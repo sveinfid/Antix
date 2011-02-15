@@ -25,10 +25,13 @@ const double vision_range = 0.1;
 // robot fov
 const double fov = antix::dtor(90.0);
 // radius of homes
-const double home_radius = 0.01;
+const double home_radius = 0.1;
 // radius of robot
-const double robot_radius = 0.1;
+const double robot_radius = 0.01;
 const double pickup_range = vision_range / 5.0;
+
+// track whether simulation has begun
+bool begun = false;
 
 /*
 	Master network settings
@@ -65,6 +68,24 @@ set_node_offsets() {
 }
 
 /*
+	Create one home for each client ID
+	Assign each a random location
+	Add it to the node_list
+*/
+void
+setup_homes() {
+	cout << "Adding homes to node list..." << endl;
+	for (int i = 0; i < next_client_id; i++) {
+		antixtransfer::Node_list::Home *h = node_list.add_home();
+		h->set_team( i );
+		// XXX should ensure cannot overlap
+		h->set_x( antix::rand_between(0, world_size) );
+		h->set_y( antix::rand_between(0, world_size) );
+		cout << "Created home for team " << h->team() << " at (" << h->x() << ", " << h->y() << ")" << endl;
+	}
+}
+
+/*
 	Node connected initially
 	Add it to our node list and give it an ID
 */
@@ -89,10 +110,12 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	node->set_id( next_node_id - 1 );
 	node->set_neighbour_port( init_msg.neighbour_port() );
 	node->set_control_port( init_msg.control_port() );
+	node->set_gui_port( init_msg.gui_port() );
 
 	cout << "Node connected. IP: " << node->ip_addr();
 	cout << " Neighbour port: " << node->neighbour_port();
 	cout << " Control port: " << node->control_port();
+	cout << " GUI port: " << node->gui_port();
 	cout << " Assigned id " << node->id() << "." << endl;
 
 	cout << "Total nodes: " << node_list.node_size() << "." << endl;
@@ -184,22 +207,30 @@ main(int argc, char **argv) {
 			}
 		}
 
-		// message from a client
+		// message from a client / GUI
 		if (items[1].revents & ZMQ_POLLIN) {
-			// blank message, client is just asking for simulation data
-			// this message should be client giving its ip & port
-			antix::recv_blank(&clients_socket);
-
-			// assign the client an id & give it simulation parameters
+			// type indicates whether client or GUI client
+			string type = antix::recv_str(&clients_socket);
 			antixtransfer::MasterServerClientInitialization init_response;
-			init_response.set_id(next_client_id++);
+
+			// only assign unique id to a regular client
+			if (type == "client") {
+				init_response.set_id(next_client_id++);
+				cout << "Client connected. Assigned ID " << init_response.id() << endl;
+			} else {
+				init_response.set_id(0);
+				cout << "GUI client connected." << endl;
+			}
+
+			// and the simulation parameters
 			init_response.set_vision_range(vision_range);
 			init_response.set_fov(fov);
 			init_response.set_world_size(world_size);
 			init_response.set_home_radius(home_radius);
+			init_response.set_robot_radius(robot_radius);
 			init_response.set_sleep_time(sleep_time);
+
 			antix::send_pb(&clients_socket, &init_response);
-			cout << "Client connected. Assigned ID " << init_response.id() << endl;
 		}
 
 		// message from an operator
@@ -218,13 +249,20 @@ main(int argc, char **argv) {
 			// assign each node in our list an x offset
 			set_node_offsets();
 
+			// set homes & their locations in the node list
+			setup_homes();
+
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb(&publish_socket, &node_list);
 			cout << "Sent node list to nodes." << endl;
 			cout << "Nodes sent:" << endl;
 			antix::print_nodes(&node_list);
+			cout << "Homes sent:" << endl;
+			for (int i = 0; i < node_list.home_size(); i++)
+				cout << "Home with team id " << node_list.home(i).team() << endl;
 
 			cout << "Simulation begun." << endl;
+			begun = true;
 
 			// any nodes that connect after this get unexpected results
 		}

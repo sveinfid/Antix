@@ -18,7 +18,7 @@ string master_sub_port = "7773";
 
 zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
-zmq::socket_t *node_sub_sock;
+vector<zmq::socket_t *> req_sockets;
 
 // from master
 double world_size;
@@ -33,13 +33,62 @@ vector<Puck> pucks;
 vector<Robot> robots;
 vector<Home> homes;
 
+antixtransfer::Node_list node_list;
+
+void
+associate_robot_with_home(Robot *r) {
+  for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
+    if (it->team == r->team) {
+      r->home = &*it;
+      return;
+    }
+  }
+  cerr << "Error: failed to associate robot with home" << endl;
+  cerr << "\tRobot has team id " << r->team << endl;
+  cerr << "Homes:" << endl;
+  for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
+    cerr << "\tHome with team id " << it->team << endl;
+  }
+}
+
 /*
-  This should rebuild our internal database of robots/pucks/etc
-  XXX
+  Send a message to all nodes requesting updated map data
+  Receive N map responses, N = number of nodes
 */
 void
+rebuild_entity_db() {
+  pucks.clear();
+  robots.clear();
+
+  // send request to every node
+  for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
+    antix::send_blank(*it);
+  }
+  cout << "Sent entity requests to nodes." << endl;
+
+  // wait on response from each node
+  for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
+    antixtransfer::SendMap_GUI map;
+    antix::recv_pb(*it, &map, 0);
+    
+    // add received pucks
+    for (int l = 0; l < map.puck_size(); l++) {
+      pucks.push_back( Puck(map.puck(l).x(), map.puck(l).y(), false ) );
+    }
+
+    // and robots
+    for (int l = 0; l < map.robot_size(); l++) {
+      Robot r(map.robot(l).x(), map.robot(l).y(), map.robot(l).team(), map.robot(l).a());
+      associate_robot_with_home(&r);
+      robots.push_back(r);
+    }
+  }
+  cout << "After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
+}
+
+void
 UpdateAll() {
-  // XXX make sure to run antix::set_robot_home(*r, *vector<homes>)
+  rebuild_entity_db();
 }
 
 // GLUT callback functions ---------------------------------------------------
@@ -254,13 +303,11 @@ main(int argc, char **argv) {
   cout << "Connecting to master..." << endl;
   master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
   master_req_sock->connect(antix::make_endpoint(master_host, master_req_port));
-  antix::send_blank(master_req_sock);
+  antix::send_str(master_req_sock, "gui");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
-  // we don't really need this, but rather than have different connection for gui  & for client...
-	int my_id = init_response.id();
   robot_fov = init_response.fov();
   world_size = init_response.world_size();
   robot_radius = init_response.robot_radius();
@@ -272,18 +319,27 @@ main(int argc, char **argv) {
 	master_sub_sock->connect(antix::make_endpoint(master_host, master_sub_port));
 
 	// block until receipt of list of nodes indicating simulation beginning
-	antixtransfer::Node_list node_list;
 	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received nodes from master" << endl;
 	antix::print_nodes(&node_list);
 
-  // XXX
-	//node_map = get_node_map(&context, &node_list);
+  // connect to every node: we get robot/puck positions from each
+  for (int i = 0; i < node_list.node_size(); i++) {
+    zmq::socket_t *req_sock = new zmq::socket_t(context, ZMQ_REQ);
+    req_sock->connect( antix::make_endpoint( node_list.node(i).ip_addr(), node_list.node(i).gui_port() ));
+    req_sockets.push_back(req_sock);
+  }
 	cout << "Connected to all nodes" << endl;
 
   // populate home vector
+  for (int i = 0; i < node_list.home_size(); i++) {
+    Home h( node_list.home(i).x(), node_list.home(i).y(), home_radius, node_list.home(i).team() );
+    homes.push_back(h);
+    cout << "Added home: " << h.team << " at (" << h.x << ", " << h.y << ")" << endl;
+  }
 
   // connect to all nodes & wait for updates
+  rebuild_entity_db();
 
   InitGraphics(argc, argv);
   UpdateGui();

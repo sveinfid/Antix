@@ -125,7 +125,7 @@ main(int argc, char **argv) {
   cout << "Connecting to master..." << endl;
   master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
-  antix::send_blank(master_req_sock);
+  antix::send_str(master_req_sock, "client");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
