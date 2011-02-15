@@ -79,19 +79,43 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		// not holding a puck
 		} else {
 			double closest_range(1e9);
+			bool picking_up = false;
+			cout << "Robot can see " << sense_msg->robot(i).seen_puck_size() << " pucks." << endl;
 			// Look at all the pucks we can see
 			for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
 				double puck_range = sense_msg->robot(i).seen_puck(j).range();
 				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
 				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
+				if (puck_held)
+					cout << "See a puck, but it's held" << endl;
+				else
+					cout << "See a puck, and it's not held" << endl;
+
+				/*
+				// if we see a puck, try to pick up if it isn't held
+				if (!puck_held) {
+					cout << "Trying to pick up a puck" << endl;
+					// remember location
+					robots[id].last_x = x;
+					robots[id].last_y = y;
+					r->set_type( antixtransfer::control_message::PICKUP );
+					// XXX continue bad! we're in a secondary loop
+					//continue;
+					break;
+				}
+				*/
 				// If one is within pickup distance, try to pick it up
-				if (puck_range <= pickup_range && !puck_held) {
+				if (puck_range < pickup_range && !puck_held) {
+					cout << "Trying to pick up a puck" << endl;
 					// remember this location
 					robots[id].last_x = x;
 					robots[id].last_y = y;
 					r->set_type( antixtransfer::control_message::PICKUP );
-					continue;
+					picking_up = true;
+					// XXX continue bad! we're in a secondary loop
+					//continue;
+					break;
 				}
 
 				// Otherwise see if its the closest we've seen yet
@@ -100,6 +124,11 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 					closest_range = puck_range;
 				}
 			}
+
+			// XXX ugly hack, if we attempted pick up, don't do anything else for
+			// this robot
+			if (picking_up)
+				continue;
 
 			// If there were no pucks to see, choose direction differently
 			if (sense_msg->robot(i).seen_puck_size() == 0) {

@@ -3,8 +3,7 @@
 
 	The majority of the ZMQ stuff is based on examples from the ZMQ guide:
 	http://zguide.zeromq.org/chapter:all
-	Most notably the pub/sub message enveloping example used in the functions
-	move_robot() and parse_neighbour_message(). Similar to:
+	Most notably the pub/sub message enveloping example:
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvpub.cpp
 	https://github.com/imatix/zguide/blob/master/examples/C++/psenvsub.cpp
 */
@@ -508,6 +507,7 @@ build_sense_messages() {
 				continue;
 
 			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+			if ( fabs(dy) > vision_range )
 				continue;
 
 			double range = hypot( dx, dy );
@@ -521,6 +521,7 @@ build_sense_messages() {
 				continue;
 
 			// we can see the puck
+			cout << "Robot " << r->id << " on team " << r->team << " can see a puck" << endl;
 			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
@@ -566,6 +567,7 @@ build_sense_messages() {
 				continue;
 
 			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+			if ( fabs(dy) > vision_range )
 				continue;
 
 			double range = hypot( dx, dy );
@@ -631,12 +633,18 @@ pickup(Robot *r) {
 	
 	// see if we can find an available puck to pick up
 	for (vector<SeePuck>::iterator it = r->see_pucks.begin(); it != r->see_pucks.end(); it++) {
+		if ( it->puck->held )
+			cout << "Attempted to pick up puck, but it's held" << endl;
+		if ( it->range < pickup_range )
+			cout << "Attempted to pick up puck, but it's out of range" << endl;
+
 		// If the puck isn't held and it's within range
 		if ( !it->puck->held && it->range < pickup_range ) {
 			r->has_puck = true;
 			r->puck = it->puck;
 			it->puck->held = true;
 			it->puck->robot = r;
+			cout << "Robot " << r->id << " on team " << r->team << " picked up a puck." << endl;
 		}
 	}
 }
@@ -721,7 +729,7 @@ service_control_messages() {
 		} else {
 			// if we have sense data for that team, send it on
 			if (sense_map.count( msg.team() ) > 0) {
-				cout << "Sending sense data for team " << msg.team() << " with " << sense_map[msg.team()]->robot_size() << " robots" << endl;
+				cout << "Sending sense data for team " << msg.team() << " with " << sense_map[msg.team()]->robot_size() << " robots " << endl;
 				antix::send_pb(control_rep_sock, sense_map[msg.team()]);
 
 			// otherwise give a blank sense message
