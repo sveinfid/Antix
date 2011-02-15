@@ -8,7 +8,7 @@
 # export PROTOBUF_PATH=/home/gpa7/sfuhome/protobuf
 
 build_dir=.
-targets=master operator node client test_send test_recv gui
+targets=master operator node client gui
 objs=antix.pb.o
 
 GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi

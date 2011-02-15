@@ -84,6 +84,26 @@ set_dimensions(antixtransfer::Node_list *node_list) {
 }
 
 /*
+	Create all robots from initial node list that are assigned to our node
+*/
+void
+create_robots(antixtransfer::Node_list *node_list) {
+	antixtransfer::Node_list::Robots_on_Node *rn;
+	for (int i = 0; i < node_list->robots_on_node_size(); i++) {
+		rn = node_list->mutable_robots_on_node(i);
+		if (rn->node() == my_id) {
+			for (int j = 0; j < rn->num_robots(); j++) {
+				Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), j, rn->team());
+				// XXX for testing
+				r.v = 0.01;
+				robots.push_back(r);
+				cout << "Created a bot: Team: " << r.team << " id: " << r.id << " at (" << r.x << ", " << r.y << ")" << endl;
+			}
+		}
+	}
+}
+
+/*
 	Place pucks randomly within our region
 */
 void
@@ -424,22 +444,6 @@ find_robot(int team, int id) {
 }
 
 /*
-	A client has sent an add_bot message with an arbitrary number of robots
-*/
-void
-add_bot(antixtransfer::control_message *msg) {
-	for (int i = 0; i < msg->robot_size(); i++) {
-		Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), msg->robot(i).id(), msg->team());
-		// XXX for testing
-		r.v = 0.01;
-		robots.push_back(r);
-		cout << "Created a bot: Team: " << r.team << " id: " << r.id << " at (" << r.x << ", " << r.y << ")" << endl;
-	}
-	// required response, but nothing much to say
-	antix::send_blank(control_rep_sock);
-}
-
-/*
 	A client has sent a sense message. We send the map for each of its robots as
 	a response
 */
@@ -505,9 +509,7 @@ service_control_messages() {
 	antixtransfer::control_message msg;
 	while (antix::recv_pb(control_rep_sock, &msg, ZMQ_NOBLOCK) == 1) {
 		cout << "Received a client control message: " << msg.type() << endl;
-		if (msg.type() == antixtransfer::control_message::ADD_BOT) {
-			add_bot(&msg);
-		} else if (msg.type() == antixtransfer::control_message::SENSE) {
+		if (msg.type() == antixtransfer::control_message::SENSE) {
 			sense(&msg);
 		} else if (msg.type() == antixtransfer::control_message::SETSPEED) {
 			setspeed(&msg);
@@ -625,6 +627,9 @@ main(int argc, char **argv) {
 	// calculate our min / max x from the offset assigned to us in node_list
 	offset_size = world_size / node_list.node_size();
 	set_dimensions(&node_list);
+
+	// node list also has list of robots to be created on nodes, so create ours
+	create_robots(&node_list);
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);

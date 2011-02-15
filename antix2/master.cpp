@@ -86,6 +86,22 @@ setup_homes() {
 }
 
 /*
+	Initially we tell a node to create all of the robots for one team
+	Each node may be assigned multiple teams
+	Though the robots may spread out to other nodes as the game progresses
+*/
+void
+assign_robots_to_node() {
+	antixtransfer::Node_list::Robots_on_Node *rn;
+	for (int i = 0; i < node_list.robots_on_node_size(); i++) {
+		rn = node_list.mutable_robots_on_node(i);
+		// 0 to max node id
+		rn->set_node( rand() % (next_node_id - 1) );
+		cout << "Assigned robots from team " << node_list.robots_on_node(i).team() << " to node " << node_list.robots_on_node(i).node() << endl;
+	}
+}
+
+/*
 	Node connected initially
 	Add it to our node list and give it an ID
 */
@@ -149,6 +165,7 @@ int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
+  srand( time(NULL) );
 
 	if (argc != 2) {
 		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
@@ -215,8 +232,18 @@ main(int argc, char **argv) {
 
 			// only assign unique id to a regular client
 			if (type == "client") {
+				// client sends a second message part indicating # of robots it wants
+				antixtransfer::connect_init_client init_request;
+				antix::recv_pb(&clients_socket, &init_request, 0);
+
 				init_response.set_id(next_client_id++);
-				cout << "Client connected. Assigned ID " << init_response.id() << endl;
+				cout << "Client connected. Assigned ID " << init_response.id() << ". Wants " << init_request.num_robots() << " robots." << endl;
+				
+				// record id & how many robots in node_list for transmission to nodes
+				antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
+				rn->set_num_robots( init_request.num_robots() );
+				rn->set_team( init_response.id() );
+
 			} else {
 				init_response.set_id(0);
 				cout << "GUI client connected." << endl;
@@ -251,6 +278,9 @@ main(int argc, char **argv) {
 
 			// set homes & their locations in the node list
 			setup_homes();
+
+			// assign nodes to create robots for each team initially
+			assign_robots_to_node();
 
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb(&publish_socket, &node_list);

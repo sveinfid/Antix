@@ -28,38 +28,6 @@ zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
 
 /*
-
-*/
-int
-choose_random_node() {
-	return rand() % node_map.size();
-}
-
-/*
-	Generate one message with n robots, send to a random node
-	XXX
-*/
-void
-generate_robots (int n) {
-	int node = choose_random_node();
-	antixtransfer::control_message msg;
-	msg.set_team(my_id);
-	msg.set_type(antixtransfer::control_message::ADD_BOT);
-	for (int i = 0; i < n; i++) {
-		CRobot r(i, node);
-		robots.push_back(r);
-		antixtransfer::control_message::Robot *r_pb = msg.add_robot();
-		r_pb->set_id(i);
-	}
-
-	antix::send_pb(node_map[node], &msg);
-
-	// We must receive a message in response due to REQ socket
-	antix::recv_blank(node_map[node]);
-	cout << "Created " << n << " robots on " << node << endl;
-}
-
-/*
 	Get map data from nodes for each of our robots
 	TODO
 	Right now this just requests the entire map from each node
@@ -140,7 +108,9 @@ main(int argc, char **argv) {
   cout << "Connecting to master..." << endl;
   master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
-  antix::send_str(master_req_sock, "client");
+  antixtransfer::connect_init_client init_req;
+  init_req.set_num_robots( num_robots );
+  antix::send_pb_envelope(master_req_sock, &init_req, "client");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
@@ -165,10 +135,6 @@ main(int argc, char **argv) {
 	node_map = get_node_map(&context, &node_list);
 	cout << "Connected to all nodes" << endl;
 	
-	// generate robots
-	// message each node to tell it about the robot to be created on it
-	generate_robots(num_robots);
-
 	// enter main loop
 	while (1) {
 		// request map data for our robots

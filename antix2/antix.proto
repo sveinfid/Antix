@@ -8,6 +8,11 @@ message connect_init_node {
   required string gui_port = 4;
 }
 
+// client -> master initial connection message
+message connect_init_client {
+  required int32 num_robots = 1;
+}
+
 // master -> node/client response upon initial connect
 message connect_init_response {
 	required int32 id = 1;
@@ -36,6 +41,7 @@ message node_master_done {
 
 // master -> node/client list of nodes
 // XXX should probably rename this to reflect inclusion of Home
+// "simulation state?"
 message Node_list {
 	message Node {
 		required string ip_addr = 1;
@@ -52,8 +58,17 @@ message Node_list {
     required double x = 2;
     required double y = 3;
   }
+
+  // Indicates the robots for the given team are initially all on node with this
+  // id
+  message Robots_on_Node {
+    required int32 team = 1;
+    required int32 num_robots = 2;
+    required int32 node = 3;
+  }
 	repeated Node node = 1;
   repeated Home home = 2;
+  repeated Robots_on_Node robots_on_node = 3;
 }
 
 message connect {
@@ -74,39 +89,7 @@ message MasterServerClientInitialization {
 	// id assigned to the client
 	required int32 id = 6;
 	required int32 sleep_time = 7;
-
-	message HomeLocations {
-		required int32 team = 1;
-		required double x = 2;
-		required double y = 3;
-		required string server = 4;
-	}
-
-	repeated HomeLocations homelocations = 8;
 }	
-
-message ClientSlaveServerStartup{
-	required int32 numberofrobots = 1;
-}
-
-message SlaveServerClientInitialization{
-	message Robot {
-		required int32 robotID = 1;
-		required double robotX = 2;
-		required double robotY = 3;
-		required double robotfacing = 4;
-		required int32 robotTeam = 5;
-	}
-
-	repeated Robot robot = 1;
-}
-
-message RobotRequestMap {
-	required int32 robotID = 1;
-	required double robotX = 2;
-	required double robotY = 3;
-	required double robotfacing = 4;
-}
 
 message SendMap {
 	message Robot {
@@ -157,53 +140,6 @@ message SendMap2 {
 	repeated Robot robot = 1;
 }
 
-message ServerRequestMap {
-	message MapLocation {
-		required double mapX = 1;
-		required double mapY = 2;
-	}
-
-	repeated MapLocation maplocation = 1;
-}
-
-message RequestMovement {
-	required int32 robotID = 1;
-	required double robotx = 2;
-	required double roboty = 3;
-}
-
-message MovementUpdate {
-	required bool robotmoved  = 1;
-}
-
-message RequestPuckHandling {
-	required double puckX = 1;
-	required double puckY = 2;
-
-	enum ActionType {
-	     PICKUP = 1;
-	     DROP = 2;	
-	}
-
-	required ActionType action = 3;
-}
-
-message PuckActionUpdate {
-	required bool actionSuccess  = 1;
-}
-
-// probably replaced by move_bot
-message RequestRobotTransfer {
-	required int32 id = 1;
-	required int32 team = 2;
-	required double x = 3;
-	required double y = 4;
-	required double a = 5;
-	required double v = 6;
-	required double w = 7;
-	required bool has_puck = 8;
-}
-
 message move_bot {
   message Robot {
     required int32 id = 1;
@@ -219,18 +155,12 @@ message move_bot {
   repeated Robot robot = 2;
 }
 
-// not needed if send message over PUB socket?
-message TransferUpdate {
-	required bool success = 1;
-}
-
 message control_message {
 	enum Type {
-		ADD_BOT = 1;
-		SENSE = 2;
-		SETSPEED = 3;
-		PICKUP = 4;
-		DROP = 5;
+		SENSE = 1;
+		SETSPEED = 2;
+		PICKUP = 3;
+		DROP = 4;
 	}
 
 	message Robot {
