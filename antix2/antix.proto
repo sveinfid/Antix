@@ -157,24 +157,22 @@ message move_bot {
 }
 
 message control_message {
-	enum Type {
-		SENSE = 1;
-		SETSPEED = 2;
-		PICKUP = 3;
-		DROP = 4;
-	}
+  enum Type {
+    SENSE = 1;
+    SETSPEED = 2;
+    PICKUP = 3;
+    DROP = 4;
+  }
 
 	message Robot {
 		required int32 id = 1;
-		optional double v = 2;
-		optional double w = 3;
+    required Type type = 2;
+		optional double v = 3;
+		optional double w = 4;
 	}
 
-	// all robots in message with type TYPE get the action done to them
-
 	required int32 team = 1;
-	required Type type = 2;
-	repeated Robot robot = 3;
+	repeated Robot robot = 2;
 }
 
 message sense_data {

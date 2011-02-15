@@ -128,6 +128,9 @@ public:
 	Puck *puck;
 	Home *home;
 
+	// store what pucks we can see
+	vector<Puck *> see_pucks;
+
 	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
 		a = 0;
 		v = 0;

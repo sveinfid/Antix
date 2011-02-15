@@ -34,6 +34,7 @@ int sleep_time;
 int initial_puck_amount;
 double vision_range;
 double fov;
+int total_teams;
 
 // the robots & pucks we control
 vector<Puck> pucks;
@@ -485,6 +486,9 @@ build_sense_messages() {
 			seen_robot->set_bearing( relative_heading );
 		}
 
+		// we will now find what pucks we can see, but before that, clear our see_pucks
+		r->see_pucks.clear();
+
 		// now look at all the pucks
 		for (vector<Puck>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
 			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
@@ -509,6 +513,8 @@ build_sense_messages() {
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
 			seen_puck->set_held( puck->held );
+
+			r->see_pucks.push_back(&*puck);
 		}
 
 		// now look at foreign robots
@@ -581,6 +587,9 @@ update_poses() {
 	cout << "Poses updated for all robots." << endl;
 }
 
+/*
+
+*/
 Robot *
 find_robot(int team, int id) {
 	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
@@ -591,61 +600,80 @@ find_robot(int team, int id) {
 }
 
 /*
-	A client has sent a sense message. We send the map for each of its robots as
-	a response
+	Update the speed entry for the robot
 */
 void
-sense(antixtransfer::control_message *msg) {
-	// XXX right now there is only one map, so just reply with all our entities
-	antixtransfer::SendMap map;
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		antixtransfer::SendMap::Puck *puck = map.add_puck();
-		puck->set_x( it->x );
-		puck->set_y( it->y );
-		puck->set_held( it->held );
-	}
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		antixtransfer::SendMap::Robot *robot = map.add_robot();
-		robot->set_team( it->team );
-		robot->set_id( it->id );
-		robot->set_x( it->x );
-		robot->set_y( it->y );
-	}
-
-	antix::send_pb(control_rep_sock, &map);
+setspeed(Robot *r, double v, double w) {
+	r->v = v;
+	r->w = w;
 }
 
 /*
-	For each robot, update the speed entry (if the robot is held by us)
+	Attempt to pick up a puck near the given robot
 */
 void
-setspeed(antixtransfer::control_message *msg) {
-	for (int i = 0; i < msg->robot_size(); i++) {
-		// XXX unacceptable cost to find each robot this way!
-		Robot *r = find_robot(msg->team(), msg->robot(i).id());
-		if (r != NULL) {
-			r->v = msg->robot(i).v();
-			r->w = msg->robot(i).w();
+pickup(Robot *r) {
+	// check we aren't already holding a puck
+	if (r->has_puck)
+		return;
+	
+	// see if we can find an available puck to pick up
+	for (vector<Puck *>::iterator it = r->see_pucks.begin(); it != r->see_pucks.end(); it++) {
+		if (!(*it)->held) {
+			r->has_puck = true;
+			r->puck = *it;
+			(*it)->held = true;
+			(*it)->robot = r;
 		}
 	}
-
-	antix::send_blank(control_rep_sock);
 }
 
+/*
+	Attempt to drop a puck for the given robot
+*/
 void
-pickup(antixtransfer::control_message *msg) {
-	// TODO
+drop(Robot *r) {
+	// if we're not holding a puck, nothing to do
+	if (!r->has_puck)
+		return;
+	
+	// otherwise free it
+	Puck *p = r->puck;
 
-	// XXX must send a response
-	antix::send_blank(control_rep_sock);
+	r->has_puck = false;
+	r->puck = NULL;
+	p->held = false;
+	p->robot = NULL;
 }
 
+/*
+	For each robot in the message from a client, apply the action
+*/
 void
-drop(antixtransfer::control_message *msg) {
-	// TODO
+parse_client_message(antixtransfer::control_message *msg) {
+	Robot *r;
+	for (int i = 0; i < msg->robot_size(); i++) {
+		// XXX unacceptable cost to find each robot this way!
+		r = find_robot(msg->team(), msg->robot(i).id());
+		if (r == NULL) {
+			cerr << "Error: got a setspeed message for a robot I couldn't find!" << endl;
+			exit(-1);
+		}
 
-	// XXX must send a response
-	antix::send_blank(control_rep_sock);
+		if (msg->robot(i).type() == antixtransfer::control_message::SETSPEED) {
+			setspeed(r, msg->robot(i).v(), msg->robot(i).w());
+
+		} else if (msg->robot(i).type() == antixtransfer::control_message::PICKUP) {
+			pickup(r);
+
+		} else if (msg->robot(i).type() == antixtransfer::control_message::DROP) {
+			drop(r);
+
+		} else {
+			cerr << "Error: Unknown message type from client (parse_client_message())" << endl;
+			exit(-1);
+		}
+	}
 }
 
 /*
@@ -653,19 +681,31 @@ drop(antixtransfer::control_message *msg) {
 */
 void
 service_control_messages() {
-	antixtransfer::control_message msg;
-	while (antix::recv_pb(control_rep_sock, &msg, ZMQ_NOBLOCK) == 1) {
-		cout << "Received a client control message: " << msg.type() << endl;
-		if (msg.type() == antixtransfer::control_message::SENSE) {
-			sense(&msg);
-		} else if (msg.type() == antixtransfer::control_message::SETSPEED) {
-			setspeed(&msg);
-		} else if (msg.type() == antixtransfer::control_message::PICKUP) {
-			pickup(&msg);
-		} else {
-			drop(&msg);
-		}
+	cout << "Waiting for sense requests from clients..." << endl;
+	// First we expect sense requests on our client control port, each asking
+	// what its robots can see
+	// We except N = # of clients of these messages
+	for (int i = 0; i < total_teams; i++) {
+		antixtransfer::control_message msg;
+		antix::recv_pb(control_rep_sock, &msg, 0);
+		// Respond with the sense data for that client
+		antix::send_pb(control_rep_sock, sense_map[msg.team()]);
 	}
+	cout << "Done responding to sense requests from clients." << endl;
+
+	cout << "Waiting for control requests from clients..." << endl;
+	// Now we expect messages stating a 'move' for each robot on a team
+	// Thus we expect N = # of teams we are currently holding robots for
+	// Currently only one move per robot per team (move = setspeed/pickup/drop)
+	for (int i = 0; i < sense_map.size(); i++) {
+		antixtransfer::control_message msg;
+		antix::recv_pb(control_rep_sock, &msg, 0);
+		parse_client_message(&msg);
+
+		// no confirmation or anything (for now)
+		antix::send_blank(control_rep_sock);
+	}
+	cout << "Done responding to client control messages." << endl;
 }
 
 /*
@@ -780,6 +820,7 @@ main(int argc, char **argv) {
 
 	// node list also has list of robots to be created on nodes, so create ours
 	create_robots(&node_list);
+	total_teams = node_list.robots_on_node_size();
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
