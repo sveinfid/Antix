@@ -684,7 +684,7 @@ main(int argc, char **argv) {
 		wait_for_next_turn();
 		cout << "Turn " << turns++ << " done." << endl;
 
-		//antix::sleep(sleep_time);
+		antix::sleep(sleep_time);
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

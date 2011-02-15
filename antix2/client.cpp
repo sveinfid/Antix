@@ -16,6 +16,8 @@ string client_node_port = "7774";
 int my_id;
 int sleep_time;
 int num_robots;
+double home_radius;
+Home *my_home;
 
 map<int, zmq::socket_t *> node_map;
 vector<CRobot> robots;
@@ -108,6 +110,19 @@ get_node_map(zmq::context_t *context, antixtransfer::Node_list *node_list) {
 	return node_map;
 }
 
+/*
+  Look through the list of homes from node list & find our own
+  (As we need to know its location!)
+*/
+Home *
+find_our_home(antixtransfer::Node_list *node_list) {
+  for (int i = 0; i < node_list->home_size(); i++) {
+    if (node_list->home(i).team() == my_id)
+      return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
+  }
+  return NULL;
+}
+
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -131,6 +146,7 @@ main(int argc, char **argv) {
 	antixtransfer::MasterServerClientInitialization init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
 	my_id = init_response.id();
+  home_radius = init_response.home_radius();
 
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
@@ -141,6 +157,10 @@ main(int argc, char **argv) {
 	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received nodes from master" << endl;
 	antix::print_nodes(&node_list);
+
+  // set our own home
+  my_home = find_our_home(&node_list);
+  assert(my_home != NULL);
 
 	node_map = get_node_map(&context, &node_list);
 	cout << "Connected to all nodes" << endl;
