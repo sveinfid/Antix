@@ -716,6 +716,8 @@ int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
+	srand( time(NULL) );
+	srand48( time(NULL) );
 	
 	if (argc != 6) {
 		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <control port> <GUI port>" << endl;

@@ -292,6 +292,8 @@ int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	zmq::context_t context(1);
+  srand( time(NULL) );
+	srand48( time(NULL) );
 	
   if (argc != 2) {
     cerr << "Usage: " << argv[0] << " <IP of master>" << endl;
