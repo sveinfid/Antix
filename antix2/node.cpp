@@ -11,8 +11,6 @@
 
 #include "antix.cpp"
 
-#define GUI 1
-
 using namespace std;
 
 string master_host;
@@ -35,6 +33,7 @@ int initial_puck_amount;
 double vision_range;
 double fov;
 int total_teams;
+double pickup_range;
 
 // the robots & pucks we control
 vector<Puck> pucks;
@@ -454,7 +453,12 @@ build_sense_messages() {
 		}
 
 		// create entry for this robot since it's first time we're looking at it
-		antixtransfer::sense_data::Robot_Sees *robot_sees = team_msg->add_robot_sees();
+		antixtransfer::sense_data::Robot *robot_pb = team_msg->add_robot();
+		robot_pb->set_a( r->a );
+		robot_pb->set_x( r->x );
+		robot_pb->set_y( r->y );
+		robot_pb->set_has_puck( r->has_puck );
+		robot_pb->set_id( r->id );
 
 		// look at all other robots to see if we can see them
 		for (vector<Robot>::iterator other = robots.begin(); other != robots.end(); other++) {
@@ -481,7 +485,7 @@ build_sense_messages() {
 				continue;
 
 			// we can see the robot
-			antixtransfer::sense_data::Robot_Sees::Seen_Robot *seen_robot = robot_sees->add_seen_robot();
+			antixtransfer::sense_data::Robot::Seen_Robot *seen_robot = robot_pb->add_seen_robot();
 			seen_robot->set_range( range );
 			seen_robot->set_bearing( relative_heading );
 		}
@@ -509,12 +513,12 @@ build_sense_messages() {
 				continue;
 
 			// we can see the puck
-			antixtransfer::sense_data::Robot_Sees::Seen_Puck *seen_puck = robot_sees->add_seen_puck();
+			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
 			seen_puck->set_held( puck->held );
 
-			r->see_pucks.push_back(&*puck);
+			r->see_pucks.push_back(SeePuck(&*puck, range));
 		}
 
 		// now look at foreign robots
@@ -542,7 +546,7 @@ build_sense_messages() {
 				continue;
 
 			// we can see the robot
-			antixtransfer::sense_data::Robot_Sees::Seen_Robot *seen_robot = robot_sees->add_seen_robot();
+			antixtransfer::sense_data::Robot::Seen_Robot *seen_robot = robot_pb->add_seen_robot();
 			seen_robot->set_range( range );
 			seen_robot->set_bearing( relative_heading );
 		}
@@ -567,7 +571,7 @@ build_sense_messages() {
 				continue;
 
 			// we can see the puck
-			antixtransfer::sense_data::Robot_Sees::Seen_Puck *seen_puck = robot_sees->add_seen_puck();
+			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
 			seen_puck->set_held( puck->held );
@@ -618,12 +622,13 @@ pickup(Robot *r) {
 		return;
 	
 	// see if we can find an available puck to pick up
-	for (vector<Puck *>::iterator it = r->see_pucks.begin(); it != r->see_pucks.end(); it++) {
-		if (!(*it)->held) {
+	for (vector<SeePuck>::iterator it = r->see_pucks.begin(); it != r->see_pucks.end(); it++) {
+		// If the puck isn't held and it's within range
+		if ( !it->puck->held && it->range < pickup_range ) {
 			r->has_puck = true;
-			r->puck = *it;
-			(*it)->held = true;
-			(*it)->robot = r;
+			r->puck = it->puck;
+			it->puck->held = true;
+			it->puck->robot = r;
 		}
 	}
 }
@@ -688,8 +693,15 @@ service_control_messages() {
 	for (int i = 0; i < total_teams; i++) {
 		antixtransfer::control_message msg;
 		antix::recv_pb(control_rep_sock, &msg, 0);
-		// Respond with the sense data for that client
-		antix::send_pb(control_rep_sock, sense_map[msg.team()]);
+
+		// if we have sense data for that team, send it on
+		if (sense_map.count( msg.team() ) > 0)
+			antix::send_pb(control_rep_sock, sense_map[msg.team()]);
+		// otherwise give a blank sense message
+		else {
+			antixtransfer::sense_data blank_sense_msg;
+			antix::send_pb(control_rep_sock, &blank_sense_msg);
+		}
 	}
 	cout << "Done responding to sense requests from clients." << endl;
 
@@ -801,6 +813,8 @@ main(int argc, char **argv) {
 	initial_puck_amount = init_response.puck_amount();
 	vision_range = init_response.vision_range();
 	fov = init_response.fov();
+	pickup_range = init_response.pickup_range();
+
 	cout << "We are now node id " << my_id << endl;
 
 	// receive node list
@@ -883,7 +897,9 @@ main(int argc, char **argv) {
 		wait_for_next_turn();
 		cout << "Turn " << turns++ << " done." << endl;
 
+#if SLEEP
 		antix::sleep(sleep_time);
+#endif
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

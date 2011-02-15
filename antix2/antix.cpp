@@ -18,6 +18,9 @@
 
 #include "antix.pb.h"
 
+#define SLEEP 0
+#define GUI 1
+
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
 // from rtv's Antix
@@ -109,6 +112,14 @@ public:
 	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
 };
 
+class SeePuck {
+public:
+	double range;
+	Puck *puck;
+
+	SeePuck(Puck *puck, double range) : puck(puck), range(range) {}
+};
+
 class Robot {
 public:
 	double x, y;
@@ -129,7 +140,7 @@ public:
 	Home *home;
 
 	// store what pucks we can see
-	vector<Puck *> see_pucks;
+	vector<SeePuck> see_pucks;
 
 	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
 		a = 0;
@@ -172,15 +183,17 @@ public:
 // Robot class for clients
 class CRobot {
 public:
-	int id;
-	int node_id;
+	double last_x;
+	double last_y;
 
-	CRobot(int id, int node_ide) : id(id), node_id(node_id) {}
+	CRobot(double last_x, double last_y) : last_x(last_x), last_y(last_y) {}
+	CRobot() {
+		// XXX potentially bad
+		last_x = 0.0;
+		last_y = 0.0;
+	}
 };
 
-class CMap {
-
-};
 class antix {
 public:
 	/*

@@ -17,10 +17,13 @@ int my_id;
 int sleep_time;
 int num_robots;
 double home_radius;
+double pickup_range;
+double world_size;
 Home *my_home;
 
 map<int, zmq::socket_t *> node_map;
-vector<CRobot> robots;
+// some stored data about our robots
+map<int, CRobot> robots;
 
 // talk to master on this socket
 zmq::socket_t *master_req_sock;
@@ -28,38 +31,152 @@ zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
 
 /*
-	Get map data from nodes for each of our robots
-	TODO
-	Right now this just requests the entire map from each node
+	Node has sent us the following sense data with at least one robot
+	Decide what to do and send a response
+
+	XXX Right now we can only do setspeed OR pickup OR drop
 */
 void
-update_map_data() {
+controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
+	// Message that gets sent as a request containing multiple robots
+	antixtransfer::control_message control_msg;
+	control_msg.set_team( my_id );
+
+	// For each robot in the sense data from this node, build a decision
+	for (int i = 0; i < sense_msg->robot_size(); i++) {
+		double x = sense_msg->robot(i).x();
+		double y = sense_msg->robot(i).y();
+		double a = sense_msg->robot(i).a();
+		double id = sense_msg->robot(i).id();
+
+		if (robots.count( id ) == 0) {
+			cerr << "Error: didn't find robot in our list of robots (controller())" << endl;
+			exit(-1);
+		}
+
+		// At the robot to response
+		antixtransfer::control_message::Robot *r = control_msg.add_robot();
+		r->set_id( id );
+
+		double heading_error(0.0);
+		// distance and angle to home
+		double dx( antix::WrapDistance( my_home->x - x, world_size ) );
+		double dy( antix::WrapDistance( my_home->y - y, world_size ) );
+		double da( atan2( dy, dx ) );
+		double dist( hypot( dx, dy ) );
+
+		// if this robot is holding a puck
+		if (sense_msg->robot(i).has_puck()) {
+			// turn towards home
+			heading_error = antix::AngleNormalize(da - a);
+
+			// if the robot is some random distance inside home, drop puck
+			if (dist < drand48() * my_home->r) {
+				r->set_type( antixtransfer::control_message::DROP );
+				continue;
+			}
+
+		// not holding a puck
+		} else {
+			double closest_range(1e9);
+			// Look at all the pucks we can see
+			for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
+				double puck_range = sense_msg->robot(i).seen_puck(j).range();
+				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
+				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
+
+				// If one is within pickup distance, try to pick it up
+				if (puck_range <= pickup_range && !puck_held) {
+					// remember this location
+					robots[id].last_x = x;
+					robots[id].last_y = y;
+					r->set_type( antixtransfer::control_message::PICKUP );
+					continue;
+				}
+
+				// Otherwise see if its the closest we've seen yet
+				if (puck_range < closest_range && !puck_held) {
+					heading_error = puck_bearing;
+					closest_range = puck_range;
+				}
+			}
+
+			// If there were no pucks to see, choose direction differently
+			if (sense_msg->robot(i).seen_puck_size() == 0) {
+				double lx( antix::WrapDistance( robots[id].last_x - x, world_size ) );
+				double ly( antix::WrapDistance( robots[id].last_y - y, world_size ) );
+
+				// go towards last place a puck was picked up (or attempted pick up in
+				// the case of this version
+				heading_error = antix::AngleNormalize( atan2(ly, lx) - a );
+
+				// if the robot is at the location of last attempted puck, choose random
+				if ( hypot( lx, ly) < 0.05 ) {
+					robots[id].last_x += drand48() * 0.4 - 0.2;
+					robots[id].last_y += drand48() * 0.4 - 0.2;
+					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x, world_size );
+					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y, world_size );
+				}
+			}
+		}
+
+		// If we got here, nothing left to try except setspeed
+		r->set_type(antixtransfer::control_message::SETSPEED);
+
+		// check if the robot is pointing in correct direction
+		if ( fabs(heading_error) < 0.1 ) {
+			r->set_v( 0.005 );
+			r->set_w( 0.0 );
+		} else {
+			r->set_v( 0.001 );
+			r->set_w( 0.2 * heading_error );
+		}
+	}
+
+	// send the decision for all of our robots to this node
+	antix::send_pb(node, &control_msg);
+}
+
+/*
+  For every node, request what our robots can see
+  Make a decision based on this & send it back
+
+  Decision logic from rtv's Antix
+*/
+void
+sense_and_controller() {
+	cout << "Requesting sense data from every node..." << endl;
+	// Ask each node what the robots from our team see
 	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
-		// XXX right now just request whole map from each node
 		antixtransfer::control_message msg;
-		msg.set_type(antixtransfer::control_message::SENSE);
 		msg.set_team(my_id);
 		antix::send_pb(it->second, &msg);
 	}
+
 	// Separate loops so that all the messages go out at once
+
+	cout << "Awaiting sense data responses..." << endl;
+	// we will be sending a second message to some nodes. track them here
+	vector<zmq::socket_t *> awaiting_response;
+	// Get the sense data from every node
 	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
+		antixtransfer::sense_data sense_msg;
+		antix::recv_pb(it->second, &sense_msg, 0);
 
-		// Receive map back, but do nothing with it right now
-		antixtransfer::SendMap map;
-		antix::recv_pb(it->second, &map, 0);
-		cout << "Got " << map.robot_size() << " robots and " << map.puck_size() << " pucks from node " << it->first << endl;
+		// if there's at least one robot in the response, we will be sending a command
+		if (sense_msg.robot_size() > 0) {
+			cout << "Got sense data with " << sense_msg.robot_size() << " from node " << it->first << endl;
+			awaiting_response.push_back(it->second);
+			controller(it->second, &sense_msg);
+		}
 	}
-}
 
-void
-update_senses() {
-	// XXX cpu work
-}
-
-void
-controller() {
-	// XXX
-	// Say for each robot we want to SETSPEED & PICKUP _or_ DROP
+	cout << "Awaiting responses from nodes we sent commands to..." << endl;
+	// wait for a response again from those nodes in awaiting_response
+	for (vector<zmq::socket_t *>::iterator it = awaiting_response.begin(); it != awaiting_response.end(); it++) {
+		antix::recv_blank(*it);
+	}
+	cout << "Sensing & controlling done." << endl;
 }
 
 /*
@@ -84,11 +201,11 @@ get_node_map(zmq::context_t *context, antixtransfer::Node_list *node_list) {
 */
 Home *
 find_our_home(antixtransfer::Node_list *node_list) {
-  for (int i = 0; i < node_list->home_size(); i++) {
-    if (node_list->home(i).team() == my_id)
-      return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
-  }
-  return NULL;
+	for (int i = 0; i < node_list->home_size(); i++) {
+		if (node_list->home(i).team() == my_id)
+			return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
+	}
+	return NULL;
 }
 
 int
@@ -102,23 +219,26 @@ main(int argc, char **argv) {
 		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots>" << endl;
 		return -1;
 	}
-  master_host = string(argv[1]);
+	master_host = string(argv[1]);
 	assert(atoi(argv[2]) > 0);
 	num_robots = atoi(argv[2]);
 
 	// REQ socket to master_cli port
-  cout << "Connecting to master..." << endl;
-  master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	cout << "Connecting to master..." << endl;
+	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
-  antixtransfer::connect_init_client init_req;
-  init_req.set_num_robots( num_robots );
-  antix::send_pb_envelope(master_req_sock, &init_req, "client");
+	antixtransfer::connect_init_client init_req;
+	init_req.set_num_robots( num_robots );
+	antix::send_pb_envelope(master_req_sock, &init_req, "client");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
 	my_id = init_response.id();
-  home_radius = init_response.home_radius();
+	home_radius = init_response.home_radius();
+	sleep_time = init_response.sleep_time();
+	pickup_range = init_response.pickup_range();
+	world_size = init_response.world_size();
 
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
@@ -130,26 +250,27 @@ main(int argc, char **argv) {
 	cout << "Received nodes from master" << endl;
 	antix::print_nodes(&node_list);
 
-  // set our own home
-  my_home = find_our_home(&node_list);
-  assert(my_home != NULL);
+	// set our own home
+	my_home = find_our_home(&node_list);
+	assert(my_home != NULL);
 
 	node_map = get_node_map(&context, &node_list);
 	cout << "Connected to all nodes" << endl;
-	
+
+	// initialize the records for our bots
+	for (int i = 0; i < num_robots; i++) {
+		// set initial last_x, last_y to be home location
+		robots.insert( pair<int, CRobot>( i, CRobot(my_home->x, my_home->y) ) );
+	}
+
 	// enter main loop
 	while (1) {
-		// request map data for our robots
-		//update_map_data();
+		// sense, then decide & send what commands for each robot
+		sense_and_controller();
 
-		// update what each robot can see
-		//update_senses();
-
-		// decide & send what commands for each robot
-		//controller();
-
-		// sleep
+#if SLEEP
 		antix::sleep(sleep_time);
+#endif
 	}
 
 	google::protobuf::ShutdownProtobufLibrary();

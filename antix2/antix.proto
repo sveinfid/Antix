@@ -20,8 +20,9 @@ message connect_init_response {
 	required int32 sleep_time = 3;
   required double vision_range = 4;
   required double fov = 5;
+  required double pickup_range = 6;
 	// only relevant for node
-	optional int32 puck_amount = 6;
+	optional int32 puck_amount = 7;
 
 	// more... same as MasterServerClient/NodeInitialization?
 }
@@ -90,6 +91,7 @@ message MasterServerClientInitialization {
 	// id assigned to the client
 	required int32 id = 6;
 	required int32 sleep_time = 7;
+  required double pickup_range = 8;
 }	
 
 message SendMap {
@@ -176,7 +178,7 @@ message control_message {
 }
 
 message sense_data {
-  message Robot_Sees {
+  message Robot {
     message Seen_Robot {
       required double range = 1;
       required double bearing = 2;
@@ -188,9 +190,14 @@ message sense_data {
       required bool held = 3;
     }
 
-    repeated Seen_Robot seen_robot = 1;
-    repeated Seen_Puck seen_puck = 2;
+    required int32 id = 1;
+    required bool has_puck = 2;
+    required double a = 3;
+    required double x = 4;
+    required double y = 5;
+    repeated Seen_Robot seen_robot = 6;
+    repeated Seen_Puck seen_puck = 7;
   }
 
-  repeated Robot_Sees robot_sees = 1;
+  repeated Robot robot = 1;
 }

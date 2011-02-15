@@ -119,6 +119,7 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	init_response.set_puck_amount(initial_pucks_per_node);
 	init_response.set_vision_range(vision_range);
 	init_response.set_fov(fov);
+	init_response.set_pickup_range(pickup_range);
 	antix::send_pb(nodes_socket, &init_response);
 
 	// add node to internal listing of nodes
@@ -258,6 +259,7 @@ main(int argc, char **argv) {
 			init_response.set_home_radius(home_radius);
 			init_response.set_robot_radius(robot_radius);
 			init_response.set_sleep_time(sleep_time);
+			init_response.set_pickup_range(pickup_range);
 
 			antix::send_pb(&clients_socket, &init_response);
 		}

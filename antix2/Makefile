@@ -23,7 +23,7 @@ all: $(objs) $(targets)
 gui: gui.cpp
 	g++ -o $(build_dir)/$@ $< $(objs) $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
 
-.cpp: $(objs)
+.cpp: $(objs) antix.cpp
 	g++ -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
 
 antix.pb.o: antix.proto
