@@ -192,6 +192,7 @@ handle_done(zmq::socket_t *rep_sock,
 	
 	// If we've heard from all clients and all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size() && clients_done->size() == next_client_id) {
+		cout << "Heard from " << nodes_done->size() << " nodes and " << clients_done->size() << " clients. Starting next turn." << endl;
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
 		clients_done->clear();

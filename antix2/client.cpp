@@ -145,7 +145,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 */
 void
 sense_and_controller() {
-	cout << "Requesting sense data from every node..." << endl;
+	cout << "Requesting sense data from every node for team " << my_id << "..." << endl;
 	// Ask each node what the robots from our team see
 	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
 		antixtransfer::control_message msg;

@@ -216,6 +216,7 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			add_move_robot(&*it, move_left_msg);
 			remove_puck(&*it);
 			it = robots.erase(it);
+			cout << "Moving robot " << it->id << " on team " << it->team << " to left node" << endl;
 
 		// Otherwise if it's less than ours and smaller than our left neighbour's,
 		// assume that we are the far right node: send it to our right neighbour
@@ -223,6 +224,7 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			add_move_robot(&*it, move_right_msg);
 			remove_puck(&*it);
 			it = robots.erase(it);
+			cout << "Moving robot " << it->id << " on team " << it->team << " to right node" << endl;
 
 		// If robot's x is bigger than ours and smaller than our right neighbour's, we
 		// send it to our right neighbour
@@ -230,6 +232,7 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			add_move_robot(&*it, move_right_msg);
 			remove_puck(&*it);
 			it = robots.erase(it);
+			cout << "Moving robot " << it->id << " on team " << it->team << " to right node" << endl;
 
 		// Otherwise it's bigger than ours and bigger than our right neighbour's,
 		// assume we are the far left node: send it to our left neighbour
@@ -237,6 +240,7 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			add_move_robot(&*it, move_left_msg);
 			remove_puck(&*it);
 			it = robots.erase(it);
+			cout << "Moving robot " << it->id << " on team " << it->team << " to left node" << endl;
 
 		} else {
 			it++;
@@ -437,7 +441,10 @@ exchange_foreign_entities() {
 */
 void
 build_sense_messages() {
-	// XXX memleak
+	// clear old sense data
+	for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
+		delete it->second;
+	}
 	sense_map.clear();
 
 	// for every robot we have, build a message for it containing what it sees
@@ -684,40 +691,48 @@ parse_client_message(antixtransfer::control_message *msg) {
 
 /*
 	Service control messages from clients
+
+	XXX Currently each robot on a team only gets one move per turn
+	Move = setspeed OR pickup OR drop
 */
 void
 service_control_messages() {
-	cout << "Waiting for sense requests from clients..." << endl;
-	// First we expect sense requests on our client control port, each asking
-	// what its robots can see
-	// We except N = # of clients of these messages
-	for (int i = 0; i < total_teams; i++) {
+	cout << "Waiting for control requests from clients..." << endl;
+
+	// Each client will have one sense request message, and one control message
+	// Though they are the same type, the sense message will have 0 robots
+
+	// The number of messages we expect is:
+	// - sense_messages: N = # of clients in the world
+	// - control messages: M = # of teams we are currently holding robots for
+	//   - we know this through sense_map.size()
+	for (int i = 0; i < total_teams + sense_map.size(); i++) {
 		antixtransfer::control_message msg;
 		antix::recv_pb(control_rep_sock, &msg, 0);
 
-		// if we have sense data for that team, send it on
-		if (sense_map.count( msg.team() ) > 0)
-			antix::send_pb(control_rep_sock, sense_map[msg.team()]);
-		// otherwise give a blank sense message
-		else {
-			antixtransfer::sense_data blank_sense_msg;
-			antix::send_pb(control_rep_sock, &blank_sense_msg);
+		// If more than 0 robots given, this is a message indicating commands for robots
+		if (msg.robot_size() > 0) {
+			cout << "Got a command message for team " << msg.team() << " with commands for " << msg.robot_size() << " robots." << endl;
+			parse_client_message(&msg);
+			// no confirmation or anything (for now)
+			antix::send_blank(control_rep_sock);
+
+		// Otherwise it's a sense request message
+		} else {
+			// if we have sense data for that team, send it on
+			if (sense_map.count( msg.team() ) > 0) {
+				cout << "Sending sense data for team " << msg.team() << " with " << sense_map[msg.team()]->robot_size() << " robots" << endl;
+				antix::send_pb(control_rep_sock, sense_map[msg.team()]);
+
+			// otherwise give a blank sense message
+			} else {
+				antixtransfer::sense_data blank_sense_msg;
+				antix::send_pb(control_rep_sock, &blank_sense_msg);
+				cout << "Sending sense data for team " << msg.team() << " with 0 robots (BLANK)" << endl;
+			}
 		}
 	}
-	cout << "Done responding to sense requests from clients." << endl;
 
-	cout << "Waiting for control requests from clients..." << endl;
-	// Now we expect messages stating a 'move' for each robot on a team
-	// Thus we expect N = # of teams we are currently holding robots for
-	// Currently only one move per robot per team (move = setspeed/pickup/drop)
-	for (int i = 0; i < sense_map.size(); i++) {
-		antixtransfer::control_message msg;
-		antix::recv_pb(control_rep_sock, &msg, 0);
-		parse_client_message(&msg);
-
-		// no confirmation or anything (for now)
-		antix::send_blank(control_rep_sock);
-	}
 	cout << "Done responding to client control messages." << endl;
 }
 
@@ -870,12 +885,12 @@ main(int argc, char **argv) {
 
 		// build message for each client of what their robots can see
 		build_sense_messages();
+		
+		// XXX debug
+		print_local_robots();
 
 		// service control messages on our REP socket
 		service_control_messages();
-
-		// XXX debug
-		print_local_robots();
 
 		// service GUI entity requests
 		service_gui_requests();
