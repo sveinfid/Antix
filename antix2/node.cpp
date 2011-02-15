@@ -55,7 +55,7 @@ antixtransfer::Node_list::Node right_node;
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
 // Master publishes list of nodes to us when beginning simulation
-zmq::socket_t *master_publish_sock;
+zmq::socket_t *master_sub_sock;
 
 // request border entities from neighbour on these REQ sockets
 zmq::socket_t *right_req_sock;
@@ -437,6 +437,7 @@ exchange_foreign_entities() {
 */
 void
 build_sense_messages() {
+	// XXX memleak
 	sense_map.clear();
 
 	// for every robot we have, build a message for it containing what it sees
@@ -444,7 +445,7 @@ build_sense_messages() {
 		antixtransfer::sense_data *team_msg;
 
 		// if we already have an in progress sense msg for this team, use that
-		if (sense_map.count( r->team) > 0) {
+		if (sense_map.count( r->team ) > 0) {
 			team_msg = sense_map[r->team];
 		// otherwise make a new one and use it
 		} else {
@@ -750,20 +751,6 @@ service_gui_requests() {
 #endif
 }
 
-/*
-	Send our master a message stating we're done
-	Then wait until master contacts us so that all nodes are in sync
-*/
-void
-wait_for_next_turn() {
-	antixtransfer::node_master_done done_msg;
-	done_msg.set_my_id( my_id );
-	antix::send_pb_envelope(master_req_sock, &done_msg, "done");
-	cout << "Sent done signal to master" << endl;
-	antix::recv_blank(master_req_sock);
-	cout << "Received begin turn signal from master" << endl;
-}
-
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -788,10 +775,10 @@ main(int argc, char **argv) {
 	cout << "Connecting to master..." << endl;
 
 	// socket to receive list of nodes on (and receive turn begin signal)
-	master_publish_sock = new zmq::socket_t(context, ZMQ_SUB);
+	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	// subscribe to all messages on this socket
-	master_publish_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_publish_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
 
 	// send message announcing ourself. includes our own IP
 	cout << "Sending master our existence notification..." << endl;
@@ -819,7 +806,7 @@ main(int argc, char **argv) {
 
 	// receive node list
 	// blocks until master publishes list of nodes: indicates simulation begin
-	antix::recv_pb(master_publish_sock, &node_list, 0);
+	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
 
@@ -894,7 +881,7 @@ main(int argc, char **argv) {
 		service_gui_requests();
 
 		// tell master we're done the work for this turn & wait for signal
-		wait_for_next_turn();
+		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
 		cout << "Turn " << turns++ << " done." << endl;
 
 #if SLEEP

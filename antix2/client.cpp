@@ -163,9 +163,10 @@ sense_and_controller() {
 		antixtransfer::sense_data sense_msg;
 		antix::recv_pb(it->second, &sense_msg, 0);
 
+		cout << "Got sense data with " << sense_msg.robot_size() << " from node " << it->first << endl;
+
 		// if there's at least one robot in the response, we will be sending a command
 		if (sense_msg.robot_size() > 0) {
-			cout << "Got sense data with " << sense_msg.robot_size() << " from node " << it->first << endl;
 			awaiting_response.push_back(it->second);
 			controller(it->second, &sense_msg);
 		}
@@ -229,7 +230,7 @@ main(int argc, char **argv) {
 	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
 	antixtransfer::connect_init_client init_req;
 	init_req.set_num_robots( num_robots );
-	antix::send_pb_envelope(master_req_sock, &init_req, "client");
+	antix::send_pb_envelope(master_req_sock, &init_req, "init_client");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
@@ -267,6 +268,8 @@ main(int argc, char **argv) {
 	while (1) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
+
+		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::CLIENT);
 
 #if SLEEP
 		antix::sleep(sleep_time);

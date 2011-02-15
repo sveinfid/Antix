@@ -37,8 +37,13 @@ message node_master_sync {
 }
 
 // used to have synchronous turns
-message node_master_done {
+message done {
+	enum Type {
+		CLIENT = 0;
+		NODE = 1;
+	}
 	required int32 my_id = 1;
+	required Type type = 2;
 }
 
 // master -> node/client list of nodes

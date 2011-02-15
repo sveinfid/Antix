@@ -20,6 +20,7 @@
 
 #define SLEEP 0
 #define GUI 1
+#define DEBUG 1
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
@@ -302,6 +303,33 @@ public:
 
 		pb_obj->ParseFromString(s);
 		return retval;
+	}
+
+	/*
+		Send master a message stating we're done a turn
+		Then wait until master contacts us so that all nodes/clients are in sync
+	*/
+	static void
+	wait_for_next_turn(zmq::socket_t *master_req_sock,
+		zmq::socket_t *master_sub_sock,
+		int id,
+		antixtransfer::done::Type type) {
+
+		antixtransfer::done done_msg;
+		done_msg.set_my_id( id );
+		done_msg.set_type( type );
+		antix::send_pb_envelope(master_req_sock, &done_msg, "done");
+#if DEBUG
+		cout << "Sent done signal to master" << endl;
+#endif
+		// necessary response due to REQ socket
+		antix::recv_blank(master_req_sock);
+
+		// now we block on PUB sock awaiting begin
+		antix::recv_blank(master_sub_sock);
+#if DEBUG
+		cout << "Received begin turn signal from master" << endl;
+#endif
 	}
 
 	/*

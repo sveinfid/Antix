@@ -16,8 +16,7 @@ using namespace std;
 	Simulation settings
 */
 const double world_size = 1.0;
-// 5 seconds
-const int sleep_time = 5000;
+const int sleep_time = 1000;
 // pucks per node to initially create
 const int initial_pucks_per_node = 10;
 // range of robot sight
@@ -48,6 +47,7 @@ antixtransfer::Node_list node_list;
 
 // used for synchronous turns
 set<int> nodes_done;
+set<int> clients_done;
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -140,26 +140,61 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 }
 
 /*
-	Node has said it has finished its turn
-	Add to list of completed nodes
+	Send simulation parameters and an ID to the client
+*/
+void
+send_client_init(zmq::socket_t *client_rep_sock, int id) {
+			antixtransfer::MasterServerClientInitialization init_response;
+
+			init_response.set_id( id );
+			init_response.set_vision_range(vision_range);
+			init_response.set_fov(fov);
+			init_response.set_world_size(world_size);
+			init_response.set_home_radius(home_radius);
+			init_response.set_robot_radius(robot_radius);
+			init_response.set_sleep_time(sleep_time);
+			init_response.set_pickup_range(pickup_range);
+
+			antix::send_pb(client_rep_sock, &init_response);
+}
+
+/*
+	Node or client has said it has finished its turn
+	Add to appropriate list if the specific client/node is not already there
+	If both lists are complete, send out next turn message
 	If every node is in the list, send out next turn message
 */
 void
-handle_node_done(zmq::socket_t *nodes_socket, zmq::socket_t *publish_socket) {
-	antixtransfer::node_master_done done_msg;
-	antix::recv_pb(nodes_socket, &done_msg, 0);
+handle_done(zmq::socket_t *rep_sock,
+	zmq::socket_t *publish_sock,
+	set<int> *nodes_done,
+	set<int> *clients_done) {
 
-	// we must respond to the node since this is a REP socket
-	antix::send_blank(nodes_socket);
+	antixtransfer::done done_msg;
+	antix::recv_pb(rep_sock, &done_msg, 0);
 
-	// Record node if we haven't heard from it before
-	if (nodes_done.count(done_msg.my_id()) == 0) {
-		nodes_done.insert(done_msg.my_id());
+	// we must respond since this is a REP socket
+	antix::send_blank(rep_sock);
+
+	// May be from either a client or a node
+	if (done_msg.type() == antixtransfer::done::NODE) {
+		// Record node if we haven't heard from it before
+		if (nodes_done->count(done_msg.my_id()) == 0) {
+			nodes_done->insert(done_msg.my_id());
+		}
+
+	} else if (done_msg.type() == antixtransfer::done::CLIENT) {
+		// Record client if we haven't heard from it before
+		if (clients_done->count(done_msg.my_id()) == 0) {
+			clients_done->insert(done_msg.my_id());
+		}
 	}
 	
-	// If we've heard from every node, start next turn
-	if (nodes_done.size() == node_list.node_size()) {
-		antix::send_blank(publish_socket);
+	// If we've heard from all clients and all nodes, start next turn
+	if (nodes_done->size() == node_list.node_size() && clients_done->size() == next_client_id) {
+		antix::send_blank(publish_sock);
+		nodes_done->clear();
+		clients_done->clear();
 	}
 }
 
@@ -209,8 +244,7 @@ main(int argc, char **argv) {
 
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
-			nodes_socket.recv(&message, 0);
-			string type = string( (char *) message.data() );
+			string type = antix::recv_str(&nodes_socket);
 
 			// Multiple possible messages from node
 			// a message upon initial connection
@@ -219,7 +253,7 @@ main(int argc, char **argv) {
 
 			// a node stating it has finished its work for this turn
 			} else if (type == "done") {
-				handle_node_done(&nodes_socket, &publish_socket);
+				handle_done(&nodes_socket, &publish_socket, &nodes_done, &clients_done);
 
 			// should never get here...
 			} else {
@@ -229,39 +263,31 @@ main(int argc, char **argv) {
 
 		// message from a client / GUI
 		if (items[1].revents & ZMQ_POLLIN) {
-			// type indicates whether client or GUI client
 			string type = antix::recv_str(&clients_socket);
-			antixtransfer::MasterServerClientInitialization init_response;
 
-			// only assign unique id to a regular client
-			if (type == "client") {
+			if (type == "init_client") {
+				int client_id = next_client_id++;
+
 				// client sends a second message part indicating # of robots it wants
 				antixtransfer::connect_init_client init_request;
 				antix::recv_pb(&clients_socket, &init_request, 0);
 
-				init_response.set_id(next_client_id++);
-				cout << "Client connected. Assigned ID " << init_response.id() << ". Wants " << init_request.num_robots() << " robots." << endl;
+				cout << "Client connected. Assigned ID " << client_id << ". Wants " << init_request.num_robots() << " robots." << endl;
 				
 				// record id & how many robots in node_list for transmission to nodes
 				antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
 				rn->set_num_robots( init_request.num_robots() );
-				rn->set_team( init_response.id() );
+				rn->set_team( client_id );
 
-			} else {
-				init_response.set_id(0);
+				send_client_init(&clients_socket, client_id);
+
+			} else if (type == "init_gui_client") {
 				cout << "GUI client connected." << endl;
+				send_client_init(&clients_socket, -1);
+
+			} else if (type == "done") {
+				handle_done(&clients_socket, &publish_socket, &nodes_done, &clients_done);
 			}
-
-			// and the simulation parameters
-			init_response.set_vision_range(vision_range);
-			init_response.set_fov(fov);
-			init_response.set_world_size(world_size);
-			init_response.set_home_radius(home_radius);
-			init_response.set_robot_radius(robot_radius);
-			init_response.set_sleep_time(sleep_time);
-			init_response.set_pickup_range(pickup_range);
-
-			antix::send_pb(&clients_socket, &init_response);
 		}
 
 		// message from an operator
