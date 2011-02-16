@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Run one node on each machine
+#
 
 for line in `cat workstations.txt`
 do
