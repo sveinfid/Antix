@@ -864,7 +864,6 @@ service_control_messages() {
 */
 void
 service_gui_requests() {
-#if GUI
 #if DEBUG
 	cout << "Checking GUI requests..." << endl;
 #endif
@@ -889,7 +888,6 @@ service_gui_requests() {
 	antix::send_pb(gui_rep_sock, &map);
 #if DEBUG
 	cout << "Sent GUI response." << endl;
-#endif
 #endif
 }
 
@@ -1021,7 +1019,9 @@ main(int argc, char **argv) {
 		service_control_messages();
 
 		// service GUI entity requests
+#if GUI
 		service_gui_requests();
+#endif
 
 		// tell master we're done the work for this turn & wait for signal
 		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);

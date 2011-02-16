@@ -33,6 +33,8 @@ const double pickup_range = vision_range / 5.0;
 // track whether simulation has begun
 bool begun = false;
 
+int turns = 0;
+
 /*
 	Master network settings
 */
@@ -196,6 +198,7 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG
 		cout << "Heard from " << nodes_done->size() << " nodes and " << clients_done->size() << " clients. Starting next turn." << endl;
 #endif
+		cout << "Turn " << turns++ << " done." << endl;
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
 		clients_done->clear();
