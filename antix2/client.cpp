@@ -87,11 +87,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
 				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
-				if (puck_held)
-					cout << "See a puck, but it's held" << endl;
-				else
-					cout << "See a puck, and it's not held" << endl;
-
 				/*
 				// if we see a puck, try to pick up if it isn't held
 				if (!puck_held) {
@@ -235,6 +230,8 @@ find_our_home(antixtransfer::Node_list *node_list) {
 		if (node_list->home(i).team() == my_id)
 			return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
 	}
+	cerr << "Error: Didn't find our home" << endl;
+	exit(-1);
 	return NULL;
 }
 

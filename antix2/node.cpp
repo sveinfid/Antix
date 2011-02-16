@@ -112,7 +112,7 @@ create_robots(antixtransfer::Node_list *node_list) {
 void
 generate_pucks() {
 	for (int i = 0; i < initial_puck_amount; i++) {
-		// XXX is this - needed?
+		// XXX is this -0.01 needed?
 		pucks.push_back( Puck(my_min_x, my_max_x - 0.01, world_size) );
 	}
 	cout << "Created " << pucks.size() << " pucks." << endl;
@@ -145,6 +145,30 @@ print_local_robots() {
 }
 
 /*
+
+*/
+Robot *
+find_robot(int team, int id) {
+	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if (it->team == team && it->id == id)
+			return &*it;
+	}
+	return NULL;
+}
+
+/*
+
+*/
+Puck *
+find_puck(Robot *r) {
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		if (it->robot == r)
+			return &*it;
+	}
+	return NULL;
+}
+
+/*
 	A map is waiting to be read on given sock
 	The map may or may not contain entities, add any entities therein
 	to our internal records of foreign robots & pucks
@@ -173,19 +197,39 @@ remove_puck(Robot *r) {
 	cout << "In remove_puck()" << endl;
 	if (!r->has_puck)
 		return;
+	
+	bool erased = false;
+
+	/*
+	Puck *p = find_puck(r);
+	assert(p != NULL);
+
+	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		if (&*it == p) {
+			pucks.erase(it);
+			erased = true;
+			break;
+		}
+	}
+	*/
 
 	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		// Puck isn't held
-		//if (it->robot == NULL)
 		if (!it->held)
 			continue;
 
-		//if (it->robot == r) {
-		if (it->robot->id == r->id && it->robot->team == r->team) {
+		if (it->robot == r) {
+		//if (it->robot->id == r->id && it->robot->team == r->team) {
 			cout << "Erasing a carrying puck" << endl;
 			pucks.erase(it);
+			erased = true;
 			break;
 		}
+	}
+
+	if (!erased) {
+		cerr << "Failed to erase a puck, but we're carrying one" << endl;
+		exit(-1);
 	}
 	cout << "Done remove_puck()" << endl;
 }
@@ -279,10 +323,26 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		robots.push_back(r);
 		// If the robot is carrying a puck, we have to add a puck to our records
 		if (r.has_puck) {
+			// we have already added the robot to vector, so find it
+			Robot *r_ref = find_robot(r.team, r.id);
+			assert(r_ref != NULL);
+
 			Puck p(r.x, r.y, true);
-			p.robot = &robots.back();
+			p.robot = r_ref;
 			pucks.push_back(p);
-			r.puck = &pucks.back();
+
+			// added Puck to vector, so find it
+			Puck *p_ref = find_puck(r_ref);
+			assert(p_ref != NULL);
+
+			r_ref->puck = p_ref;
+
+			assert(r_ref->has_puck == true);
+			assert(r_ref->puck->robot == r_ref);
+
+			//Robot *r_ref = find_robot(r.team, r.id);
+			//r_ref->puck = &pucks.back();
+			//(&robots.back())->puck = &pucks.back();
 		}
 	}
 	cout << i << " robots transferred to this node." << endl;
@@ -618,18 +678,6 @@ update_poses() {
 }
 
 /*
-
-*/
-Robot *
-find_robot(int team, int id) {
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		if (it->team == team && it->id == id)
-			return &*it;
-	}
-	return NULL;
-}
-
-/*
 	Update the speed entry for the robot
 */
 void
@@ -656,6 +704,10 @@ pickup(Robot *r) {
 			it->puck->held = true;
 			it->puck->robot = r;
 			cout << "Robot " << r->id << " on team " << r->team << " picked up a puck." << endl;
+			Robot *t = find_robot(r->team, r->id);
+			assert(t->puck->robot == t);
+			assert(t->puck->held == true);
+			break;
 		}
 	}
 }
@@ -688,7 +740,7 @@ parse_client_message(antixtransfer::control_message *msg) {
 		// XXX unacceptable cost to find each robot this way!
 		r = find_robot(msg->team(), msg->robot(i).id());
 		if (r == NULL) {
-			cerr << "Error: got a setspeed message for a robot I couldn't find!" << endl;
+			cerr << "Error: got a control message for a robot I couldn't find!" << endl;
 			exit(-1);
 		}
 
@@ -765,12 +817,14 @@ service_gui_requests() {
 	antix::recv_blank(gui_rep_sock);
 	// Respond by sending a list of our entities
 	antixtransfer::SendMap_GUI map;
+	//cout << "Sending GUI: robots" << endl;
 	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		antixtransfer::SendMap_GUI::Puck *puck = map.add_puck();
 		puck->set_x( it->x );
 		puck->set_y( it->y );
 		puck->set_held( it->held );
 	}
+	//cout << "Sending GUI: pucks" << endl;
 	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
 		antixtransfer::SendMap_GUI::Robot *robot = map.add_robot();
 		robot->set_team( it->team );

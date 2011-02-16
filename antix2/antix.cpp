@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <set>
 
 #include "antix.pb.h"
@@ -109,8 +110,11 @@ public:
 		x = rand_between(min_x, max_x);
 		y = rand_between(0, world_size);
 		held = false;
+		robot = NULL;
 	}
-	Puck(double x, double y, bool held) : x(x), y(y), held(held) {}
+	Puck(double x, double y, bool held) : x(x), y(y), held(held) {
+		robot = NULL;
+	}
 };
 
 class SeePuck {
@@ -175,9 +179,14 @@ public:
 
 		// If we're holding a puck, it must move also
 		if (has_puck) {
+			cout << "Robot " << id << " on team " << team << " holding a puck. Moving it as well..." << endl;
+			assert(puck != NULL);
+			//assert(puck->robot == this);
+			assert(puck->held == true);
 			puck->x = x;
 			puck->y = y;
 		}
+		cout << "Done with robot " << id << " team " << team << endl;
 	}
 };
 
@@ -467,9 +476,11 @@ public:
 		for (vector<Home>::iterator it = homes->begin(); it != homes->end(); it++) {
 			if (r->team == it->team) {
 				r->home = &*it;
+				return;
 			}
 		}
 		r->home = NULL;
+		assert(r->home != NULL);
 	}
 };
 
