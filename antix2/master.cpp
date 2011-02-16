@@ -15,7 +15,8 @@ using namespace std;
 /*
 	Simulation settings
 */
-const double world_size = 1.0;
+//const double world_size = 1.0;
+const double world_size = 100.0;
 const int sleep_time = 1000;
 // pucks per node to initially create
 const int initial_pucks_per_node = 10;
@@ -192,7 +193,9 @@ handle_done(zmq::socket_t *rep_sock,
 	
 	// If we've heard from all clients and all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size() && clients_done->size() == next_client_id) {
+#if DEBUG
 		cout << "Heard from " << nodes_done->size() << " nodes and " << clients_done->size() << " clients. Starting next turn." << endl;
+#endif
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
 		clients_done->clear();

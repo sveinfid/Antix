@@ -64,7 +64,9 @@ rebuild_entity_db() {
   for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
     antix::send_blank(*it);
   }
+#if DEBUG
   cout << "Sent entity requests to nodes." << endl;
+#endif
 
   // wait on response from each node
   for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
@@ -83,7 +85,9 @@ rebuild_entity_db() {
       robots.push_back(r);
     }
   }
+#if DEBUG
   cout << "After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
+#endif
 }
 
 void

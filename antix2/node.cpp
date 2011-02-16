@@ -100,7 +100,9 @@ create_robots(antixtransfer::Node_list *node_list) {
 				// XXX for testing
 				r->v = 0.01;
 				robots.push_back(r);
+#if DEBUG
 				cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
+#endif
 			}
 		}
 	}
@@ -116,9 +118,11 @@ generate_pucks() {
 		pucks.push_back( new Puck(my_min_x, my_max_x - 0.01, world_size) );
 	}
 	cout << "Created " << pucks.size() << " pucks." << endl;
+#if DEBUG
 	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		cout << "Puck at " << (*it)->x << "," << (*it)->y << endl;
 	}
+#endif
 }
 
 /*
@@ -186,7 +190,9 @@ update_foreign_entities(zmq::socket_t *sock) {
 	for (int i = 0; i < map.puck_size(); i++) {
 		foreign_pucks.push_back( Puck( map.puck(i).x(), map.puck(i).y(), map.puck(i).held() ) );
 	}
+#if DEBUG
 	cout << "Done update_foreign_entities()" << endl;
+#endif
 }
 
 /*
@@ -194,7 +200,9 @@ update_foreign_entities(zmq::socket_t *sock) {
 */
 void
 remove_puck(Robot *r) {
+#if DEBUG
 	cout << "In remove_puck()" << endl;
+#endif
 	if (!r->has_puck)
 		return;
 	
@@ -219,8 +227,9 @@ remove_puck(Robot *r) {
 			continue;
 
 		if ((*it)->robot == r) {
-		//if ((*it)->robot->id == r->id && (*it)->robot->team == r->team) {
+#if DEBUG
 			cout << "Erasing a carrying puck" << endl;
+#endif
 			delete *it;
 			pucks.erase(it);
 			erased = true;
@@ -232,7 +241,9 @@ remove_puck(Robot *r) {
 		cerr << "Failed to erase a puck, but we're carrying one" << endl;
 		exit(-1);
 	}
+#if DEBUG
 	cout << "Done remove_puck()" << endl;
+#endif
 }
 
 /*
@@ -241,7 +252,9 @@ remove_puck(Robot *r) {
 */
 void
 add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
+#if DEBUG
 	cout << "In add_move_robot()" << endl;
+#endif
 	antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
 	r_move->set_id(r->id);
 	r_move->set_team(r->team);
@@ -251,7 +264,9 @@ add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
 	r_move->set_v(r->v);
 	r_move->set_w(r->w);
 	r_move->set_has_puck(r->has_puck);
+#if DEBUG
 	cout << "Done add_remove_robot()" << endl;
+#endif
 }
 
 /*
@@ -275,7 +290,9 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			remove_puck(*it);
 			delete *it;
 			it = robots.erase(it);
+#if DEBUG
 			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
+#endif
 
 		// Otherwise if it's less than ours and smaller than our left neighbour's,
 		// assume that we are the far right node: send it to our right neighbour
@@ -284,7 +301,9 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			remove_puck(*it);
 			delete *it;
 			it = robots.erase(it);
+#if DEBUG
 			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
+#endif
 
 		// If robot's x is bigger than ours and smaller than our right neighbour's, we
 		// send it to our right neighbour
@@ -293,7 +312,9 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			remove_puck(*it);
 			delete *it;
 			it = robots.erase(it);
+#if DEBUG
 			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
+#endif
 
 		// Otherwise it's bigger than ours and bigger than our right neighbour's,
 		// assume we are the far left node: send it to our left neighbour
@@ -302,7 +323,9 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 			remove_puck(*it);
 			delete *it;
 			it = robots.erase(it);
+#if DEBUG
 			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
+#endif
 
 		} else {
 			it++;
@@ -344,7 +367,9 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			//(&robots.back())->puck = &pucks.back();
 		}
 	}
+#if DEBUG
 	cout << i << " robots transferred to this node." << endl;
+#endif
 }
 
 /*
@@ -367,7 +392,9 @@ send_move_messages() {
 	antix::send_pb(left_req_sock, &move_left_msg);
 	antix::send_pb(right_req_sock, &move_right_msg);
 
+#if DEBUG
 	cout << "Movement messages sent." << endl;
+#endif
 }
 
 /*
@@ -468,14 +495,18 @@ exchange_foreign_entities() {
 
 		// left_req response
 		if (items[0].revents & ZMQ_POLLIN) {
+#if DEBUG
 			cout << "Received foreign entities response from left req sock" << endl;
+#endif
 			update_foreign_entities(left_req_sock);
 			responses++;
 		}
 
 		// right_req response
 		if (items[1].revents & ZMQ_POLLIN) {
+#if DEBUG
 			cout << "Received foreign entities response from right req sock" << endl;
+#endif
 			update_foreign_entities(right_req_sock);
 			responses++;
 		}
@@ -495,12 +526,16 @@ exchange_foreign_entities() {
 			else
 				antix::send_pb(neighbour_rep_sock, &border_map_right);
 			requests++;
+#if DEBUG
 			cout << "Received move request from a neighbour, sent border entities" << endl;
+#endif
 		}
 	}
 
+#if DEBUG
 	cout << "Done exchanging foreign entities." << endl;
 	print_foreign_entities();
+#endif
 }
 
 /*
@@ -661,7 +696,9 @@ build_sense_messages() {
 		}
 		*/
 	}
+#if DEBUG
 	cout << "Sensors re-calculated." << endl;
+#endif
 }
 
 /*
@@ -669,11 +706,15 @@ build_sense_messages() {
 */
 void
 update_poses() {
+#if DEBUG
 	cout << "Updating poses for all robots..." << endl;
+#endif
 	for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 		(*it)->update_pose(world_size);
 	}
+#if DEBUG
 	cout << "Poses updated for all robots." << endl;
+#endif
 }
 
 /*
@@ -702,7 +743,9 @@ pickup(Robot *r) {
 			r->puck = it->puck;
 			it->puck->held = true;
 			it->puck->robot = r;
+#if DEBUG
 			cout << "Robot " << r->id << " on team " << r->team << " picked up a puck." << endl;
+#endif
 			Robot *t = find_robot(r->team, r->id);
 			assert(t->puck->robot == t);
 			assert(t->puck->held == true);
@@ -767,7 +810,9 @@ parse_client_message(antixtransfer::control_message *msg) {
 */
 void
 service_control_messages() {
+#if DEBUG
 	cout << "Waiting for control requests from clients..." << endl;
+#endif
 
 	// Each client will have one sense request message, and one control message
 	// Though they are the same type, the sense message will have 0 robots
@@ -782,7 +827,9 @@ service_control_messages() {
 
 		// If more than 0 robots given, this is a message indicating commands for robots
 		if (msg.robot_size() > 0) {
+#if DEBUG
 			cout << "Got a command message for team " << msg.team() << " with commands for " << msg.robot_size() << " robots." << endl;
+#endif
 			parse_client_message(&msg);
 			// no confirmation or anything (for now)
 			antix::send_blank(control_rep_sock);
@@ -791,19 +838,25 @@ service_control_messages() {
 		} else {
 			// if we have sense data for that team, send it on
 			if (sense_map.count( msg.team() ) > 0) {
+#if DEBUG
 				cout << "Sending sense data for team " << msg.team() << " with " << sense_map[msg.team()]->robot_size() << " robots " << endl;
+#endif
 				antix::send_pb(control_rep_sock, sense_map[msg.team()]);
 
 			// otherwise give a blank sense message
 			} else {
 				antixtransfer::sense_data blank_sense_msg;
 				antix::send_pb(control_rep_sock, &blank_sense_msg);
+#if DEBUG
 				cout << "Sending sense data for team " << msg.team() << " with 0 robots (BLANK)" << endl;
+#endif
 			}
 		}
 	}
 
+#if DEBUG
 	cout << "Done responding to client control messages." << endl;
+#endif
 }
 
 /*
@@ -812,18 +865,18 @@ service_control_messages() {
 void
 service_gui_requests() {
 #if GUI
+#if DEBUG
 	cout << "Checking GUI requests..." << endl;
+#endif
 	antix::recv_blank(gui_rep_sock);
 	// Respond by sending a list of our entities
 	antixtransfer::SendMap_GUI map;
-	//cout << "Sending GUI: robots" << endl;
 	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		antixtransfer::SendMap_GUI::Puck *puck = map.add_puck();
 		puck->set_x( (*it)->x );
 		puck->set_y( (*it)->y );
 		puck->set_held( (*it)->held );
 	}
-	//cout << "Sending GUI: pucks" << endl;
 	for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 		antixtransfer::SendMap_GUI::Robot *robot = map.add_robot();
 		robot->set_team( (*it)->team );
@@ -834,7 +887,9 @@ service_gui_requests() {
 	}
 
 	antix::send_pb(gui_rep_sock, &map);
+#if DEBUG
 	cout << "Sent GUI response." << endl;
+#endif
 #endif
 }
 
@@ -958,8 +1013,9 @@ main(int argc, char **argv) {
 		// build message for each client of what their robots can see
 		build_sense_messages();
 		
-		// XXX debug
+#if DEBUG
 		print_local_robots();
+#endif
 
 		// service control messages on our REP socket
 		service_control_messages();
@@ -969,7 +1025,9 @@ main(int argc, char **argv) {
 
 		// tell master we're done the work for this turn & wait for signal
 		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
+#if DEBUG
 		cout << "Turn " << turns++ << " done." << endl;
+#endif
 
 #if SLEEP
 		antix::sleep(sleep_time);

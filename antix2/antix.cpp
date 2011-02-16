@@ -20,8 +20,8 @@
 #include "antix.pb.h"
 
 #define SLEEP 0
+#define DEBUG 0
 #define GUI 1
-#define DEBUG 1
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
@@ -179,14 +179,12 @@ public:
 
 		// If we're holding a puck, it must move also
 		if (has_puck) {
-			cout << "Robot " << id << " on team " << team << " holding a puck. Moving it as well..." << endl;
 			assert(puck != NULL);
-			//assert(puck->robot == this);
+			assert(puck->robot == this);
 			assert(puck->held == true);
 			puck->x = x;
 			puck->y = y;
 		}
-		cout << "Done with robot " << id << " team " << team << endl;
 	}
 };
 

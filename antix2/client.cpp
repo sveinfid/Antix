@@ -80,36 +80,22 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		} else {
 			double closest_range(1e9);
 			bool picking_up = false;
-			cout << "Robot can see " << sense_msg->robot(i).seen_puck_size() << " pucks." << endl;
 			// Look at all the pucks we can see
 			for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
 				double puck_range = sense_msg->robot(i).seen_puck(j).range();
 				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
 				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
-				/*
-				// if we see a puck, try to pick up if it isn't held
-				if (!puck_held) {
-					cout << "Trying to pick up a puck" << endl;
-					// remember location
-					robots[id].last_x = x;
-					robots[id].last_y = y;
-					r->set_type( antixtransfer::control_message::PICKUP );
-					// XXX continue bad! we're in a secondary loop
-					//continue;
-					break;
-				}
-				*/
 				// If one is within pickup distance, try to pick it up
 				if (puck_range < pickup_range && !puck_held) {
+#if DEBUG
 					cout << "Trying to pick up a puck" << endl;
+#endif
 					// remember this location
 					robots[id].last_x = x;
 					robots[id].last_y = y;
 					r->set_type( antixtransfer::control_message::PICKUP );
 					picking_up = true;
-					// XXX continue bad! we're in a secondary loop
-					//continue;
 					break;
 				}
 
@@ -169,7 +155,9 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 */
 void
 sense_and_controller() {
+#if DEBUG
 	cout << "Requesting sense data from every node for team " << my_id << "..." << endl;
+#endif
 	// Ask each node what the robots from our team see
 	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
 		antixtransfer::control_message msg;
@@ -179,7 +167,9 @@ sense_and_controller() {
 
 	// Separate loops so that all the messages go out at once
 
+#if DEBUG
 	cout << "Awaiting sense data responses..." << endl;
+#endif
 	// we will be sending a second message to some nodes. track them here
 	vector<zmq::socket_t *> awaiting_response;
 	// Get the sense data from every node
@@ -187,7 +177,9 @@ sense_and_controller() {
 		antixtransfer::sense_data sense_msg;
 		antix::recv_pb(it->second, &sense_msg, 0);
 
+#if DEBUG
 		cout << "Got sense data with " << sense_msg.robot_size() << " from node " << it->first << endl;
+#endif
 
 		// if there's at least one robot in the response, we will be sending a command
 		if (sense_msg.robot_size() > 0) {
@@ -196,12 +188,16 @@ sense_and_controller() {
 		}
 	}
 
+#if DEBUG
 	cout << "Awaiting responses from nodes we sent commands to..." << endl;
+#endif
 	// wait for a response again from those nodes in awaiting_response
 	for (vector<zmq::socket_t *>::iterator it = awaiting_response.begin(); it != awaiting_response.end(); it++) {
 		antix::recv_blank(*it);
 	}
+#if DEBUG
 	cout << "Sensing & controlling done." << endl;
+#endif
 }
 
 /*
