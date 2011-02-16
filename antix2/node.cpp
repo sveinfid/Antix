@@ -35,8 +35,8 @@ int total_teams;
 double pickup_range;
 
 // the robots & pucks we control
-vector<Puck> pucks;
-vector<Robot> robots;
+vector<Puck *> pucks;
+vector<Robot *> robots;
 // sent to us by neighbours
 vector<Puck> foreign_pucks;
 vector<Robot> foreign_robots;
@@ -96,11 +96,11 @@ create_robots(antixtransfer::Node_list *node_list) {
 		rn = node_list->mutable_robots_on_node(i);
 		if (rn->node() == my_id) {
 			for (int j = 0; j < rn->num_robots(); j++) {
-				Robot r(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), j, rn->team());
+				Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, world_size), j, rn->team());
 				// XXX for testing
-				r.v = 0.01;
+				r->v = 0.01;
 				robots.push_back(r);
-				cout << "Created a bot: Team: " << r.team << " id: " << r.id << " at (" << r.x << ", " << r.y << ")" << endl;
+				cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
 			}
 		}
 	}
@@ -113,11 +113,11 @@ void
 generate_pucks() {
 	for (int i = 0; i < initial_puck_amount; i++) {
 		// XXX is this -0.01 needed?
-		pucks.push_back( Puck(my_min_x, my_max_x - 0.01, world_size) );
+		pucks.push_back( new Puck(my_min_x, my_max_x - 0.01, world_size) );
 	}
 	cout << "Created " << pucks.size() << " pucks." << endl;
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		cout << "Puck at " << it->x << "," << it->y << endl;
+	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		cout << "Puck at " << (*it)->x << "," << (*it)->y << endl;
 	}
 }
 
@@ -139,8 +139,8 @@ print_foreign_entities() {
 void
 print_local_robots() {
 	cout << "Current local robots:" << endl;
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		cout << "Robot " << it->id << " on team " << it->team << " at (" << it->x << ", " << it->y << ") a: " << it->a << " v: " << it->v << endl;
+	for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		cout << "Robot " << (*it)->id << " on team " << (*it)->team << " at (" << (*it)->x << ", " << (*it)->y << ") a: " << (*it)->a << " v: " << (*it)->v << endl;
 	}
 }
 
@@ -149,9 +149,9 @@ print_local_robots() {
 */
 Robot *
 find_robot(int team, int id) {
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		if (it->team == team && it->id == id)
-			return &*it;
+	for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if ((*it)->team == team && (*it)->id == id)
+			return *it;
 	}
 	return NULL;
 }
@@ -161,9 +161,9 @@ find_robot(int team, int id) {
 */
 Puck *
 find_puck(Robot *r) {
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if (it->robot == r)
-			return &*it;
+	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		if ((*it)->robot == r)
+			return *it;
 	}
 	return NULL;
 }
@@ -213,14 +213,15 @@ remove_puck(Robot *r) {
 	}
 	*/
 
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		// Puck isn't held
-		if (!it->held)
+		if (!(*it)->held)
 			continue;
 
-		if (it->robot == r) {
-		//if (it->robot->id == r->id && it->robot->team == r->team) {
+		if ((*it)->robot == r) {
+		//if ((*it)->robot->id == r->id && (*it)->robot->team == r->team) {
 			cout << "Erasing a carrying puck" << endl;
+			delete *it;
 			pucks.erase(it);
 			erased = true;
 			break;
@@ -260,7 +261,7 @@ add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
 */
 void
 build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_bot *move_right_msg) {
-	vector<Robot>::iterator it = robots.begin();
+	vector<Robot *>::iterator it = robots.begin();
 	// while loop as iterator may be updated other due to deletion
 	while (it != robots.end()) {
 		// We do these 4 cases as it's possible the robot has looped around the world
@@ -269,35 +270,39 @@ build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_b
 
 		// If robot's x is less than ours and bigger than our left neighbours, send
 		// to our left neighbour
-		if (it->x < my_min_x && it->x > my_min_x - offset_size) {
-			add_move_robot(&*it, move_left_msg);
-			remove_puck(&*it);
+		if ((*it)->x < my_min_x && (*it)->x > my_min_x - offset_size) {
+			add_move_robot(*it, move_left_msg);
+			remove_puck(*it);
+			delete *it;
 			it = robots.erase(it);
-			cout << "Moving robot " << it->id << " on team " << it->team << " to left node" << endl;
+			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
 
 		// Otherwise if it's less than ours and smaller than our left neighbour's,
 		// assume that we are the far right node: send it to our right neighbour
-		} else if (it->x < my_min_x) {
-			add_move_robot(&*it, move_right_msg);
-			remove_puck(&*it);
+		} else if ((*it)->x < my_min_x) {
+			add_move_robot(*it, move_right_msg);
+			remove_puck(*it);
+			delete *it;
 			it = robots.erase(it);
-			cout << "Moving robot " << it->id << " on team " << it->team << " to right node" << endl;
+			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
 
 		// If robot's x is bigger than ours and smaller than our right neighbour's, we
 		// send it to our right neighbour
-		} else if (it->x >= my_max_x && it->x < my_max_x + offset_size) {
-			add_move_robot(&*it, move_right_msg);
-			remove_puck(&*it);
+		} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + offset_size) {
+			add_move_robot(*it, move_right_msg);
+			remove_puck(*it);
+			delete *it;
 			it = robots.erase(it);
-			cout << "Moving robot " << it->id << " on team " << it->team << " to right node" << endl;
+			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
 
 		// Otherwise it's bigger than ours and bigger than our right neighbour's,
 		// assume we are the far left node: send it to our left neighbour
-		} else if (it->x >= my_max_x) {
-			add_move_robot(&*it, move_left_msg);
-			remove_puck(&*it);
+		} else if ((*it)->x >= my_max_x) {
+			add_move_robot(*it, move_left_msg);
+			remove_puck(*it);
+			delete *it;
 			it = robots.erase(it);
-			cout << "Moving robot " << it->id << " on team " << it->team << " to left node" << endl;
+			cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
 
 		} else {
 			it++;
@@ -315,30 +320,24 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 	// for each robot in the message, add it to our list
 	int i;
 	for(i = 0; i < move_bot_msg->robot_size(); i++) {
-		Robot r(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(), move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team());
-		r.a = move_bot_msg->robot(i).a();
-		r.v = move_bot_msg->robot(i).v();
-		r.w = move_bot_msg->robot(i).w();
-		r.has_puck = move_bot_msg->robot(i).has_puck();
+		Robot *r = new Robot(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(), move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team());
+		r->a = move_bot_msg->robot(i).a();
+		r->v = move_bot_msg->robot(i).v();
+		r->w = move_bot_msg->robot(i).w();
+		r->has_puck = move_bot_msg->robot(i).has_puck();
 		robots.push_back(r);
 		// If the robot is carrying a puck, we have to add a puck to our records
-		if (r.has_puck) {
-			// we have already added the robot to vector, so find it
-			Robot *r_ref = find_robot(r.team, r.id);
-			assert(r_ref != NULL);
-
-			Puck p(r.x, r.y, true);
-			p.robot = r_ref;
+		if (r->has_puck) {
+			Puck *p = new Puck(r->x, r->y, true);
+			p->robot = r;
 			pucks.push_back(p);
 
-			// added Puck to vector, so find it
-			Puck *p_ref = find_puck(r_ref);
-			assert(p_ref != NULL);
+			r->puck = p;
 
-			r_ref->puck = p_ref;
-
-			assert(r_ref->has_puck == true);
-			assert(r_ref->puck->robot == r_ref);
+			assert(r->has_puck == true);
+			assert(r->puck->robot == r);
+			assert(p->robot == r);
+			assert(r->puck == p);
 
 			//Robot *r_ref = find_robot(r.team, r.id);
 			//r_ref->puck = &pucks.back();
@@ -405,18 +404,18 @@ rebuild_border_entities() {
 	border_map_right.clear_robot();
 	border_map_right.clear_puck();
 
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if (it->x > my_max_x - vision_range)
-			add_border_puck(&border_map_right, &*it);
-		else if (it->x < my_min_x + vision_range)
-			add_border_puck(&border_map_left, &*it);
+	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		if ((*it)->x > my_max_x - vision_range)
+			add_border_puck(&border_map_right, *it);
+		else if ((*it)->x < my_min_x + vision_range)
+			add_border_puck(&border_map_left, *it);
 	}
 
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		if (it->x > my_max_x - vision_range)
-			add_border_robot(&border_map_right, &*it);
-		else if (it->x < my_min_x + vision_range)
-			add_border_robot(&border_map_left, &*it);
+	for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		if ((*it)->x > my_max_x - vision_range)
+			add_border_robot(&border_map_right, *it);
+		else if ((*it)->x < my_min_x + vision_range)
+			add_border_robot(&border_map_left, *it);
 	}
 
 	/*
@@ -521,37 +520,37 @@ build_sense_messages() {
 	sense_map.clear();
 
 	// for every robot we have, build a message for it containing what it sees
-	for (vector<Robot>::iterator r = robots.begin(); r != robots.end(); r++) {
+	for (vector<Robot *>::iterator r = robots.begin(); r != robots.end(); r++) {
 		antixtransfer::sense_data *team_msg;
 
 		// if we already have an in progress sense msg for this team, use that
-		if (sense_map.count( r->team ) > 0) {
-			team_msg = sense_map[r->team];
+		if (sense_map.count( (*r)->team ) > 0) {
+			team_msg = sense_map[(*r)->team];
 		// otherwise make a new one and use it
 		} else {
 			team_msg = new antixtransfer::sense_data;
-			sense_map.insert( pair<int, antixtransfer::sense_data *>(r->team, team_msg) );
+			sense_map.insert( pair<int, antixtransfer::sense_data *>((*r)->team, team_msg) );
 		}
 
 		// create entry for this robot since it's first time we're looking at it
 		antixtransfer::sense_data::Robot *robot_pb = team_msg->add_robot();
-		robot_pb->set_a( r->a );
-		robot_pb->set_x( r->x );
-		robot_pb->set_y( r->y );
-		robot_pb->set_has_puck( r->has_puck );
-		robot_pb->set_id( r->id );
+		robot_pb->set_a( (*r)->a );
+		robot_pb->set_x( (*r)->x );
+		robot_pb->set_y( (*r)->y );
+		robot_pb->set_has_puck( (*r)->has_puck );
+		robot_pb->set_id( (*r)->id );
 
 		// look at all other robots to see if we can see them
-		for (vector<Robot>::iterator other = robots.begin(); other != robots.end(); other++) {
+		for (vector<Robot *>::iterator other = robots.begin(); other != robots.end(); other++) {
 			// we don't look at ourself
-			if (&*r == &*other)
+			if (*r == *other)
 				continue;
 			
-			double dx( antix::WrapDistance( other->x - r->x, world_size ) );
+			double dx( antix::WrapDistance( (*other)->x - (*r)->x, world_size ) );
 			if ( fabs(dx) > vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( other->y - r->y, world_size ) );
+			double dy( antix::WrapDistance( (*other)->y - (*r)->y, world_size ) );
 			if ( fabs(dy) > vision_range )
 				continue;
 
@@ -561,7 +560,7 @@ build_sense_messages() {
 
 			// check that it's in fov
 			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			double relative_heading = antix::AngleNormalize(absolute_heading - (*r)->a);
 			if ( fabs(relative_heading) > fov/2.0 )
 				continue;
 
@@ -572,15 +571,15 @@ build_sense_messages() {
 		}
 
 		// we will now find what pucks we can see, but before that, clear our see_pucks
-		r->see_pucks.clear();
+		(*r)->see_pucks.clear();
 
 		// now look at all the pucks
-		for (vector<Puck>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
-			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
+		for (vector<Puck *>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
+			double dx( antix::WrapDistance( (*puck)->x - (*r)->x, world_size ) );
 			if ( fabs(dx) > vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+			double dy( antix::WrapDistance( (*puck)->y - (*r)->y, world_size ) );
 			if ( fabs(dy) > vision_range )
 				continue;
 
@@ -590,7 +589,7 @@ build_sense_messages() {
 
 			// fov check
 			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			double relative_heading = antix::AngleNormalize( absolute_heading - (*r)->a );
 			if ( fabs(relative_heading) > fov/2.0 )
 				continue;
 
@@ -598,22 +597,22 @@ build_sense_messages() {
 			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
 			seen_puck->set_range( range );
 			seen_puck->set_bearing ( relative_heading );
-			seen_puck->set_held( puck->held );
+			seen_puck->set_held( (*puck)->held );
 
-			r->see_pucks.push_back(SeePuck(&*puck, range));
+			(*r)->see_pucks.push_back(SeePuck(*puck, range));
 		}
 
 		// now look at foreign robots
 		for (vector<Robot>::iterator other = foreign_robots.begin(); other != foreign_robots.end(); other++) {
 			// we don't look at ourself
-			if (&*r == &*other)
+			if (*r == &*other)
 				continue;
 			
-			double dx( antix::WrapDistance( other->x - r->x, world_size ) );
+			double dx( antix::WrapDistance( other->x - (*r)->x, world_size ) );
 			if ( fabs(dx) > vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( other->y - r->y, world_size ) );
+			double dy( antix::WrapDistance( other->y - (*r)->y, world_size ) );
 			if ( fabs(dy) > vision_range )
 				continue;
 
@@ -623,7 +622,7 @@ build_sense_messages() {
 
 			// check that it's in fov
 			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			double relative_heading = antix::AngleNormalize(absolute_heading - (*r)->a);
 			if ( fabs(relative_heading) > fov/2.0 )
 				continue;
 
@@ -636,11 +635,11 @@ build_sense_messages() {
 		// and foreign pucks
 		/* XXX we don't deal with picking up foreign pucks right now
 		for (vector<Puck>::iterator puck = foreign_pucks.begin(); puck != foreign_pucks.end(); puck++) {
-			double dx( antix::WrapDistance( puck->x - r->x, world_size ) );
+			double dx( antix::WrapDistance( puck->x - (*r)->x, world_size ) );
 			if ( fabs(dx) > vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( puck->y - r->y, world_size ) );
+			double dy( antix::WrapDistance( puck->y - (*r)->y, world_size ) );
 			if ( fabs(dy) > vision_range )
 				continue;
 
@@ -650,7 +649,7 @@ build_sense_messages() {
 
 			// fov check
 			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			double relative_heading = antix::AngleNormalize( absolute_heading - (*r)->a );
 			if ( fabs(relative_heading) > fov/2.0 )
 				continue;
 
@@ -671,8 +670,8 @@ build_sense_messages() {
 void
 update_poses() {
 	cout << "Updating poses for all robots..." << endl;
-	for(vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
-		it->update_pose(world_size);
+	for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		(*it)->update_pose(world_size);
 	}
 	cout << "Poses updated for all robots." << endl;
 }
@@ -818,20 +817,20 @@ service_gui_requests() {
 	// Respond by sending a list of our entities
 	antixtransfer::SendMap_GUI map;
 	//cout << "Sending GUI: robots" << endl;
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 		antixtransfer::SendMap_GUI::Puck *puck = map.add_puck();
-		puck->set_x( it->x );
-		puck->set_y( it->y );
-		puck->set_held( it->held );
+		puck->set_x( (*it)->x );
+		puck->set_y( (*it)->y );
+		puck->set_held( (*it)->held );
 	}
 	//cout << "Sending GUI: pucks" << endl;
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+	for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 		antixtransfer::SendMap_GUI::Robot *robot = map.add_robot();
-		robot->set_team( it->team );
-		robot->set_id( it->id );
-		robot->set_x( it->x );
-		robot->set_y( it->y );
-		robot->set_a( it->a );
+		robot->set_team( (*it)->team );
+		robot->set_id( (*it)->id );
+		robot->set_x( (*it)->x );
+		robot->set_y( (*it)->y );
+		robot->set_a( (*it)->a );
 	}
 
 	antix::send_pb(gui_rep_sock, &map);
