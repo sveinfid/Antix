@@ -51,6 +51,16 @@ antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
+// Repeated protobuf messages: Declare them once as constructor expensive
+
+// messages that are sent repeatedly when bots move left or right
+antixtransfer::move_bot move_left_msg;
+antixtransfer::move_bot move_right_msg;
+// used in update_foreign_entities
+antixtransfer::SendMap sendmap_recv;
+// used in exchange_foreign_entities
+antixtransfer::move_bot move_bot_msg;
+
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
 // Master publishes list of nodes to us when beginning simulation
@@ -179,16 +189,15 @@ find_puck(Robot *r) {
 */
 void
 update_foreign_entities(zmq::socket_t *sock) {
-	antixtransfer::SendMap map;
-	antix::recv_pb(sock, &map, 0);
+	antix::recv_pb(sock, &sendmap_recv, 0);
 
 	// foreign robots
-	for (int i = 0; i < map.robot_size(); i++) {
-		foreign_robots.push_back( Robot( map.robot(i).x(), map.robot(i).y(), map.robot(i).id(), map.robot(i).team() ) );
+	for (int i = 0; i < sendmap_recv.robot_size(); i++) {
+		foreign_robots.push_back( Robot( sendmap_recv.robot(i).x(), sendmap_recv.robot(i).y(), sendmap_recv.robot(i).id(), sendmap_recv.robot(i).team() ) );
 	}
 	// foreign pucks
-	for (int i = 0; i < map.puck_size(); i++) {
-		foreign_pucks.push_back( Puck( map.puck(i).x(), map.puck(i).y(), map.puck(i).held() ) );
+	for (int i = 0; i < sendmap_recv.puck_size(); i++) {
+		foreign_pucks.push_back( Puck( sendmap_recv.puck(i).x(), sendmap_recv.puck(i).y(), sendmap_recv.puck(i).held() ) );
 	}
 #if DEBUG
 	cout << "Done update_foreign_entities()" << endl;
@@ -203,44 +212,15 @@ remove_puck(Robot *r) {
 #if DEBUG
 	cout << "In remove_puck()" << endl;
 #endif
+
 	if (!r->has_puck)
 		return;
 	
-	bool erased = false;
+	assert(r->puck != NULL);
+  delete r->puck;
+  r->puck = NULL;
+  r->has_puck = false;
 
-	/*
-	Puck *p = find_puck(r);
-	assert(p != NULL);
-
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if (&*it == p) {
-			pucks.erase(it);
-			erased = true;
-			break;
-		}
-	}
-	*/
-
-	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		// Puck isn't held
-		if (!(*it)->held)
-			continue;
-
-		if ((*it)->robot == r) {
-#if DEBUG
-			cout << "Erasing a carrying puck" << endl;
-#endif
-			delete *it;
-			pucks.erase(it);
-			erased = true;
-			break;
-		}
-	}
-
-	if (!erased) {
-		cerr << "Failed to erase a puck, but we're carrying one" << endl;
-		exit(-1);
-	}
 #if DEBUG
 	cout << "Done remove_puck()" << endl;
 #endif
@@ -361,10 +341,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			assert(r->puck->robot == r);
 			assert(p->robot == r);
 			assert(r->puck == p);
-
-			//Robot *r_ref = find_robot(r.team, r.id);
-			//r_ref->puck = &pucks.back();
-			//(&robots.back())->puck = &pucks.back();
 		}
 	}
 #if DEBUG
@@ -382,10 +358,8 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 void
 send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
-	antixtransfer::move_bot move_left_msg;
-	move_left_msg.set_from_right(true);
-	antixtransfer::move_bot move_right_msg;
-	move_right_msg.set_from_right(false);
+	move_left_msg.clear_robot();
+	move_right_msg.clear_robot();
 	build_move_message(&move_left_msg, &move_right_msg);
 
 	// Send our move messages
@@ -513,7 +487,6 @@ exchange_foreign_entities() {
 
 		// neighbour request
 		if (items[2].revents & ZMQ_POLLIN) {
-			antixtransfer::move_bot move_bot_msg;
 			antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
 			// we have received a move request: first update our local records with
 			// the sent bots
@@ -990,6 +963,10 @@ main(int argc, char **argv) {
 
 	// generate pucks
 	generate_pucks();
+
+	// initialize move messages: only needs to be done once, so may as well do it here
+	move_left_msg.set_from_right(true);
+	move_right_msg.set_from_right(false);
 
 	int turns = 0;
 	// enter main loop

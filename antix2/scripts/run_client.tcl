@@ -3,8 +3,7 @@
 # Run a single client instance on the current machine
 #
 
-# pomelo.csil.sfu.ca
-set master_ip 142.58.35.231
+set master_ip 142.58.35.172
 set path /home/wjs2/Antix/antix2
 
 set ::env(ZMQ_PATH) /home/wjs2/zeromq
