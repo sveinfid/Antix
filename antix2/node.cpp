@@ -51,6 +51,10 @@ antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
+// messages that are sent repeatedly when bots move left or right
+antixtransfer::move_bot move_left_msg;
+antixtransfer::move_bot move_right_msg;
+
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
 // Master publishes list of nodes to us when beginning simulation
@@ -349,10 +353,8 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 void
 send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
-	antixtransfer::move_bot move_left_msg;
-	move_left_msg.set_from_right(true);
-	antixtransfer::move_bot move_right_msg;
-	move_right_msg.set_from_right(false);
+	move_left_msg.clear_robot();
+	move_right_msg.clear_robot();
 	build_move_message(&move_left_msg, &move_right_msg);
 
 	// Send our move messages
@@ -957,6 +959,10 @@ main(int argc, char **argv) {
 
 	// generate pucks
 	generate_pucks();
+
+	// initialize move messages: only needs to be done once, so may as well do it here
+	move_left_msg.set_from_right(true);
+	move_right_msg.set_from_right(false);
 
 	int turns = 0;
 	// enter main loop
