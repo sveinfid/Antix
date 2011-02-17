@@ -203,44 +203,15 @@ remove_puck(Robot *r) {
 #if DEBUG
 	cout << "In remove_puck()" << endl;
 #endif
+
 	if (!r->has_puck)
 		return;
 	
-	bool erased = false;
+	assert(r->puck != NULL);
+  delete r->puck;
+  r->puck = NULL;
+  r->has_puck = false;
 
-	/*
-	Puck *p = find_puck(r);
-	assert(p != NULL);
-
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if (&*it == p) {
-			pucks.erase(it);
-			erased = true;
-			break;
-		}
-	}
-	*/
-
-	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		// Puck isn't held
-		if (!(*it)->held)
-			continue;
-
-		if ((*it)->robot == r) {
-#if DEBUG
-			cout << "Erasing a carrying puck" << endl;
-#endif
-			delete *it;
-			pucks.erase(it);
-			erased = true;
-			break;
-		}
-	}
-
-	if (!erased) {
-		cerr << "Failed to erase a puck, but we're carrying one" << endl;
-		exit(-1);
-	}
 #if DEBUG
 	cout << "Done remove_puck()" << endl;
 #endif
@@ -361,10 +332,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			assert(r->puck->robot == r);
 			assert(p->robot == r);
 			assert(r->puck == p);
-
-			//Robot *r_ref = find_robot(r.team, r.id);
-			//r_ref->puck = &pucks.back();
-			//(&robots.back())->puck = &pucks.back();
 		}
 	}
 #if DEBUG

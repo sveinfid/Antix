@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#
+# Run COMMAND NUMBER_TO_RUN times in the background
 #
 
 NUMBER_TO_RUN=10

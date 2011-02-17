@@ -22,6 +22,8 @@
 #define SLEEP 0
 #define DEBUG 0
 #define GUI 0
+// To disable asserts, define this
+#define NDEBUG
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
