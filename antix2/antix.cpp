@@ -290,6 +290,8 @@ public:
 	/*
 		Receive a waiting protobuf message on socket, parse into pb_obj
 
+		NOTE: ParseFromString() clears the passed protobuf object.
+
 		Parsing from bytes -> string from
 		http://www.mail-archive.com/protobuf@googlegroups.com/msg05381.html
 	*/

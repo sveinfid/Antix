@@ -51,9 +51,15 @@ antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
+// Repeated protobuf messages: Declare them once as constructor expensive
+
 // messages that are sent repeatedly when bots move left or right
 antixtransfer::move_bot move_left_msg;
 antixtransfer::move_bot move_right_msg;
+// used in update_foreign_entities
+antixtransfer::SendMap sendmap_recv;
+// used in exchange_foreign_entities
+antixtransfer::move_bot move_bot_msg;
 
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
@@ -183,16 +189,15 @@ find_puck(Robot *r) {
 */
 void
 update_foreign_entities(zmq::socket_t *sock) {
-	antixtransfer::SendMap map;
-	antix::recv_pb(sock, &map, 0);
+	antix::recv_pb(sock, &sendmap_recv, 0);
 
 	// foreign robots
-	for (int i = 0; i < map.robot_size(); i++) {
-		foreign_robots.push_back( Robot( map.robot(i).x(), map.robot(i).y(), map.robot(i).id(), map.robot(i).team() ) );
+	for (int i = 0; i < sendmap_recv.robot_size(); i++) {
+		foreign_robots.push_back( Robot( sendmap_recv.robot(i).x(), sendmap_recv.robot(i).y(), sendmap_recv.robot(i).id(), sendmap_recv.robot(i).team() ) );
 	}
 	// foreign pucks
-	for (int i = 0; i < map.puck_size(); i++) {
-		foreign_pucks.push_back( Puck( map.puck(i).x(), map.puck(i).y(), map.puck(i).held() ) );
+	for (int i = 0; i < sendmap_recv.puck_size(); i++) {
+		foreign_pucks.push_back( Puck( sendmap_recv.puck(i).x(), sendmap_recv.puck(i).y(), sendmap_recv.puck(i).held() ) );
 	}
 #if DEBUG
 	cout << "Done update_foreign_entities()" << endl;
@@ -482,7 +487,6 @@ exchange_foreign_entities() {
 
 		// neighbour request
 		if (items[2].revents & ZMQ_POLLIN) {
-			antixtransfer::move_bot move_bot_msg;
 			antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
 			// we have received a move request: first update our local records with
 			// the sent bots
