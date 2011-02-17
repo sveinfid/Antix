@@ -11,4 +11,4 @@ set ::env(ZMQ_PATH) /home/wjs2/zeromq
 set ::env(PROTOBUF_PATH) /home/wjs2/protobuf
 set ::env(LD_LIBRARY_PATH) /home/wjs2/zeromq/lib:/home/wjs2/protobuf/lib
 
-exec ${path}/node $master_ip [exec ${path}/get_ip.tcl] 3000 4000 5000
+exec ${path}/node $master_ip [exec ${path}/scripts/get_ip.tcl] 3000 4000 5000

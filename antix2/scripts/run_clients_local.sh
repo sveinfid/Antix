@@ -12,6 +12,6 @@ fi
 count=0
 while [ $count -lt $1 ]
 do
-	/home/wjs2/Antix/antix2/run_client.tcl $2
-	A=`expr $A + 1`
+	/home/wjs2/Antix/antix2/scripts/run_client.tcl $2
+	count=`expr $count + 1`
 done
