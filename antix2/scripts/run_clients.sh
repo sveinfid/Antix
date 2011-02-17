@@ -8,19 +8,19 @@
 # for the final 14
 #
 
-ROBOTS_PER_CLIENT=1000
+ROBOTS_PER_CLIENT=10
 
 count=0
-for line in `cat workstations.txt`
+for line in `cat workstations.txt_partial`
 do
 	# 13 for first 64
-	if [ $count -lt 64 ]
-	then
-		ssh -p 24 wjs2@$line.csil.sfu.ca /home/wjs2/Antix/antix2/run_clients_local.sh 13 $ROBOTS_PER_CLIENT &
+	#if [ $count -lt 64 ]
+	#then
+	#	ssh -p 24 wjs2@$line.csil.sfu.ca /home/wjs2/Antix/antix2/run_clients_local.sh 13 $ROBOTS_PER_CLIENT &
 	# 12 for the rest
-	else
+	#else
 		ssh -p 24 wjs2@$line.csil.sfu.ca /home/wjs2/Antix/antix2/run_clients_local.sh 12 $ROBOTS_PER_CLIENT &
-	fi
+	#fi
 
 	count=`expr $count + 1`
 done
