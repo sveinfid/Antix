@@ -11,6 +11,7 @@ build_dir=.
 targets=master operator node client gui
 objs=antix.pb.o
 
+CFLAGS=-O3
 GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
 GLUTFLAGS=-I/usr/include/GL
 
@@ -21,14 +22,14 @@ libraries=-lzmq -lprotobuf
 all: $(objs) $(targets)
 
 gui: gui.cpp
-	g++ -o $(build_dir)/$@ $< $(objs) $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
 
 .cpp: $(objs) antix.cpp
-	g++ -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
 
 antix.pb.o: antix.proto
 	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
-	g++ -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
+	g++ $(CFLAGS) -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
 
 clean:
 	rm -f $(targets) antix.pb.*

@@ -284,15 +284,14 @@ main(int argc, char **argv) {
 
 				if (client_robot_map.count( client_id ) == 0) {
 					client_robot_map.insert( pair<int, int>(client_id, init_request.num_robots() ) );
+					// record id & how many robots in node_list for transmission to nodes
+					antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
+					rn->set_num_robots( init_request.num_robots() );
+					rn->set_team( client_id );
 				}
 
 				cout << "Client connected with ID " << client_id << ". Wants " << init_request.num_robots() << " robots." << endl;
 				
-				// record id & how many robots in node_list for transmission to nodes
-				antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
-				rn->set_num_robots( init_request.num_robots() );
-				rn->set_team( client_id );
-
 				send_client_init(&clients_socket, client_id);
 
 			} else if (type == "init_gui_client") {
