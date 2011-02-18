@@ -15,6 +15,7 @@ using namespace std;
 string master_host;
 string master_node_port = "7770";
 string master_publish_port = "7773";
+string node_ipc_fname = "/tmp/node0/0";
 
 string my_ip;
 string my_neighbour_port;
@@ -51,8 +52,9 @@ antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
-// Repeated protobuf messages: Declare them once as constructor expensive
-
+/*
+	Repeated protobuf messages: Declare them once as constructor expensive
+*/
 // messages that are sent repeatedly when bots move left or right
 antixtransfer::move_bot move_left_msg;
 antixtransfer::move_bot move_right_msg;
@@ -787,7 +789,7 @@ service_control_messages() {
 	cout << "Waiting for control requests from clients..." << endl;
 #endif
 
-	// Each client will have one sense request message, and one control message
+	// Each client will have one sense request message, and possibly one control msg
 	// Though they are the same type, the sense message will have 0 robots
 
 	// The number of messages we expect is:
@@ -955,7 +957,7 @@ main(int argc, char **argv) {
 
 	// create REP socket that receives control messages from clients
 	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_rep_sock->bind(antix::make_endpoint(my_ip, my_control_port));
+	control_rep_sock->bind(antix::make_endpoint_ipc(node_ipc_fname));
 
 	// create REP socket that receives queries from GUI
 	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);

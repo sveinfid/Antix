@@ -219,6 +219,12 @@ public:
 		return s.c_str();
 	}
 
+	static const char *
+	make_endpoint_ipc(string fname) {
+		string s = "ipc://" + fname;
+		return s.c_str();
+	}
+
 	/*
 		sleep for the given milliseconds
 		usleep() usage taken from rtv's Antix

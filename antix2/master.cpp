@@ -8,6 +8,7 @@
 	https://github.com/imatix/zguide/blob/master/examples/C++/mspoller.cpp
 */
 
+#include <map>
 #include "antix.cpp"
 
 using namespace std;
@@ -16,8 +17,7 @@ using namespace std;
 	Simulation settings
 */
 //const double world_size = 1.0;
-//const double world_size = 100.0;
-const double world_size = 1000.0;
+const double world_size = 100.0;
 const int sleep_time = 1000;
 // pucks per node to initially create
 const int initial_pucks_per_node = 10;
@@ -46,12 +46,12 @@ string operator_port = "7772";
 string publish_port = "7773";
 
 int next_node_id = 0;
-int next_client_id = 0;
+// client_id :: robot_count
+map<int, int> client_robot_map;
 antixtransfer::Node_list node_list;
 
 // used for synchronous turns
 set<int> nodes_done;
-set<int> clients_done;
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -79,9 +79,9 @@ set_node_offsets() {
 void
 setup_homes() {
 	cout << "Adding homes to node list..." << endl;
-	for (int i = 0; i < next_client_id; i++) {
+	for (map<int, int>::iterator it = client_robot_map.begin(); it != client_robot_map.end(); it++) {
 		antixtransfer::Node_list::Home *h = node_list.add_home();
-		h->set_team( i );
+		h->set_team( it->first );
 		// XXX should ensure cannot overlap
 		h->set_x( antix::rand_between(0, world_size) );
 		h->set_y( antix::rand_between(0, world_size) );
@@ -163,16 +163,17 @@ send_client_init(zmq::socket_t *client_rep_sock, int id) {
 }
 
 /*
-	Node or client has said it has finished its turn
-	Add to appropriate list if the specific client/node is not already there
-	If both lists are complete, send out next turn message
-	If every node is in the list, send out next turn message
+	Node has said it has finished its turn
+	Add to list if it is not already there
+	If list is complete, send out next turn message
 */
 void
 handle_done(zmq::socket_t *rep_sock,
 	zmq::socket_t *publish_sock,
-	set<int> *nodes_done,
+	set<int> *nodes_done) {
+	/*
 	set<int> *clients_done) {
+	*/
 
 	antixtransfer::done done_msg;
 	antix::recv_pb(rep_sock, &done_msg, 0);
@@ -187,22 +188,23 @@ handle_done(zmq::socket_t *rep_sock,
 			nodes_done->insert(done_msg.my_id());
 		}
 
+/*
 	} else if (done_msg.type() == antixtransfer::done::CLIENT) {
 		// Record client if we haven't heard from it before
 		if (clients_done->count(done_msg.my_id()) == 0) {
 			clients_done->insert(done_msg.my_id());
 		}
+		*/
 	}
 	
-	// If we've heard from all clients and all nodes, start next turn
-	if (nodes_done->size() == node_list.node_size() && clients_done->size() == next_client_id) {
+	// If we've heard from all nodes, start next turn
+	if (nodes_done->size() == node_list.node_size()) {
 #if DEBUG
-		cout << "Heard from " << nodes_done->size() << " nodes and " << clients_done->size() << " clients. Starting next turn." << endl;
+		cout << "Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
 		cout << "Turn " << turns++ << " done." << endl;
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
-		clients_done->clear();
 	}
 }
 
@@ -261,7 +263,7 @@ main(int argc, char **argv) {
 
 			// a node stating it has finished its work for this turn
 			} else if (type == "done") {
-				handle_done(&nodes_socket, &publish_socket, &nodes_done, &clients_done);
+				handle_done(&nodes_socket, &publish_socket, &nodes_done);
 
 			// should never get here...
 			} else {
@@ -274,13 +276,17 @@ main(int argc, char **argv) {
 			string type = antix::recv_str(&clients_socket);
 
 			if (type == "init_client") {
-				int client_id = next_client_id++;
-
 				// client sends a second message part indicating # of robots it wants
 				antixtransfer::connect_init_client init_request;
 				antix::recv_pb(&clients_socket, &init_request, 0);
 
-				cout << "Client connected. Assigned ID " << client_id << ". Wants " << init_request.num_robots() << " robots." << endl;
+				int client_id = init_request.id();
+
+				if (client_robot_map.count( client_id ) == 0) {
+					client_robot_map.insert( pair<int, int>(client_id, init_request.num_robots() ) );
+				}
+
+				cout << "Client connected with ID " << client_id << ". Wants " << init_request.num_robots() << " robots." << endl;
 				
 				// record id & how many robots in node_list for transmission to nodes
 				antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
@@ -293,8 +299,10 @@ main(int argc, char **argv) {
 				cout << "GUI client connected." << endl;
 				send_client_init(&clients_socket, -1);
 
+/*
 			} else if (type == "done") {
 				handle_done(&clients_socket, &publish_socket, &nodes_done, &clients_done);
+				*/
 			}
 		}
 
