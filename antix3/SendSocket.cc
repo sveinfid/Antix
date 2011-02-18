@@ -1,5 +1,18 @@
 /*
 	Unidirectional sending from one map server to another
+
+	To setup:
+	SendSocket left_map(&context, our_ip, left_port);
+
+	To send messages:
+
+	antixtransfer::SendMap send_map_msg;
+	// .. build send_map_msg
+	left_map.send_map(send_map_msg);
+
+	antixtransfer::MoveRobot move_robot_msg;
+	// .. build move_robot_msg
+	left_map.send_robot(move_robot_msg);
 */
 
 #include "../antix2/antix.cpp"

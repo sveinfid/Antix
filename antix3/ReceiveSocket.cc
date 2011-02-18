@@ -1,5 +1,25 @@
 /*
 	Unidirectional receiving of messages from another map server to the current
+
+	To setup:
+	ReceiveSocket receiver(&context);
+	receiver.add_neighbour(left_map_ip, left_map_port);
+	receiver.add_neighbour(right_map_ip, right_map_port);
+
+	To get messages:
+	int msg_type = receiver.check_messages();
+	// There's a waiting MoveRobot message
+	if (msg_type == 0) {
+		antixtransfer::MoveRobot *move_robot_msg;
+		receiver.get_robot(move_robot_msg);
+		// .. process move_bot_msg
+	} else if (msg_type == 1) {
+		antixtransfer::SendMap *send_map_msg;
+		receiver.get_map(send_map_msg);
+		// .. process send_map_msg
+	} else {
+		// error...
+	}
 */
 
 #include "../antix2/antix.cpp"
@@ -43,7 +63,7 @@ public:
 	}
 
 	/*
-		Similarly to get_map(), this must be called after a check_messages()
+		Similarly to get_robot(), this must be called after a check_messages()
 		call which returns 1. Otherwise invalid.
 
 		Places a valid SendMap map into the given object
