@@ -24,7 +24,7 @@
 
 #define SLEEP 0
 #define DEBUG 0
-#define GUI 1
+#define GUI 0
 // To disable asserts, define this
 #define NDEBUG
 

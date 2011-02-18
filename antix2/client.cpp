@@ -243,6 +243,8 @@ main(int argc, char **argv) {
 	pickup_range = init_response.pickup_range();
 	world_size = init_response.world_size();
 
+	cout << "Connected." << endl;
+
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
