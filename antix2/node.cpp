@@ -758,7 +758,8 @@ parse_client_message(antixtransfer::control_message *msg) {
 		r = find_robot(msg->team(), msg->robot(i).id());
 		if (r == NULL) {
 			cerr << "Error: got a control message for a robot I couldn't find!" << endl;
-			exit(-1);
+			//exit(-1);
+			return;
 		}
 
 		if (msg->robot(i).type() == antixtransfer::control_message::SETSPEED) {
