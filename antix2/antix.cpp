@@ -19,9 +19,12 @@
 
 #include "antix.pb.h"
 
+#ifndef ANTIXINCL
+#define ANTIXINCL
+
 #define SLEEP 0
 #define DEBUG 0
-#define GUI 0
+#define GUI 1
 // To disable asserts, define this
 #define NDEBUG
 
@@ -257,6 +260,25 @@ public:
 		return string( (char *) msg.data() );
 	}
 
+	/*
+		Receive a string on the socket into s
+		Respects flags, so we can do non blocking recv
+		Returns whether successful (1 for success)
+	*/
+	static int
+	recv_str(zmq::socket_t *sock, string *s, int flags) {
+		zmq::message_t msg;
+		int retval = sock->recv(&msg, flags);
+
+		// If we did a non blocking call, it's possible we don't actually have a msg
+		// But this return code doesn't match the ZMQ docs...
+		if (retval != 1)
+			return retval;
+
+		*s = string( (char *) msg.data() );
+		return retval;
+	}
+
 	static void
 	send_blank_envelope(zmq::socket_t *sock, string address) {
 		zmq::message_t type(address.size() + 1);
@@ -265,18 +287,18 @@ public:
 		send_blank(sock);
 	}
 
-	static void
+	static int
 	send_pb_envelope(zmq::socket_t *sock, google::protobuf::Message *pb_obj, string address) {
 		zmq::message_t type(address.size() + 1);
 		memcpy(type.data(), address.c_str(), address.size() + 1);
 		sock->send(type, ZMQ_SNDMORE);
-		send_pb(sock, pb_obj);
+		return send_pb(sock, pb_obj);
 	}
 
 	/*
 		Send the protobuf message pb_obj on socket
 	*/
-	static void
+	static int
 	send_pb(zmq::socket_t *socket, google::protobuf::Message *pb_obj) {
 		string pb_as_str;
 		pb_obj->SerializeToString(&pb_as_str);
@@ -284,7 +306,7 @@ public:
 		zmq::message_t msg( pb_as_str.size() + 1 );
 		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() + 1);
 
-		socket->send(msg);
+		return socket->send(msg);
 	}
 
 	/*
@@ -485,4 +507,4 @@ public:
 		assert(r->home != NULL);
 	}
 };
-
+#endif
