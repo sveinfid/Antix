@@ -34,6 +34,8 @@ zmq::socket_t *master_sub_sock;
 	Node has sent us the following sense data with at least one robot
 	Decide what to do and send a response
 
+  Decision logic from rtv's Antix
+
 	XXX Right now we can only do setspeed OR pickup OR drop
 */
 void
@@ -150,8 +152,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 /*
   For every node, request what our robots can see
   Make a decision based on this & send it back
-
-  Decision logic from rtv's Antix
 */
 void
 sense_and_controller() {
