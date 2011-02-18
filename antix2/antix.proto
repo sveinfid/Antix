@@ -53,11 +53,10 @@ message Node_list {
 	message Node {
 		required string ip_addr = 1;
     required string neighbour_port = 2;
-    required string control_port = 3;
-    required string gui_port = 4;
-		required int32 id = 5;
+    required string gui_port = 3;
+		required int32 id = 4;
 		// optional as we only set this right before sending out node list
-		optional double x_offset = 6;
+		optional double x_offset = 5;
 	}
 
   message Home {

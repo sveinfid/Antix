@@ -146,18 +146,18 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 */
 void
 send_client_init(zmq::socket_t *client_rep_sock, int id) {
-			antixtransfer::MasterServerClientInitialization init_response;
+	antixtransfer::MasterServerClientInitialization init_response;
 
-			init_response.set_id( id );
-			init_response.set_vision_range(vision_range);
-			init_response.set_fov(fov);
-			init_response.set_world_size(world_size);
-			init_response.set_home_radius(home_radius);
-			init_response.set_robot_radius(robot_radius);
-			init_response.set_sleep_time(sleep_time);
-			init_response.set_pickup_range(pickup_range);
+	init_response.set_id( id );
+	init_response.set_vision_range(vision_range);
+	init_response.set_fov(fov);
+	init_response.set_world_size(world_size);
+	init_response.set_home_radius(home_radius);
+	init_response.set_robot_radius(robot_radius);
+	init_response.set_sleep_time(sleep_time);
+	init_response.set_pickup_range(pickup_range);
 
-			antix::send_pb(client_rep_sock, &init_response);
+	antix::send_pb(client_rep_sock, &init_response);
 }
 
 /*

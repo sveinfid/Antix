@@ -29,8 +29,10 @@ map<int, CRobot> robots;
 zmq::socket_t *master_req_sock;
 // receive list of nodes on this socket
 zmq::socket_t *master_sub_sock;
-// local socket to node on our machine
+// local socket to control sock of node on our machine
 zmq::socket_t *node_req_sock;
+// socket to sync sock of node on our machine
+zmq::socket_t *node_sub_sock;
 
 // construct some protobuf messages here so we don't call constructor needlessly
 antixtransfer::control_message sense_req_msg;
@@ -260,8 +262,13 @@ main(int argc, char **argv) {
 	my_home = find_our_home(&node_list);
 	assert(my_home != NULL);
 
+	// node control
 	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_control));
+	// sync sub sock
+	node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_sync));
 	cout << "Connected to local node." << endl;
 
 	// initialize the records for our bots
