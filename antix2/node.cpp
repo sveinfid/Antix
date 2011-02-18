@@ -15,7 +15,7 @@ using namespace std;
 string master_host;
 string master_node_port = "7770";
 string master_publish_port = "7773";
-string node_ipc_fname = "/tmp/node0/0";
+string node_ipc_fname = "/tmp/node0";
 
 string my_ip;
 string my_neighbour_port;

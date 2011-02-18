@@ -11,7 +11,7 @@ using namespace std;
 string master_host;
 string master_client_port = "7771";
 string master_pub_port = "7773";
-string node_ipc_fname = "/tmp/node0/0";
+string node_ipc_fname = "/tmp/node0";
 
 int my_id;
 int sleep_time;
