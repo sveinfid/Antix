@@ -85,9 +85,9 @@ rebuild_entity_db() {
       robots.push_back(r);
     }
   }
-#if DEBUG
+//#if DEBUG
   cout << "After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
-#endif
+//#endif
 }
 
 void

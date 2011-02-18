@@ -131,12 +131,10 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	node->set_ip_addr( init_msg.ip_addr() );
 	node->set_id( next_node_id - 1 );
 	node->set_neighbour_port( init_msg.neighbour_port() );
-	node->set_control_port( init_msg.control_port() );
 	node->set_gui_port( init_msg.gui_port() );
 
 	cout << "Node connected. IP: " << node->ip_addr();
 	cout << " Neighbour port: " << node->neighbour_port();
-	cout << " Control port: " << node->control_port();
 	cout << " GUI port: " << node->gui_port();
 	cout << " Assigned id " << node->id() << "." << endl;
 

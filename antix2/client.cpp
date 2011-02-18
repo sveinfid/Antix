@@ -11,7 +11,8 @@ using namespace std;
 string master_host;
 string master_client_port = "7771";
 string master_pub_port = "7773";
-string node_ipc_fname = "/tmp/node0";
+string node_ipc_control = "/tmp/node0";
+string node_ipc_sync = "/tmp/node0s";
 
 int my_id;
 int sleep_time;
@@ -260,7 +261,7 @@ main(int argc, char **argv) {
 	assert(my_home != NULL);
 
 	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_fname));
+	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_control));
 	cout << "Connected to local node." << endl;
 
 	// initialize the records for our bots

@@ -379,7 +379,6 @@ public:
 		dest->set_id( src->id() );
 		dest->set_ip_addr( src->ip_addr() );
 		dest->set_neighbour_port( src->neighbour_port() );
-		dest->set_control_port( src->control_port() );
 		dest->set_gui_port( src->gui_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
@@ -429,7 +428,6 @@ public:
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
 			cout << " Neighbour port: " << node->neighbour_port();
-			cout << " Control port: " << node->control_port();
 			cout << " GUI port: " << node->gui_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}

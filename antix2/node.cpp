@@ -15,11 +15,11 @@ using namespace std;
 string master_host;
 string master_node_port = "7770";
 string master_publish_port = "7773";
-string node_ipc_fname = "/tmp/node0";
+string node_ipc_control = "/tmp/node0";
+string node_ipc_sync = "/tmp/node0s";
 
 string my_ip;
 string my_neighbour_port;
-string my_control_port;
 string my_gui_port;
 
 int my_id;
@@ -874,16 +874,15 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 	
-	if (argc != 6) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <control port> <GUI port>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <GUI port>" << endl;
 		return -1;
 	}
 
 	master_host = string(argv[1]);
 	my_ip = string(argv[2]);
 	my_neighbour_port = string(argv[3]);
-	my_control_port = string(argv[4]);
-	my_gui_port = string(argv[5]);
+	my_gui_port = string(argv[4]);
 
 	// socket to announce ourselves to master on
 	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
@@ -903,7 +902,6 @@ main(int argc, char **argv) {
 	antixtransfer::connect_init_node pb_init_msg;
 	pb_init_msg.set_ip_addr(my_ip);
 	pb_init_msg.set_neighbour_port(my_neighbour_port);
-	pb_init_msg.set_control_port(my_control_port);
 	pb_init_msg.set_gui_port(my_gui_port);
 	antix::send_pb_envelope(master_req_sock, &pb_init_msg, "connect");
 
@@ -941,8 +939,8 @@ main(int argc, char **argv) {
 
 	// find our left/right neighbours
 	antix::set_neighbours(&left_node, &right_node, &node_list, my_id);
-	cout << "Left neighbour id: " << left_node.id() << " " << left_node.ip_addr() << " neighbour port " << left_node.neighbour_port() << " control port " << left_node.control_port() << endl;
-	cout << "Right neighbour id: " << right_node.id() << " " << right_node.ip_addr() << " neighbour port " << right_node.neighbour_port() << " control port " << right_node.control_port() << endl;
+	cout << "Left neighbour id: " << left_node.id() << " " << left_node.ip_addr() << " neighbour port " << left_node.neighbour_port() << endl;
+	cout << "Right neighbour id: " << right_node.id() << " " << right_node.ip_addr() << " neighbour port " << right_node.neighbour_port() << endl;
 
 	// connect to both of our neighbour's REP sockets
 	// we request foreign entities to this socket
@@ -958,7 +956,7 @@ main(int argc, char **argv) {
 
 	// create REP socket that receives control messages from clients
 	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_rep_sock->bind(antix::make_endpoint_ipc(node_ipc_fname));
+	control_rep_sock->bind(antix::make_endpoint_ipc(node_ipc_control));
 
 	// create REP socket that receives queries from GUI
 	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);
