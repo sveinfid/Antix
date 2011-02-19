@@ -4,22 +4,21 @@
 */
 
 #include <map>
-#include "antix.cpp"
+#include "entities.cpp"
 
 using namespace std;
 
 string master_host;
 string master_client_port = "7771";
 string master_pub_port = "7773";
-string node_ipc_control = "/tmp/node0";
-string node_ipc_sync = "/tmp/node0s";
+
+string node_ipc_prefix = "/tmp/node";
+string node_ipc_id;
 
 int my_id;
 int sleep_time;
 int num_robots;
 double home_radius;
-double pickup_range;
-double world_size;
 Home *my_home;
 
 // some stored data about our robots
@@ -31,7 +30,9 @@ zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
 // local socket to control sock of node on our machine
 zmq::socket_t *node_req_sock;
-// socket to sync sock of node on our machine
+// socket to node's rep sync sock
+zmq::socket_t *node_sync_req_sock;
+// socket to sync pub sock of node on our machine
 zmq::socket_t *node_sub_sock;
 
 // construct some protobuf messages here so we don't call constructor needlessly
@@ -69,8 +70,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		double heading_error(0.0);
 		// distance and angle to home
-		double dx( antix::WrapDistance( my_home->x - x, world_size ) );
-		double dy( antix::WrapDistance( my_home->y - y, world_size ) );
+		double dx( antix::WrapDistance( my_home->x - x ) );
+		double dy( antix::WrapDistance( my_home->y - y ) );
 		double da( atan2( dy, dx ) );
 		double dist( hypot( dx, dy ) );
 
@@ -96,7 +97,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
 				// If one is within pickup distance, try to pick it up
-				if (puck_range < pickup_range && !puck_held) {
+				if (puck_range < Robot::pickup_range && !puck_held) {
 #if DEBUG
 					cout << "Trying to pick up a puck" << endl;
 #endif
@@ -122,8 +123,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 			// If there were no pucks to see, choose direction differently
 			if (sense_msg->robot(i).seen_puck_size() == 0) {
-				double lx( antix::WrapDistance( robots[id].last_x - x, world_size ) );
-				double ly( antix::WrapDistance( robots[id].last_y - y, world_size ) );
+				double lx( antix::WrapDistance( robots[id].last_x - x ) );
+				double ly( antix::WrapDistance( robots[id].last_y - y ) );
 
 				// go towards last place a puck was picked up (or attempted pick up in
 				// the case of this version
@@ -133,8 +134,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 				if ( hypot( lx, ly) < 0.05 ) {
 					robots[id].last_x += drand48() * 0.4 - 0.2;
 					robots[id].last_y += drand48() * 0.4 - 0.2;
-					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x, world_size );
-					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y, world_size );
+					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x );
+					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y );
 				}
 			}
 		}
@@ -177,7 +178,7 @@ sense_and_controller() {
 	antix::recv_pb(node_req_sock, &sense_msg, 0);
 
 #if DEBUG
-	cout << "Got sense data with " << sense_msg.robot_size() << " robots." endl;
+	cout << "Got sense data with " << sense_msg.robot_size() << " robots." << endl;
 #endif
 
 	// if there's at least one robot in the response, we will be sending a command
@@ -217,14 +218,15 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 
-	if (argc != 4) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots> <client id>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots> <client id> <node IPC id>" << endl;
 		return -1;
 	}
 	master_host = string(argv[1]);
 	assert(atoi(argv[2]) > 0);
 	num_robots = atoi(argv[2]);
 	my_id = atoi(argv[3]);
+	node_ipc_id = string(argv[4]);
 
 	// initialize some protobufs that do not change
 	sense_req_msg.set_team(my_id);
@@ -243,10 +245,25 @@ main(int argc, char **argv) {
 	antix::recv_pb(master_req_sock, &init_response, 0);
 	home_radius = init_response.home_radius();
 	sleep_time = init_response.sleep_time();
-	pickup_range = init_response.pickup_range();
-	world_size = init_response.world_size();
+	Robot::pickup_range = init_response.pickup_range();
+	antix::world_size = init_response.world_size();
 
 	cout << "Connected." << endl;
+
+	// node sync req sock
+	string s1 = node_ipc_prefix + node_ipc_id + "r";
+	node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	//node_sync_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "r"));
+	node_sync_req_sock->connect(antix::make_endpoint_ipc(s1));
+	cout << "node req sock " << s1 << endl;
+
+	// node sync sub sock
+	string s2 = node_ipc_prefix + node_ipc_id + "p";
+	node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	//node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "p"));
+	node_sub_sock->connect(antix::make_endpoint_ipc(s2));
+	cout << "node sub sock " << s2 << endl;
 
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
@@ -264,11 +281,11 @@ main(int argc, char **argv) {
 
 	// node control
 	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_control));
-	// sync sub sock
-	node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_sync));
+	string s3 = node_ipc_prefix + node_ipc_id + "c";
+	//node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "c"));
+	node_req_sock->connect(antix::make_endpoint_ipc(s3));
+	cout << "node control sock " << s3 << endl;
+
 	cout << "Connected to local node." << endl;
 
 	// initialize the records for our bots
@@ -285,6 +302,7 @@ main(int argc, char **argv) {
 		// XXX need to wait for next turn still. Or we send another message and ruin
 		// the counting done by node
 		//antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::CLIENT);
+		antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
 
 #if SLEEP
 		antix::sleep(sleep_time);

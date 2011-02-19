@@ -2,7 +2,7 @@
   Taken with little editing from rtv's Antix
 */
 
-#include "antix.cpp"
+#include "entities.cpp"
 
 // OS X users need <glut/glut.h> instead
 #include <GL/glut.h>
@@ -318,6 +318,8 @@ main(int argc, char **argv) {
   world_size = init_response.world_size();
   robot_radius = init_response.robot_radius();
   home_radius = init_response.home_radius();
+
+	cout << "Connected." << endl;
 
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
