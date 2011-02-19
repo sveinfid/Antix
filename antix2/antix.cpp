@@ -7,6 +7,9 @@
 	https://github.com/imatix/zguide/blob/master/examples/C%2B%2B/zhelpers.hpp
 */
 
+#ifndef ANTIX_H
+#define ANTIX_H
+
 #include <zmq.hpp>
 #include <string>
 #include <iostream>
@@ -19,14 +22,11 @@
 
 #include "antix.pb.h"
 
-#ifndef ANTIXINCL
-#define ANTIXINCL
-
 #define SLEEP 0
 #define DEBUG 0
 #define GUI 1
 // To disable asserts, define this
-#define NDEBUG
+//#define NDEBUG
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
@@ -36,179 +36,11 @@
 
 using namespace std;
 
-/*
-	Random double between the two given doubles
-*/
-static double
-rand_between(double min, double max) {
-	return ( (drand48() * (max - min) ) + min );
-}
-
-/*
-	Normalize a length to within 0 to worldsize
-	from rtv's Antix
-*/
-static double
-DistanceNormalize(double d, double world_size) {
-	while( d < 0 ) d += world_size;
-	while( d > world_size ) d -= world_size;
-	return d; 
-}
-
-/*
-	Normalize an angle to within +/- M_PI
-	from rtv's Antix
-*/
-static double
-AngleNormalize(double a) {
-	while( a < -M_PI ) a += 2.0*M_PI;
-	while( a >  M_PI ) a -= 2.0*M_PI;	 
-	return a;
-}
-
-/*
-	from rtv's Antix
-*/
-class Colour {
-	public:
-	double r, g, b;
-
-	Colour() {
-		r = drand48();
-		g = drand48();
-		b = drand48();
-	}
-	Colour (double r, double g, double b) : r(r), g(g), b(b) { }
-};
-
-class Home {
-public:
-	double x, y;
-	double r;
-	Colour colour;
-	int team;
-
-	Home(double x, double y, double r, int team) : x(x), y(y), r(r), team(team) {
-		colour = Colour();
-	}
-
-	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) { }
-
-	Home(double r, double world_size) : r(r) {
-		x = rand_between(0, world_size);
-		y = rand_between(0, world_size);
-		colour = Colour();
-	}
-};
-
-class Robot;
-
-class Puck {
-public:
-	double x,
-		y;
-	bool held;
-	Robot *robot;
-
-	// random pose stuff is from rtv's Antix
-	Puck(double min_x, double max_x, double world_size) {
-		x = rand_between(min_x, max_x);
-		y = rand_between(0, world_size);
-		held = false;
-		robot = NULL;
-	}
-	Puck(double x, double y, bool held) : x(x), y(y), held(held) {
-		robot = NULL;
-	}
-};
-
-class SeePuck {
-public:
-	double range;
-	Puck *puck;
-
-	SeePuck(Puck *puck, double range) : puck(puck), range(range) {}
-};
-
-class Robot {
-public:
-	double x, y;
-	// orientation
-	double a;
-	// forward speed
-	double v;
-	// turn speed
-	double w;
-
-	// together uniquely identifies the robot
-	// team = client id, essentially
-	int team;
-	int id;
-
-	bool has_puck;
-	Puck *puck;
-	Home *home;
-
-	// store what pucks we can see
-	vector<SeePuck> see_pucks;
-
-	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
-		a = 0;
-		v = 0;
-		w = 0;
-		puck = NULL;
-		has_puck = false;
-	}
-
-	Robot(double x, double y, int team, double a) : x(x), y(y), team(team), a(a) {
-		id = -1;
-		v = 0;
-		w = 0;
-		puck = NULL;
-		has_puck = false;
-	}
-
-	/*
-		update the pose of a single robot
-		Taken from rtv's Antix
-	*/
-	void
-	update_pose(double world_size) {
-		double dx = v * cos(a);
-		double dy = v * sin(a);
-		double da = w;
-
-		x = DistanceNormalize(x + dx, world_size);
-		y = DistanceNormalize(y + dy, world_size);
-		a = AngleNormalize(a + da);
-
-		// If we're holding a puck, it must move also
-		if (has_puck) {
-			assert(puck != NULL);
-			assert(puck->robot == this);
-			assert(puck->held == true);
-			puck->x = x;
-			puck->y = y;
-		}
-	}
-};
-
-// Robot class for clients
-class CRobot {
-public:
-	double last_x;
-	double last_y;
-
-	CRobot(double last_x, double last_y) : last_x(last_x), last_y(last_y) {}
-	CRobot() {
-		// XXX potentially bad
-		last_x = 0.0;
-		last_y = 0.0;
-	}
-};
-
 class antix {
 public:
+	static double offset_size;
+	static double world_size;
+
 	/*
 		Take a host and a port, return c_str
 	*/
@@ -216,6 +48,12 @@ public:
 	make_endpoint(string host, string port) {
 		string s = "tcp://" + host + ":" + port;
 		// invalid memory when function returns?
+		return s.c_str();
+	}
+
+	static const char *
+	make_endpoint_ipc(string fname) {
+		string s = "ipc://" + fname;
 		return s.c_str();
 	}
 
@@ -351,18 +189,18 @@ public:
 		antixtransfer::done done_msg;
 		done_msg.set_my_id( id );
 		done_msg.set_type( type );
-		antix::send_pb_envelope(master_req_sock, &done_msg, "done");
-#if DEBUG
+		send_pb_envelope(master_req_sock, &done_msg, "done");
+	#if DEBUG
 		cout << "Sent done signal to master" << endl;
-#endif
+	#endif
 		// necessary response due to REQ socket
-		antix::recv_blank(master_req_sock);
+		recv_blank(master_req_sock);
 
 		// now we block on PUB sock awaiting begin
-		antix::recv_blank(master_sub_sock);
-#if DEBUG
+		recv_blank(master_sub_sock);
+	#if DEBUG
 		cout << "Received begin turn signal from master" << endl;
-#endif
+	#endif
 	}
 
 	/*
@@ -373,7 +211,6 @@ public:
 		dest->set_id( src->id() );
 		dest->set_ip_addr( src->ip_addr() );
 		dest->set_neighbour_port( src->neighbour_port() );
-		dest->set_control_port( src->control_port() );
 		dest->set_gui_port( src->gui_port() );
 		dest->set_x_offset( src->x_offset() );
 	}
@@ -413,6 +250,8 @@ public:
 				return;
 			}
 		}
+		cout << "Left neighbour id: " << left->id() << " " << left->ip_addr() << " neighbour port " << left->neighbour_port() << endl;
+		cout << "Right neighbour id: " << right->id() << " " << right->ip_addr() << " neighbour port " << right->neighbour_port() << endl;
 	}
 
 	static void
@@ -423,7 +262,6 @@ public:
 			cout << "\tNode id: " << node->id();
 			cout << " IP: " << node->ip_addr();
 			cout << " Neighbour port: " << node->neighbour_port();
-			cout << " Control port: " << node->control_port();
 			cout << " GUI port: " << node->gui_port();
 			cout << " x offset: " << node->x_offset() << endl;
 		}
@@ -445,6 +283,7 @@ public:
 	rtod(double r) {
 		return (r * 180.0 / M_PI);
 	}
+
 	/*
 		Degrees to radians
 		From rtv's Antix
@@ -459,7 +298,7 @@ public:
 		from rtv's Antix
 	*/
 	static double
-	WrapDistance(double d, double world_size) {
+	WrapDistance(double d) {
 		const double halfworld( world_size * 0.5 );
 
 		if( d > halfworld )
@@ -475,7 +314,7 @@ public:
 		from rtv's Antix
 	*/
 	static double
-	DistanceNormalize(double d, double world_size) {
+	DistanceNormalize(double d) {
 		while( d < 0 ) d += world_size;
 		while( d > world_size ) d -= world_size;
 		return d; 
@@ -491,20 +330,9 @@ public:
 		while( a >  M_PI ) a -= 2.0*M_PI;	 
 		return a;
 	}
-
-	/*
-		Update the home pointer on the Robot r from the given homes vector
-	*/
-	static void
-	set_robot_home(Robot *r, vector<Home> *homes) {
-		for (vector<Home>::iterator it = homes->begin(); it != homes->end(); it++) {
-			if (r->team == it->team) {
-				r->home = &*it;
-				return;
-			}
-		}
-		r->home = NULL;
-		assert(r->home != NULL);
-	}
 };
+
+double antix::offset_size;
+double antix::world_size;
+
 #endif

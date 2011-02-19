@@ -4,24 +4,23 @@
 */
 
 #include <map>
-#include "antix.cpp"
+#include "entities.cpp"
 
 using namespace std;
 
 string master_host;
 string master_client_port = "7771";
 string master_pub_port = "7773";
-string client_node_port = "7774";
+
+string node_ipc_prefix = "/tmp/node";
+string node_ipc_id;
 
 int my_id;
 int sleep_time;
 int num_robots;
 double home_radius;
-double pickup_range;
-double world_size;
 Home *my_home;
 
-map<int, zmq::socket_t *> node_map;
 // some stored data about our robots
 map<int, CRobot> robots;
 
@@ -29,6 +28,15 @@ map<int, CRobot> robots;
 zmq::socket_t *master_req_sock;
 // receive list of nodes on this socket
 zmq::socket_t *master_sub_sock;
+// local socket to control sock of node on our machine
+zmq::socket_t *node_req_sock;
+// socket to node's rep sync sock
+zmq::socket_t *node_sync_req_sock;
+// socket to sync pub sock of node on our machine
+zmq::socket_t *node_sub_sock;
+
+// construct some protobuf messages here so we don't call constructor needlessly
+antixtransfer::control_message sense_req_msg;
 
 /*
 	Node has sent us the following sense data with at least one robot
@@ -62,8 +70,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		double heading_error(0.0);
 		// distance and angle to home
-		double dx( antix::WrapDistance( my_home->x - x, world_size ) );
-		double dy( antix::WrapDistance( my_home->y - y, world_size ) );
+		double dx( antix::WrapDistance( my_home->x - x ) );
+		double dy( antix::WrapDistance( my_home->y - y ) );
 		double da( atan2( dy, dx ) );
 		double dist( hypot( dx, dy ) );
 
@@ -80,31 +88,34 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		// not holding a puck
 		} else {
-			double closest_range(1e9);
+			// check we're away from home before looking for pucks to pick up
 			bool picking_up = false;
-			// Look at all the pucks we can see
-			for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
-				double puck_range = sense_msg->robot(i).seen_puck(j).range();
-				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
-				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
+			if (dist > my_home->r) {
+				double closest_range(1e9);
+				// Look at all the pucks we can see
+				for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
+					double puck_range = sense_msg->robot(i).seen_puck(j).range();
+					bool puck_held = sense_msg->robot(i).seen_puck(j).held();
+					double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
-				// If one is within pickup distance, try to pick it up
-				if (puck_range < pickup_range && !puck_held) {
-#if DEBUG
-					cout << "Trying to pick up a puck" << endl;
-#endif
-					// remember this location
-					robots[id].last_x = x;
-					robots[id].last_y = y;
-					r->set_type( antixtransfer::control_message::PICKUP );
-					picking_up = true;
-					break;
-				}
+					// If one is within pickup distance, try to pick it up
+					if (puck_range < Robot::pickup_range && !puck_held) {
+	#if DEBUG
+						cout << "Trying to pick up a puck" << endl;
+	#endif
+						// remember this location
+						robots[id].last_x = x;
+						robots[id].last_y = y;
+						r->set_type( antixtransfer::control_message::PICKUP );
+						picking_up = true;
+						break;
+					}
 
-				// Otherwise see if its the closest we've seen yet
-				if (puck_range < closest_range && !puck_held) {
-					heading_error = puck_bearing;
-					closest_range = puck_range;
+					// Otherwise see if its the closest we've seen yet
+					if (puck_range < closest_range && !puck_held) {
+						heading_error = puck_bearing;
+						closest_range = puck_range;
+					}
 				}
 			}
 
@@ -115,8 +126,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 			// If there were no pucks to see, choose direction differently
 			if (sense_msg->robot(i).seen_puck_size() == 0) {
-				double lx( antix::WrapDistance( robots[id].last_x - x, world_size ) );
-				double ly( antix::WrapDistance( robots[id].last_y - y, world_size ) );
+				double lx( antix::WrapDistance( robots[id].last_x - x ) );
+				double ly( antix::WrapDistance( robots[id].last_y - y ) );
 
 				// go towards last place a puck was picked up (or attempted pick up in
 				// the case of this version
@@ -126,8 +137,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 				if ( hypot( lx, ly) < 0.05 ) {
 					robots[id].last_x += drand48() * 0.4 - 0.2;
 					robots[id].last_y += drand48() * 0.4 - 0.2;
-					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x, world_size );
-					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y, world_size );
+					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x );
+					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y );
 				}
 			}
 		}
@@ -150,70 +161,42 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 }
 
 /*
-  For every node, request what our robots can see
+	Request from local node what our robots can see
   Make a decision based on this & send it back
 */
 void
 sense_and_controller() {
 #if DEBUG
-	cout << "Requesting sense data from every node for team " << my_id << "..." << endl;
+	cout << "Requesting sense data from node for my team: " << my_id << "..." << endl;
 #endif
-	// Ask each node what the robots from our team see
-	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
-		antixtransfer::control_message msg;
-		msg.set_team(my_id);
-		antix::send_pb(it->second, &msg);
-	}
-
-	// Separate loops so that all the messages go out at once
+	// Ask local node what the robots from our team sees
+	antix::send_pb(node_req_sock, &sense_req_msg);
 
 #if DEBUG
-	cout << "Awaiting sense data responses..." << endl;
+	cout << "Awaiting sense data response..." << endl;
 #endif
-	// we will be sending a second message to some nodes. track them here
-	vector<zmq::socket_t *> awaiting_response;
+	// Get the sense data back from the node
+	antixtransfer::sense_data sense_msg;
 	// Get the sense data from every node
-	for (map<int, zmq::socket_t *>::iterator it = node_map.begin(); it != node_map.end(); it++) {
-		antixtransfer::sense_data sense_msg;
-		antix::recv_pb(it->second, &sense_msg, 0);
+	antix::recv_pb(node_req_sock, &sense_msg, 0);
 
 #if DEBUG
-		cout << "Got sense data with " << sense_msg.robot_size() << " from node " << it->first << endl;
+	cout << "Got sense data with " << sense_msg.robot_size() << " robots." << endl;
 #endif
 
-		// if there's at least one robot in the response, we will be sending a command
-		if (sense_msg.robot_size() > 0) {
-			awaiting_response.push_back(it->second);
-			controller(it->second, &sense_msg);
-		}
-	}
+	// if there's at least one robot in the response, we will be sending a command
+	if (sense_msg.robot_size() > 0) {
+		controller(node_req_sock, &sense_msg);
 
 #if DEBUG
-	cout << "Awaiting responses from nodes we sent commands to..." << endl;
+		cout << "Awaiting responses from node we sent commands to..." << endl;
 #endif
-	// wait for a response again from those nodes in awaiting_response
-	for (vector<zmq::socket_t *>::iterator it = awaiting_response.begin(); it != awaiting_response.end(); it++) {
-		antix::recv_blank(*it);
+		// get response back since REQ sock
+		antix::recv_blank(node_req_sock);
 	}
 #if DEBUG
 	cout << "Sensing & controlling done." << endl;
 #endif
-}
-
-/*
-	Map nodes sockets by id & connect to all nodes
-*/
-map<int, zmq::socket_t *>
-get_node_map(zmq::context_t *context, antixtransfer::Node_list *node_list) {
-	map<int, zmq::socket_t*> node_map;
-	antixtransfer::Node_list::Node *node;
-	for (int i = 0; i < node_list->node_size(); i++) {
-		node = node_list->mutable_node(i);
-		zmq::socket_t *client_node_sock = new zmq::socket_t(*context, ZMQ_REQ);
-		client_node_sock->connect(antix::make_endpoint(node->ip_addr(), node->control_port()));
-		node_map.insert(pair<int, zmq::socket_t *> (node->id(), client_node_sock));
-	}
-	return node_map;
 }
 
 /*
@@ -238,13 +221,18 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 
-	if (argc != 3) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots> <client id> <node IPC id>" << endl;
 		return -1;
 	}
 	master_host = string(argv[1]);
 	assert(atoi(argv[2]) > 0);
 	num_robots = atoi(argv[2]);
+	my_id = atoi(argv[3]);
+	node_ipc_id = string(argv[4]);
+
+	// initialize some protobufs that do not change
+	sense_req_msg.set_team(my_id);
 
 	// REQ socket to master_cli port
 	cout << "Connecting to master..." << endl;
@@ -252,16 +240,33 @@ main(int argc, char **argv) {
 	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
 	antixtransfer::connect_init_client init_req;
 	init_req.set_num_robots( num_robots );
+	init_req.set_id( my_id );
 	antix::send_pb_envelope(master_req_sock, &init_req, "init_client");
 	
 	// Response from master contains simulation settings & our unique id (team id)
 	antixtransfer::MasterServerClientInitialization init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
-	my_id = init_response.id();
 	home_radius = init_response.home_radius();
 	sleep_time = init_response.sleep_time();
-	pickup_range = init_response.pickup_range();
-	world_size = init_response.world_size();
+	Robot::pickup_range = init_response.pickup_range();
+	antix::world_size = init_response.world_size();
+
+	cout << "Connected." << endl;
+
+	// node sync req sock
+	string s1 = node_ipc_prefix + node_ipc_id + "r";
+	node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	//node_sync_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "r"));
+	node_sync_req_sock->connect(antix::make_endpoint_ipc(s1));
+	cout << "node req sock " << s1 << endl;
+
+	// node sync sub sock
+	string s2 = node_ipc_prefix + node_ipc_id + "p";
+	node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	//node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "p"));
+	node_sub_sock->connect(antix::make_endpoint_ipc(s2));
+	cout << "node sub sock " << s2 << endl;
 
 	// Subscribe to master's publish socket. A node list will be received
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
@@ -277,8 +282,14 @@ main(int argc, char **argv) {
 	my_home = find_our_home(&node_list);
 	assert(my_home != NULL);
 
-	node_map = get_node_map(&context, &node_list);
-	cout << "Connected to all nodes" << endl;
+	// node control
+	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	string s3 = node_ipc_prefix + node_ipc_id + "c";
+	//node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "c"));
+	node_req_sock->connect(antix::make_endpoint_ipc(s3));
+	cout << "node control sock " << s3 << endl;
+
+	cout << "Connected to local node." << endl;
 
 	// initialize the records for our bots
 	for (int i = 0; i < num_robots; i++) {
@@ -291,7 +302,10 @@ main(int argc, char **argv) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
 
-		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::CLIENT);
+		// XXX need to wait for next turn still. Or we send another message and ruin
+		// the counting done by node
+		//antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::CLIENT);
+		antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
 
 #if SLEEP
 		antix::sleep(sleep_time);
