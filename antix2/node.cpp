@@ -173,18 +173,6 @@ find_robot(int team, int id) {
 }
 
 /*
-
-*/
-Puck *
-find_puck(Robot *r) {
-	for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-		if ((*it)->robot == r)
-			return *it;
-	}
-	return NULL;
-}
-
-/*
 	A map is waiting to be read on given sock
 	The map may or may not contain entities, add any entities therein
 	to our internal records of foreign robots & pucks
