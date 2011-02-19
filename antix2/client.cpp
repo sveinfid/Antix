@@ -88,31 +88,34 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		// not holding a puck
 		} else {
-			double closest_range(1e9);
+			// check we're away from home before looking for pucks to pick up
 			bool picking_up = false;
-			// Look at all the pucks we can see
-			for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
-				double puck_range = sense_msg->robot(i).seen_puck(j).range();
-				bool puck_held = sense_msg->robot(i).seen_puck(j).held();
-				double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
+			if (dist > my_home->r) {
+				double closest_range(1e9);
+				// Look at all the pucks we can see
+				for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
+					double puck_range = sense_msg->robot(i).seen_puck(j).range();
+					bool puck_held = sense_msg->robot(i).seen_puck(j).held();
+					double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
-				// If one is within pickup distance, try to pick it up
-				if (puck_range < Robot::pickup_range && !puck_held) {
-#if DEBUG
-					cout << "Trying to pick up a puck" << endl;
-#endif
-					// remember this location
-					robots[id].last_x = x;
-					robots[id].last_y = y;
-					r->set_type( antixtransfer::control_message::PICKUP );
-					picking_up = true;
-					break;
-				}
+					// If one is within pickup distance, try to pick it up
+					if (puck_range < Robot::pickup_range && !puck_held) {
+	#if DEBUG
+						cout << "Trying to pick up a puck" << endl;
+	#endif
+						// remember this location
+						robots[id].last_x = x;
+						robots[id].last_y = y;
+						r->set_type( antixtransfer::control_message::PICKUP );
+						picking_up = true;
+						break;
+					}
 
-				// Otherwise see if its the closest we've seen yet
-				if (puck_range < closest_range && !puck_held) {
-					heading_error = puck_bearing;
-					closest_range = puck_range;
+					// Otherwise see if its the closest we've seen yet
+					if (puck_range < closest_range && !puck_held) {
+						heading_error = puck_bearing;
+						closest_range = puck_range;
+					}
 				}
 			}
 
