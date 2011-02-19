@@ -8,7 +8,7 @@
 	from rtv's Antix
 */
 class Colour {
-	public:
+public:
 	double r, g, b;
 
 	Colour() {

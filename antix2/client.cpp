@@ -64,7 +64,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 			exit(-1);
 		}
 
-		// At the robot to response
+		// Add the robot to response we will send
 		antixtransfer::control_message::Robot *r = control_msg.add_robot();
 		r->set_id( id );
 
@@ -88,9 +88,9 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		// not holding a puck
 		} else {
-			// check we're away from home before looking for pucks to pick up
 			bool picking_up = false;
-			if (dist > my_home->r) {
+			// if we're away from home and see puck(s)
+			if (dist > my_home->r && sense_msg->robot(i).seen_puck_size() > 0) {
 				double closest_range(1e9);
 				// Look at all the pucks we can see
 				for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
@@ -117,30 +117,34 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 						closest_range = puck_range;
 					}
 				}
-			}
 
-			// XXX ugly hack, if we attempted pick up, don't do anything else for
-			// this robot
-			if (picking_up)
-				continue;
+				// if we're picking up, message is built. go on to next robot
+				if (picking_up)
+					continue;
 
-			// If there were no pucks to see, choose direction differently
-			if (sense_msg->robot(i).seen_puck_size() == 0) {
-				double lx( antix::WrapDistance( robots[id].last_x - x ) );
-				double ly( antix::WrapDistance( robots[id].last_y - y ) );
+			// we don't see any pucks
+			} else {
+				// If there were no pucks to see, choose direction differently
+				if (sense_msg->robot(i).seen_puck_size() == 0) {
+					double lx( antix::WrapDistance( robots[id].last_x - x ) );
+					double ly( antix::WrapDistance( robots[id].last_y - y ) );
 
-				// go towards last place a puck was picked up (or attempted pick up in
-				// the case of this version
-				heading_error = antix::AngleNormalize( atan2(ly, lx) - a );
+					// go towards last place a puck was picked up (or attempted pick up in
+					// the case of this version
+					heading_error = antix::AngleNormalize( atan2(ly, lx) - a );
 
-				// if the robot is at the location of last attempted puck, choose random
-				if ( hypot( lx, ly) < 0.05 ) {
-					robots[id].last_x += drand48() * 0.4 - 0.2;
-					robots[id].last_y += drand48() * 0.4 - 0.2;
-					robots[id].last_x = antix::DistanceNormalize( robots[id].last_x );
-					robots[id].last_y = antix::DistanceNormalize( robots[id].last_y );
+					// if the robot is at the location of last attempted puck, choose random
+					if ( hypot( lx, ly) < 0.05 ) {
+						//robots[id].last_x += drand48() * 0.4 - 0.2;
+						//robots[id].last_y += drand48() * 0.4 - 0.2;
+						robots[id].last_x += drand48() * 1.0 - 0.5;
+						robots[id].last_y += drand48() * 1.0 - 0.5;
+						robots[id].last_x = antix::DistanceNormalize( robots[id].last_x );
+						robots[id].last_y = antix::DistanceNormalize( robots[id].last_y );
+					}
 				}
 			}
+		// done not holding puck case
 		}
 
 		// If we got here, nothing left to try except setspeed
