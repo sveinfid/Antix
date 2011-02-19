@@ -1,6 +1,8 @@
 /*
 	Hold robots, pucks, and their location in the world
 	Calculate movements
+	Find those on boundary & build boundary protobuf messages
+	Find those outside range & build movement protobuf messages
 */
 
 #ifndef MAP_H
