@@ -16,7 +16,6 @@ gui_targets=gui
 objs=antix.pb.o
 
 CFLAGS=-O3
-CFLAGS=
 GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
 GLUTFLAGS=-I/usr/include/GL
 
