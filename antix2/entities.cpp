@@ -82,6 +82,10 @@ public:
 	// turn speed
 	double w;
 
+	// last point we were heading to. see .proto for why
+	double last_x;
+	double last_y;
+
 	// together uniquely identifies the robot
 	// team = client id, essentially
 	int team;
@@ -94,7 +98,8 @@ public:
 	// store what pucks we can see
 	vector<SeePuck> see_pucks;
 
-	Robot(double x, double y, int id, int team) : x(x), y(y), id(id), team(team) {
+	// Used in Map
+	Robot(double x, double y, int id, int team, double last_x, double last_y) : x(x), y(y), id(id), team(team), last_x(last_x), last_y(last_y) {
 		a = 0;
 		v = 0;
 		w = 0;
@@ -102,6 +107,7 @@ public:
 		has_puck = false;
 	}
 
+	// Used in GUI
 	Robot(double x, double y, int team, double a) : x(x), y(y), team(team), a(a) {
 		id = -1;
 		v = 0;
@@ -125,7 +131,13 @@ public:
 
 		x = antix::DistanceNormalize(x + dx);
 		y = antix::DistanceNormalize(y + dy);
+#if DEBUG
+		cout << "Moving: before AngleNormalize: a " << a << " da " << da << endl;
+#endif
 		a = antix::AngleNormalize(a + da);
+#if DEBUG
+		cout << "Moving: after AngleNormalize: " << a << endl;
+#endif
 
 		// If we're holding a puck, it must move also
 		if (has_puck) {
@@ -173,22 +185,27 @@ public:
 		Update the speed entry for the robot
 	*/
 	void
-	setspeed(double new_v, double new_w) {
+	setspeed(double new_v, double new_w, double new_last_x, double new_last_y) {
 #if DEBUG
 		cout << "Trying to set speed of robot " << id << " team " << team << endl;
 #endif
 		v = new_v;
 		w = new_w;
+		last_x = new_last_x;
+		last_y = new_last_y;
 	}
 
 	/*
 		Attempt to pick up a puck near the robot
 	*/
 	void
-	pickup(vector<Puck *> *pucks) {
+	pickup(vector<Puck *> *pucks, double new_last_x, double new_last_y) {
 #if DEBUG
 		cout << "Trying to pickup puck on robot " << id << " team " << team << endl;
 #endif
+		last_x = new_last_x;
+		last_y = new_last_y;
+
 		// check we aren't already holding a puck
 		if (has_puck)
 			return;

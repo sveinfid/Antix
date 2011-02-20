@@ -40,6 +40,7 @@ class antix {
 public:
 	static double offset_size;
 	static double world_size;
+	static int turn;
 
 	/*
 		Take a host and a port, return c_str
@@ -334,5 +335,6 @@ public:
 
 double antix::offset_size;
 double antix::world_size;
+int antix::turn = 0;
 
 #endif

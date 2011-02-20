@@ -26,6 +26,8 @@ public:
 	vector<Puck> foreign_pucks;
 	vector<Robot> foreign_robots;
 
+	vector<Home *> homes;
+
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;
 
@@ -36,8 +38,35 @@ public:
 
 		my_max_x = my_min_x + antix::offset_size;
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
+		populate_homes(node_list);
 		create_robots(node_list, my_id);
 		generate_pucks(initial_puck_amount);
+	}
+
+	/*
+		There is a list of homes & their locations in node list.
+		Use it to populate our home list
+	*/
+	void
+	populate_homes(antixtransfer::Node_list *node_list) {
+		for (int i = 0; i < node_list->home_size(); i++) {
+			Home *h = new Home(node_list->home(i).x(),
+				node_list->home(i).y(),
+				// XXX radius doesn't really matter right now (here), but may at some point
+				0,
+				node_list->home(i).team()
+			);
+			homes.push_back(h);
+		}
+	}
+
+	Home *
+	find_robot_home(int team) {
+		for (vector<Home *>::iterator it = homes.begin(); it != homes.end(); it++) {
+			if ( (*it)->team == team )
+				return *it;
+		}
+		return NULL;
 	}
 
 	/*
@@ -52,9 +81,13 @@ public:
 			// Create only those robots assigned to this node
 			if (rn->node() == my_id) {
 				for (int j = 0; j < rn->num_robots(); j++) {
-					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team());
+					// We need the robot's home for its initial last_x/last_y
+					Home *h = find_robot_home( rn->team() );
+					assert(h != NULL);
+
+					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
 					// XXX for testing
-					r->v = 0.01;
+					//r->v = 0.01;
 					robots.push_back(r);
 	#if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
@@ -142,9 +175,14 @@ public:
 		double a,
 		double v,
 		double w,
-		bool has_puck) {
+		bool has_puck,
+		double last_x,
+		double last_y) {
 
-		Robot *r = new Robot(x, y, id, team);
+#if DEBUG
+		cout << "Moving: added new robot with a " << a << " w " << w << "(Turn " << antix::turn << ")" << endl;
+#endif
+		Robot *r = new Robot(x, y, id, team, last_x, last_y);
 		r->a = a;
 		r->v = v;
 		r->w = w;
@@ -180,6 +218,11 @@ public:
 		r_move->set_v(r->v);
 		r_move->set_w(r->w);
 		r_move->set_has_puck(r->has_puck);
+		r_move->set_last_x(r->last_x);
+		r_move->set_last_y(r->last_y);
+#if DEBUG
+		cout << "Moving robot with a " << r->a << " w " << r->w << " (Turn " << antix::turn << ")" << endl;
+#endif
 	}
 
 	/*
@@ -207,7 +250,7 @@ public:
 				delete *it;
 				it = robots.erase(it);
 	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
+				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (1)" << endl;
 	#endif
 
 			// Otherwise if it's less than ours and smaller than our left neighbour's,
@@ -218,7 +261,7 @@ public:
 				delete *it;
 				it = robots.erase(it);
 	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
+				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (2)" << endl;
 	#endif
 
 			// If robot's x is bigger than ours and smaller than our right neighbour's, we
@@ -229,7 +272,7 @@ public:
 				delete *it;
 				it = robots.erase(it);
 	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node" << endl;
+				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (3)" << endl;
 	#endif
 
 			// Otherwise it's bigger than ours and bigger than our right neighbour's,
@@ -240,7 +283,7 @@ public:
 				delete *it;
 				it = robots.erase(it);
 	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node" << endl;
+				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (4)" << endl;
 	#endif
 
 			} else {
@@ -357,6 +400,8 @@ public:
 			robot_pb->set_y( (*r)->y );
 			robot_pb->set_has_puck( (*r)->has_puck );
 			robot_pb->set_id( (*r)->id );
+			robot_pb->set_last_x( (*r)->last_x );
+			robot_pb->set_last_y( (*r)->last_y );
 
 			// look at all other robots to see if we can see them
 			for (vector<Robot *>::iterator other = robots.begin(); other != robots.end(); other++) {

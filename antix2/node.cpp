@@ -116,7 +116,8 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		my_map->add_robot(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(),
 			move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team(),
 			move_bot_msg->robot(i).a(), move_bot_msg->robot(i).v(),
-			move_bot_msg->robot(i).w(), move_bot_msg->robot(i).has_puck()
+			move_bot_msg->robot(i).w(), move_bot_msg->robot(i).has_puck(),
+			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
 	}
 #if DEBUG
@@ -222,10 +223,16 @@ parse_client_message(antixtransfer::control_message *msg) {
 		}
 
 		if (msg->robot(i).type() == antixtransfer::control_message::SETSPEED) {
-			r->setspeed(msg->robot(i).v(), msg->robot(i).w());
+			r->setspeed(msg->robot(i).v(), msg->robot(i).w(), msg->robot(i).last_x(), msg->robot(i).last_y());
+#if DEBUG
+			cout << "(SETSPEED) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
+#endif
 
 		} else if (msg->robot(i).type() == antixtransfer::control_message::PICKUP) {
-			r->pickup(&my_map->pucks);
+			r->pickup(&my_map->pucks, msg->robot(i).last_x(), msg->robot(i).last_y());
+#if DEBUG
+			cout << "(PICKUP) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
+#endif
 
 		} else if (msg->robot(i).type() == antixtransfer::control_message::DROP) {
 			r->drop(&my_map->pucks);
@@ -449,7 +456,6 @@ main(int argc, char **argv) {
 	gui_rep_sock->bind(antix::make_endpoint(my_ip, my_gui_port));
 
 	// enter main loop
-	int turns = 0;
 	while (1) {
 		// update poses for internal robots
 		my_map->update_poses();
@@ -489,7 +495,7 @@ main(int argc, char **argv) {
 		// tell clients to begin
 		begin_clients();
 #if DEBUG
-		cout << "Turn " << turns++ << " done." << endl;
+		cout << "Turn " << antix::turn++ << " done." << endl;
 #endif
 
 #if SLEEP

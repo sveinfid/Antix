@@ -157,6 +157,8 @@ message move_bot {
     required double v = 6;
     required double w = 7;
     required bool has_puck = 8;
+		required double last_x = 9;
+		required double last_y = 10;
   }
   required bool from_right = 1;
   repeated Robot robot = 2;
@@ -175,6 +177,8 @@ message control_message {
     required Type type = 2;
 		optional double v = 3;
 		optional double w = 4;
+		optional double last_x = 5;
+		optional double last_y = 6;
 	}
 
 	required int32 team = 1;
@@ -199,8 +203,13 @@ message sense_data {
     required double a = 3;
     required double x = 4;
     required double y = 5;
-    repeated Seen_Robot seen_robot = 6;
-    repeated Seen_Puck seen_puck = 7;
+		// We have to pass these around or else the separate clients will work
+		// based on out of date previous direction/heading and cause robots to
+		// continually cross back & forth in some cases
+		required double last_x = 6;
+		required double last_y = 7;
+    repeated Seen_Robot seen_robot = 8;
+    repeated Seen_Puck seen_puck = 9;
   }
 
   repeated Robot robot = 1;
