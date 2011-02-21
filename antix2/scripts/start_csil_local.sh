@@ -3,6 +3,8 @@
 # This is run from start_csil.sh as it connects to each machine
 #
 
+ANTIX_PATH=/home/wjs2/Antix/antix2
+
 if [ $# -ne 3 ]
 then
   echo "Usage: $0 <IP of master> <# of teams> <robots per team>"
@@ -14,12 +16,12 @@ NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
 
 # First start the node for this machine
-/home/wjs2/Antix/antix2/scripts/run_node.tcl $MASTER &
+$ANTIX_PATH/scripts/run_node.tcl $MASTER &
 
 # Then start the client processes
 count=0
 while [ $count -lt $NUM_TEAMS ]
 do
-  /home/wjs2/Antix/antix2/scripts/run_client.tcl $MASTER $ROBOTS_PER_TEAM $count &
+  $ANTIX_PATH/scripts/run_client.tcl $MASTER $ROBOTS_PER_TEAM $count &
   count=`expr $count + 1`
 done
