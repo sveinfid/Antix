@@ -38,7 +38,7 @@ antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
 /*
-	Repeated protobuf messages: Declare them once as constructor expensive
+	Repeated protobuf messages: Declare them once as constructors are expensive
 */
 // messages that are sent repeatedly when bots move left or right
 antixtransfer::move_bot move_left_msg;
@@ -86,7 +86,7 @@ find_map_offset(antixtransfer::Node_list *node_list) {
 
 /*
 	A map is waiting to be read on given sock
-	The map may or may not contain entities, add any entities therein
+	The map may or may not contain entities. Add any entities therein
 	to our internal records of foreign robots & pucks
 */
 void
@@ -109,7 +109,6 @@ update_foreign_entities(zmq::socket_t *sock) {
 */
 void
 handle_move_request(antixtransfer::move_bot *move_bot_msg) {
-	// now we get a message of type move_bot
 	// for each robot in the message, add it to our list
 	int i;
 	for(i = 0; i < move_bot_msg->robot_size(); i++) {
@@ -131,6 +130,13 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 
 	Each neighbour must send us one request (even if blank), and we must send one
 	request (even if blank)
+
+	How the move / move response / foreign entities conversation goes:
+	the following two unrelated messages are part of the same conversation:
+	movement only requires an ACK, so in this ACK we send a list of our
+	foreign entities to the move message. Simplifies communication, but
+	requires us to even send move message if it's blank (which makes syncing
+	behaviour easier)
 */
 void
 send_move_messages() {
@@ -163,7 +169,7 @@ exchange_foreign_entities() {
 		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
 		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
 	};
-	// Both of these must be 2 before we continue
+	// Both of these must be 2 before we continue (hear from both neighbour nodes)
 	int responses = 0;
 	int requests = 0;
 	// Keep waiting for messages until we've received the number we expect
@@ -201,6 +207,7 @@ exchange_foreign_entities() {
 				antix::send_pb(neighbour_rep_sock, &border_map_left);
 			else
 				antix::send_pb(neighbour_rep_sock, &border_map_right);
+
 			requests++;
 #if DEBUG
 			cout << "Received move request from a neighbour, sent border entities" << endl;
@@ -257,7 +264,8 @@ service_control_messages() {
 #endif
 
 	// Each client will have one sense request message, and possibly one control msg
-	// Though they are the same type, the sense message will have 0 robots
+	// Though they are the same protobuf type, the sense request
+	// message will have 0 robots in it to differentiate between them
 
 	// The number of messages we expect is:
 	// - sense_messages: N = # of clients in the world
@@ -286,8 +294,9 @@ service_control_messages() {
 #endif
 				antix::send_pb(control_rep_sock, my_map->sense_map[msg.team()]);
 
-			// otherwise give a blank sense message
+			// otherwise give a blank (no robots) sense message
 			} else {
+				// XXX declare once
 				antixtransfer::sense_data blank_sense_msg;
 				antix::send_pb(control_rep_sock, &blank_sense_msg);
 #if DEBUG
@@ -312,7 +321,7 @@ service_gui_requests() {
 #endif
 	antix::recv_blank(gui_rep_sock);
 	// Respond by sending a list of our entities
-	// XXX declare only once?
+	// XXX declare only once
 	antixtransfer::SendMap_GUI gui_map;
 	my_map->build_gui_map(&gui_map);
 	antix::send_pb(gui_rep_sock, &gui_map);
@@ -321,6 +330,10 @@ service_gui_requests() {
 #endif
 }
 
+/*
+	Block until a client sends a message stating it is done. Only return
+	once all clients have been heard from
+*/
 void
 wait_for_clients() {
 	// Every client process on the machine must contact us before beginning next turn
@@ -328,6 +341,7 @@ wait_for_clients() {
 	while (clients_done.size() < total_teams) {
 		string type = antix::recv_str(sync_rep_sock);
 
+		// XXX declare only once
 		antixtransfer::done done_msg;
 		antix::recv_pb(sync_rep_sock, &done_msg, 0);
 
@@ -341,6 +355,9 @@ wait_for_clients() {
 	}
 }
 
+/*
+	Send message to clients to begin next turn
+*/
 void
 begin_clients() {
 	antix::send_blank(sync_pub_sock);
@@ -354,7 +371,7 @@ main(int argc, char **argv) {
 	srand48( time(NULL) );
 	
 	if (argc != 6) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <GUI port> <IPC ID (unique to this computer), e.g. 0>" << endl;
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <GUI port> <IPC ID # (unique to this computer)>" << endl;
 		return -1;
 	}
 
@@ -400,7 +417,7 @@ main(int argc, char **argv) {
 	Robot::fov = init_response.fov();
 	Robot::pickup_range = init_response.pickup_range();
 
-	cout << "We are now node id " << my_id << endl;
+	cout << "We are now node ID " << my_id << endl;
 
 	// sync rep sock which receives done messages from clients
 	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
@@ -459,12 +476,6 @@ main(int argc, char **argv) {
 	while (1) {
 		// update poses for internal robots
 		my_map->update_poses();
-
-		// the following two unrelated messages are part of the same conversation:
-		// movement only requires an ACK, so in this ACK we send a list of our
-		// foreign entities to the move message. Simplifies communication, but
-		// requires us to even send move message if its blank (which makes syncing
-		// behaviour easier
 
 		// send movement requests to neighbouring nodes (a bot moved out of range)
 		send_move_messages();

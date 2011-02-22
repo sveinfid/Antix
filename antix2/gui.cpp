@@ -12,7 +12,7 @@ using namespace std;
 int winsize = 600;
 
 string master_host;
-// we use client port
+// we use client port when connecting to the master
 string master_req_port = "7771";
 string master_sub_port = "7773";
 
@@ -29,9 +29,10 @@ double home_radius;
 bool show_data = false;
 bool paused = false;
 
+vector<Home> homes;
+// these get cleared and rebuilt every turn
 vector<Puck> pucks;
 vector<Robot> robots;
-vector<Home> homes;
 
 antixtransfer::Node_list node_list;
 
@@ -85,9 +86,9 @@ rebuild_entity_db() {
       robots.push_back(r);
     }
   }
-//#if DEBUG
+#if DEBUG
   cout << "After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
-//#endif
+#endif
 }
 
 void

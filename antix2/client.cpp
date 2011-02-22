@@ -216,8 +216,6 @@ find_our_home(antixtransfer::Node_list *node_list) {
 		if (node_list->home(i).team() == my_id)
 			return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
 	}
-	cerr << "Error: Didn't find our home" << endl;
-	exit(-1);
 	return NULL;
 }
 
@@ -294,9 +292,6 @@ main(int argc, char **argv) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
 
-		// XXX need to wait for next turn still. Or we send another message and ruin
-		// the counting done by node
-		//antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::CLIENT);
 		antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
 
 #if DEBUG

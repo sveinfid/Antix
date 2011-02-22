@@ -26,6 +26,7 @@ public:
 	vector<Puck> foreign_pucks;
 	vector<Robot> foreign_robots;
 
+	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> homes;
 
 	// what each robot can see by team
@@ -71,7 +72,7 @@ public:
 
 	/*
 		Node_list contains a list of Robots to be created on each node
-		Create ours
+		Look for our ID in this list & create the robots assigned to us
 	*/
 	void
 	create_robots(antixtransfer::Node_list *node_list, int my_id) {
@@ -86,8 +87,6 @@ public:
 					assert(h != NULL);
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
-					// XXX for testing
-					//r->v = 0.01;
 					robots.push_back(r);
 	#if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
@@ -157,6 +156,7 @@ public:
 		double y,
 		int id,
 		int team) {
+
 		foreign_robots.push_back( Robot(x, y, id, team) );
 	}
 
@@ -164,6 +164,7 @@ public:
 	add_foreign_puck(double x,
 		double y,
 		bool held) {
+
 		foreign_pucks.push_back( Puck(x, y, held) );
 	}
 
@@ -232,6 +233,7 @@ public:
 	*/
 	void
 	build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_bot *move_right_msg) {
+
 		move_left_msg->clear_robot();
 		move_right_msg->clear_robot();
 
@@ -370,7 +372,7 @@ public:
 
 		The actual sense logic is from rtv's Antix
 
-		XXX Really ugly repeating code, but may be faster?
+		XXX Really ugly repeating code
 	*/
 	void
 	build_sense_messages() {
@@ -545,6 +547,9 @@ public:
 	#endif
 	}
 
+	/*
+		Put all of our puck locations and all of our robots into a protobuf message
+	*/
 	void
 	build_gui_map(antixtransfer::SendMap_GUI *gui_map) {
 		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
