@@ -1,14 +1,6 @@
-# You must set the environment variables
-#
-# export ZMQ_PATH=/pathto/zeromq
-# export PROTOBUF_PATH=/path/to/protobuf
-#
-# e.g.
-# export ZMQ_PATH=/home/gpa7/sfuhome/zeromq
-# export PROTOBUF_PATH=/home/gpa7/sfuhome/protobuf
-#
-#	g++ $(CFLAGS) -c antix.cpp $(includes) $(lib_paths) $(libraries)
-#	g++ $(CFLAGS) -c map.cpp $(includes) $(lib_paths) $(libraries)
+
+ZMQ_PATH=/home/$(USER)/zeromq
+PROTOBUF_PATH=/home/$(USER)/protobuf
 
 build_dir=.
 targets=master operator node client
