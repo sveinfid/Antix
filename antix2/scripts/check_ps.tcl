@@ -3,8 +3,12 @@
 # Print readable output of processes for each workstation
 #
 
-set fname [lindex $argv 0]
+if {$argc != 1} {
+	puts "Usage: $argv0 <workstations.txt>"
+	exit -1
+}
 
+set fname [lindex $argv 0]
 set fid [open $fname r]
 set workstations [read -nonewline $fid]
 close $fid
