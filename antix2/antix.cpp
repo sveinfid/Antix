@@ -41,7 +41,7 @@ public:
 	static double offset_size;
 	static double world_size;
 	static int turn;
-	static double matrix_width;
+	static unsigned int matrix_width;
 
 	/*
 		Take a host and a port, return c_str
@@ -367,7 +367,7 @@ public:
 
 double antix::offset_size;
 double antix::world_size;
-double antix::matrix_width;
+unsigned int antix::matrix_width;
 int antix::turn = 0;
 
 #endif

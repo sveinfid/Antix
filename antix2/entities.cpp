@@ -182,41 +182,6 @@ public:
 	}
 
 	/*
-		Remove the puck that robot is carrying, if it is carrying one
-	*/
-	void
-	remove_puck(vector<Puck *> *pucks) {
-#if DEBUG
-		cout << "Trying to remove puck of robot " << id << " team " << team << endl;
-#endif
-		if (!has_puck)
-			return;
-
-		assert(puck != NULL);
-		assert(puck->robot == this);
-		assert(puck->held == true);
-
-		// this is done in map right now
-		//matrix[index].pucks.erase( puck );
-
-		bool deleted = false;
-		// remove puck from vector
-		for (vector<Puck*>::iterator it = pucks->begin(); it != pucks->end(); it++) {
-			if ((*it) == puck) {
-				pucks->erase(it);
-				deleted = true;
-				break;
-			}
-		}
-		assert(deleted == true);
-		
-		// remove record on robot to deleted puck
-		delete puck;
-		puck = NULL;
-		has_puck = false;
-	}
-
-	/*
 		Update the speed entry for the robot
 	*/
 	void

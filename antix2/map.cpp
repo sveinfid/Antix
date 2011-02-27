@@ -229,7 +229,7 @@ public:
 		Add the relevant data to a new Robot entry in the given move_bot message
 	*/
 	void
-	add_move_robot(Robot *r, antixtransfer::move_bot *move_bot_msg) {
+	add_robot_to_move_msg(Robot *r, antixtransfer::move_bot *move_bot_msg) {
 		antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
 		r_move->set_id(r->id);
 		r_move->set_team(r->team);
@@ -244,6 +244,60 @@ public:
 #if DEBUG
 		cout << "Moving robot with a " << r->a << " w " << r->w << " (Turn " << antix::turn << ")" << endl;
 #endif
+	}
+
+	/*
+		Remove the puck that robot is carrying, if it is carrying one
+	*/
+	void
+	remove_puck(Robot *r, vector<Puck *> *pucks) {
+#if DEBUG
+		cout << "Trying to remove puck of robot " << r->id << " team " << r->team << endl;
+#endif
+		if (!r->has_puck)
+			return;
+
+		assert(r->puck != NULL);
+		assert(r->puck->robot == r);
+		assert(r->puck->held == true);
+
+		// remove puck from cell
+		Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
+
+		bool deleted = false;
+		// remove puck from vector
+		for (vector<Puck*>::iterator it = pucks->begin(); it != pucks->end(); it++) {
+			if ((*it) == r->puck) {
+				pucks->erase(it);
+				deleted = true;
+				break;
+			}
+		}
+		assert(deleted == true);
+		
+		// remove record on robot to deleted puck
+		delete r->puck;
+		r->puck = NULL;
+		r->has_puck = false;
+	}
+
+
+	/*
+		Remove robot from our records, and any associated puck
+	*/
+	vector<Robot *>::iterator
+	remove_robot(Robot *r, vector<Robot *>::iterator & it, vector<Robot *> *robots) {
+		// remove robot from cell
+		Robot::matrix[ r->index ].robots.erase(r);
+
+		// delete the robot's puck (if holding) from vector & memory
+		remove_puck(r, &pucks);
+
+		// delete robot from memory
+		delete r;
+
+		// delete robot from vector & return next in vector
+		return robots->erase(it);
 	}
 
 	/*
@@ -267,17 +321,8 @@ public:
 			// If robot's x is less than ours and bigger than our left neighbours, send
 			// to our left neighbour
 			if ((*it)->x < my_min_x && (*it)->x > my_min_x - antix::offset_size) {
-				add_move_robot(*it, move_left_msg);
-
-				// remove record in robot's cell
-				Robot::matrix[ (*it)->index ].robots.erase(*it);
-				if ( (*it)->has_puck ) {
-					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
-				}
-
-				(*it)->remove_puck(&pucks);
-				delete *it;
-				it = robots.erase(it);
+				add_robot_to_move_msg(*it, move_left_msg);
+				it = remove_robot(*it, it, &robots);
 	#if DEBUG
 				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (1)" << endl;
 	#endif
@@ -285,17 +330,8 @@ public:
 			// Otherwise if it's less than ours and smaller than our left neighbour's,
 			// assume that we are the far right node: send it to our right neighbour
 			} else if ((*it)->x < my_min_x) {
-				add_move_robot(*it, move_right_msg);
-
-				// remove record in robot's cell
-				Robot::matrix[ (*it)->index ].robots.erase(*it);
-				if ( (*it)->has_puck ) {
-					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
-				}
-				
-				(*it)->remove_puck(&pucks);
-				delete *it;
-				it = robots.erase(it);
+				add_robot_to_move_msg(*it, move_right_msg);
+				it = remove_robot(*it, it, &robots);
 	#if DEBUG
 				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (2)" << endl;
 	#endif
@@ -303,17 +339,8 @@ public:
 			// If robot's x is bigger than ours and smaller than our right neighbour's, we
 			// send it to our right neighbour
 			} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + antix::offset_size) {
-				add_move_robot(*it, move_right_msg);
-
-				// remove record in robot's cell
-				Robot::matrix[ (*it)->index ].robots.erase(*it);
-				if ( (*it)->has_puck ) {
-					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
-				}
-
-				(*it)->remove_puck(&pucks);
-				delete *it;
-				it = robots.erase(it);
+				add_robot_to_move_msg(*it, move_right_msg);
+				it = remove_robot(*it, it, &robots);
 	#if DEBUG
 				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (3)" << endl;
 	#endif
@@ -321,17 +348,8 @@ public:
 			// Otherwise it's bigger than ours and bigger than our right neighbour's,
 			// assume we are the far left node: send it to our left neighbour
 			} else if ((*it)->x >= my_max_x) {
-				add_move_robot(*it, move_left_msg);
-
-				// remove record in robot's cell
-				Robot::matrix[ (*it)->index ].robots.erase(*it);
-				if ( (*it)->has_puck ) {
-					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
-				}
-
-				(*it)->remove_puck(&pucks);
-				delete *it;
-				it = robots.erase(it);
+				add_robot_to_move_msg(*it, move_left_msg);
+				it = remove_robot(*it, it, &robots);
 	#if DEBUG
 				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (4)" << endl;
 	#endif

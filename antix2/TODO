@@ -1,0 +1,2 @@
+- fix the seed rand bug (all pucks appear in same locn in all nodes...) is this due to starting at same time?
+- make able to run multiple nodes on single machine while not increasing the number of client processes on that machine
