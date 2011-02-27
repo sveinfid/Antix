@@ -417,6 +417,8 @@ main(int argc, char **argv) {
 	Robot::fov = init_response.fov();
 	Robot::pickup_range = init_response.pickup_range();
 
+	antix::matrix_width = floor(antix::world_size / Robot::vision_range);
+
 	cout << "We are now node ID " << my_id << endl;
 
 	// sync rep sock which receives done messages from clients

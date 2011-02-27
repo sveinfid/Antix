@@ -38,6 +38,10 @@ public:
 		int my_id) : my_min_x(my_min_x) {
 
 		my_max_x = my_min_x + antix::offset_size;
+
+		// this can probably be less. save memory XXX
+		Robot::matrix.resize(antix::matrix_width * antix::matrix_width);
+
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
 		populate_homes(node_list);
 		create_robots(node_list, my_id);
@@ -88,6 +92,9 @@ public:
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
 					robots.push_back(r);
+					unsigned int index = antix::Cell(r->x, r->y);
+					r->index = index;
+					Robot::matrix[index].robots.insert( r );
 	#if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
 	#endif
@@ -103,7 +110,12 @@ public:
 	generate_pucks(int initial_puck_amount) {
 		for (int i = 0; i < initial_puck_amount; i++) {
 			// XXX is this -0.01 needed?
-			pucks.push_back( new Puck(my_min_x, my_max_x - 0.01) );
+			//pucks.push_back( new Puck(my_min_x, my_max_x - 0.01) );
+			Puck *p = new Puck(my_min_x, my_max_x - 0.01);
+			unsigned int index = antix::Cell(p->x, p->y);
+			p->index = index;
+			Robot::matrix[index].pucks.insert( p );
+			pucks.push_back( p );
 		}
 		cout << "Created " << pucks.size() << " pucks." << endl;
 	#if DEBUG
@@ -189,6 +201,11 @@ public:
 		r->w = w;
 		r->has_puck = has_puck;
 		robots.push_back(r);
+
+		unsigned int new_index = antix::Cell( x, y );
+		r->index = new_index;
+		Robot::matrix[new_index].robots.insert( r );
+
 		// If the robot is carrying a puck, we have to add a puck to our records
 		if (r->has_puck) {
 			Puck *p = new Puck(r->x, r->y, true);
@@ -196,6 +213,9 @@ public:
 			pucks.push_back(p);
 
 			r->puck = p;
+
+			p->index = new_index;
+			Robot::matrix[new_index].pucks.insert( p );
 
 			assert(r->has_puck == true);
 			assert(r->puck->robot == r);
@@ -248,6 +268,13 @@ public:
 			// to our left neighbour
 			if ((*it)->x < my_min_x && (*it)->x > my_min_x - antix::offset_size) {
 				add_move_robot(*it, move_left_msg);
+
+				// remove record in robot's cell
+				Robot::matrix[ (*it)->index ].robots.erase(*it);
+				if ( (*it)->has_puck ) {
+					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
+				}
+
 				(*it)->remove_puck(&pucks);
 				delete *it;
 				it = robots.erase(it);
@@ -259,6 +286,13 @@ public:
 			// assume that we are the far right node: send it to our right neighbour
 			} else if ((*it)->x < my_min_x) {
 				add_move_robot(*it, move_right_msg);
+
+				// remove record in robot's cell
+				Robot::matrix[ (*it)->index ].robots.erase(*it);
+				if ( (*it)->has_puck ) {
+					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
+				}
+				
 				(*it)->remove_puck(&pucks);
 				delete *it;
 				it = robots.erase(it);
@@ -270,6 +304,13 @@ public:
 			// send it to our right neighbour
 			} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + antix::offset_size) {
 				add_move_robot(*it, move_right_msg);
+
+				// remove record in robot's cell
+				Robot::matrix[ (*it)->index ].robots.erase(*it);
+				if ( (*it)->has_puck ) {
+					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
+				}
+
 				(*it)->remove_puck(&pucks);
 				delete *it;
 				it = robots.erase(it);
@@ -281,6 +322,13 @@ public:
 			// assume we are the far left node: send it to our left neighbour
 			} else if ((*it)->x >= my_max_x) {
 				add_move_robot(*it, move_left_msg);
+
+				// remove record in robot's cell
+				Robot::matrix[ (*it)->index ].robots.erase(*it);
+				if ( (*it)->has_puck ) {
+					Robot::matrix[ (*it)->index ].pucks.erase( (*it)->puck );
+				}
+
 				(*it)->remove_puck(&pucks);
 				delete *it;
 				it = robots.erase(it);
@@ -405,7 +453,26 @@ public:
 			robot_pb->set_last_x( (*r)->last_x );
 			robot_pb->set_last_y( (*r)->last_y );
 
+			int x( antix::Cell( (*r)->x ) );
+			int y( antix::Cell( (*r)->y ) );
+
+			// we will now find what robots & pucks we can see, but before that,
+			// clear our see_pucks (and see_robots when we care...)
+			(*r)->see_pucks.clear();
+
+			// check 3x3 cells around robot's position
+			UpdateSensorsCell(x-1, y-1, *r, robot_pb);
+			UpdateSensorsCell(x+0, y-1, *r, robot_pb);
+			UpdateSensorsCell(x+1, y-1, *r, robot_pb);
+			UpdateSensorsCell(x-1, y+0, *r, robot_pb);
+			UpdateSensorsCell(x+0, y+0, *r, robot_pb);
+			UpdateSensorsCell(x+1, y+0, *r, robot_pb);
+			UpdateSensorsCell(x-1, y+1, *r, robot_pb);
+			UpdateSensorsCell(x+0, y+1, *r, robot_pb);
+			UpdateSensorsCell(x+1, y+1, *r, robot_pb);
+
 			// look at all other robots to see if we can see them
+			/*
 			for (vector<Robot *>::iterator other = robots.begin(); other != robots.end(); other++) {
 				// we don't look at ourself
 				if (*r == *other)
@@ -434,11 +501,10 @@ public:
 				seen_robot->set_range( range );
 				seen_robot->set_bearing( relative_heading );
 			}
-
-			// we will now find what pucks we can see, but before that, clear our see_pucks
-			(*r)->see_pucks.clear();
+			*/
 
 			// now look at all the pucks
+			/*
 			for (vector<Puck *>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
 				double dx( antix::WrapDistance( (*puck)->x - (*r)->x ) );
 				if ( fabs(dx) > Robot::vision_range )
@@ -466,8 +532,10 @@ public:
 
 				(*r)->see_pucks.push_back(SeePuck(*puck, range));
 			}
+			*/
 
 			// now look at foreign robots
+			/* XXX right now we don't care about foreign robots
 			for (vector<Robot>::iterator other = foreign_robots.begin(); other != foreign_robots.end(); other++) {
 				// we don't look at ourself
 				if (*r == &*other)
@@ -496,6 +564,7 @@ public:
 				seen_robot->set_range( range );
 				seen_robot->set_bearing( relative_heading );
 			}
+			*/
 
 			// and foreign pucks
 			/* XXX we don't deal with picking up foreign pucks right now
@@ -565,6 +634,91 @@ public:
 			robot->set_x( (*it)->x );
 			robot->set_y( (*it)->y );
 			robot->set_a( (*it)->a );
+		}
+	}
+
+	/*
+		from rtv's Antix
+	*/
+	inline void
+	UpdateSensorsCell(unsigned int x, unsigned int y, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
+		unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
+		TestRobotsInCell( Robot::matrix[index], r, robot_pb );
+		TestPucksInCell( Robot::matrix[index], r, robot_pb );
+	}
+
+	void
+	TestRobotsInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
+		// look at robots in this cell and see if we can see them
+		for (set<Robot *>::iterator other = cell.robots.begin(); other != cell.robots.end(); other++) {
+			// we don't look at ourself
+			if (r == *other)
+				continue;
+			
+			double dx( antix::WrapDistance( (*other)->x - r->x ) );
+			if ( fabs(dx) > Robot::vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( (*other)->y - r->y ) );
+			if ( fabs(dy) > Robot::vision_range )
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > Robot::vision_range )
+				continue;
+
+			// check that it's in fov
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			if ( fabs(relative_heading) > Robot::fov/2.0 )
+				continue;
+
+			// we can see the robot
+			antixtransfer::sense_data::Robot::Seen_Robot *seen_robot = robot_pb->add_seen_robot();
+			seen_robot->set_range( range );
+			seen_robot->set_bearing( relative_heading );
+		}
+	}
+
+	void
+	TestPucksInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
+		// check which pucks in this cell we can see
+		for (set<Puck *>::iterator puck = cell.pucks.begin(); puck != cell.pucks.end(); puck++) {
+			double dx( antix::WrapDistance( (*puck)->x - r->x ) );
+			if ( fabs(dx) > Robot::vision_range )
+				continue;
+
+			double dy( antix::WrapDistance( (*puck)->y - r->y ) );
+			if ( fabs(dy) > Robot::vision_range )
+				continue;
+
+			double range = hypot( dx, dy );
+			if (range > Robot::vision_range)
+				continue;
+
+			// fov check
+			double absolute_heading = atan2( dy, dx );
+			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			if ( fabs(relative_heading) > Robot::fov/2.0 )
+				continue;
+
+			// we can see the puck
+			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
+			seen_puck->set_range( range );
+			seen_puck->set_bearing ( relative_heading );
+			seen_puck->set_held( (*puck)->held );
+
+			r->see_pucks.push_back(SeePuck(*puck, range));
+
+			// XXX make sure this puck is in vector as well
+			bool found = false;
+			for (vector<Puck *>::iterator it2 = pucks.begin(); it2 != pucks.end(); it2++) {
+				if ( (*it2) == *puck ) {
+					found = true;
+					break;
+				}
+			}
+			assert(found == true);
 		}
 	}
 };

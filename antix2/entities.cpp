@@ -45,6 +45,7 @@ class Puck {
 public:
 	double x,
 		y;
+	unsigned int index;
 	bool held;
 	Robot *robot;
 
@@ -54,9 +55,11 @@ public:
 		y = antix::rand_between(0, antix::world_size);
 		held = false;
 		robot = NULL;
+		index = 0;
 	}
 	Puck(double x, double y, bool held) : x(x), y(y), held(held) {
 		robot = NULL;
+		index = 0;
 	}
 };
 
@@ -68,11 +71,24 @@ public:
 	SeePuck(Puck *puck, double range) : puck(puck), range(range) {}
 };
 
+/*
+	from rtv's Antix
+*/
+class MatrixCell {
+public:
+	set<Robot *> robots;
+	set<Puck *> pucks;
+};
+
 class Robot {
 public:
 	static double pickup_range;
 	static double fov;
 	static double vision_range;
+	static vector<MatrixCell> matrix;
+
+	// index into matrix
+	unsigned int index;
 
 	double x, y;
 	// orientation
@@ -105,6 +121,7 @@ public:
 		w = 0;
 		puck = NULL;
 		has_puck = false;
+		index = 0;
 	}
 
 	// Used in GUI
@@ -114,6 +131,7 @@ public:
 		w = 0;
 		puck = NULL;
 		has_puck = false;
+		index = 0;
 	}
 
 	/*
@@ -131,6 +149,8 @@ public:
 
 		x = antix::DistanceNormalize(x + dx);
 		y = antix::DistanceNormalize(y + dy);
+
+		unsigned int new_index = antix::Cell( x, y );
 #if DEBUG
 		cout << "Moving: before AngleNormalize: a " << a << " da " << da << endl;
 #endif
@@ -146,6 +166,18 @@ public:
 			assert(puck->held == true);
 			puck->x = x;
 			puck->y = y;
+		}
+
+		if (new_index != index ) {
+			matrix[index].robots.erase( this );
+			matrix[new_index].robots.insert( this );
+
+			if (has_puck) {
+				matrix[index].pucks.erase( puck );
+				matrix[new_index].pucks.insert( puck );
+				puck->index = new_index;
+			}
+			index = new_index;
 		}
 	}
 
@@ -163,6 +195,9 @@ public:
 		assert(puck != NULL);
 		assert(puck->robot == this);
 		assert(puck->held == true);
+
+		// this is done in map right now
+		//matrix[index].pucks.erase( puck );
 
 		bool deleted = false;
 		// remove puck from vector
@@ -214,6 +249,7 @@ public:
 		for (vector<SeePuck>::iterator it = see_pucks.begin(); it != see_pucks.end(); it++) {
 			// XXX ugly. We need to check if the puck we see hasn't already moved out
 			// of the node
+			// not really necessary, but doesn't hurt (other than CPU!)
 			bool found = false;
 			for (vector<Puck *>::iterator it2 = pucks->begin(); it2 != pucks->end(); it2++) {
 				if ( (*it2) == it->puck ) {
@@ -229,6 +265,13 @@ public:
 				puck = it->puck;
 				puck->held = true;
 				puck->robot = this;
+
+				// ensure puck is in our same cell
+				if (puck->index != index) {
+					matrix[puck->index].pucks.erase( puck );
+					matrix[index].pucks.insert( puck );
+					puck->index = index;
+				}
 #if DEBUG
 				cout << "Robot " << id << " on team " << team << " picked up a puck." << endl;
 #endif
@@ -279,6 +322,7 @@ public:
 double Robot::pickup_range;
 double Robot::fov;
 double Robot::vision_range;
+vector<MatrixCell> Robot::matrix;
 
 // Robot class for clients
 class CRobot {

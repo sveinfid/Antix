@@ -41,6 +41,7 @@ public:
 	static double offset_size;
 	static double world_size;
 	static int turn;
+	static double matrix_width;
 
 	/*
 		Take a host and a port, return c_str
@@ -331,10 +332,42 @@ public:
 		while( a >  M_PI ) a -= 2.0*M_PI;	 
 		return a;
 	}
+
+	/*
+		these 3 cell methods from rtv's antix
+	*/
+	static inline unsigned int
+	Cell(double x) {
+		const double d = antix::world_size / (double) matrix_width;
+
+		// wraparound
+		while (x > world_size)
+			x -= world_size;
+
+		while (x < 0)
+			x += world_size;
+
+		return floor(x / d);
+	}
+
+	static inline unsigned int
+	CellWrap(int x) {
+		while (x >= (int) matrix_width)
+			x -= matrix_width;
+		while (x < 0)
+			x += matrix_width;
+		return x;
+	}
+
+	static inline unsigned int
+	Cell(double x, double y) {
+		return ( Cell(x) + ( Cell(y) * matrix_width ) );
+	}
 };
 
 double antix::offset_size;
 double antix::world_size;
+double antix::matrix_width;
 int antix::turn = 0;
 
 #endif
