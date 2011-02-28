@@ -82,6 +82,8 @@ find_map_offset(antixtransfer::Node_list *node_list) {
 			return node->x_offset();
 		}
 	}
+	cerr << "Error: didn't find my offset!" << endl;
+	exit(-1);
 }
 
 /*
@@ -172,6 +174,9 @@ exchange_foreign_entities() {
 	// Both of these must be 2 before we continue (hear from both neighbour nodes)
 	int responses = 0;
 	int requests = 0;
+#if DEBUG
+	cout << "Sync: Waiting for responses in exchange_foreign_entities()" << endl;
+#endif
 	// Keep waiting for messages until we've received the number we expect
 	while (responses < 2 || requests < 2) {
 		zmq::poll(&items [0], 3, -1);
@@ -214,6 +219,9 @@ exchange_foreign_entities() {
 #endif
 		}
 	}
+#if DEBUG
+	cout << "Sync: done exchange_foreign_entities" << endl;
+#endif
 }
 
 /*
@@ -260,7 +268,7 @@ parse_client_message(antixtransfer::control_message *msg) {
 void
 service_control_messages() {
 #if DEBUG
-	cout << "Waiting for control requests from clients..." << endl;
+	cout << "Sync: Waiting for control requests from clients..." << endl;
 #endif
 
 	// Each client will have one sense request message, and possibly one control msg
@@ -307,7 +315,7 @@ service_control_messages() {
 	}
 
 #if DEBUG
-	cout << "Done responding to client control messages." << endl;
+	cout << "Sync: Done responding to client control messages." << endl;
 #endif
 }
 
@@ -317,7 +325,7 @@ service_control_messages() {
 void
 service_gui_requests() {
 #if DEBUG
-	cout << "Checking GUI requests..." << endl;
+	cout << "Sync: Checking GUI requests..." << endl;
 #endif
 	antix::recv_blank(gui_rep_sock);
 	// Respond by sending a list of our entities
@@ -326,7 +334,7 @@ service_gui_requests() {
 	my_map->build_gui_map(&gui_map);
 	antix::send_pb(gui_rep_sock, &gui_map);
 #if DEBUG
-	cout << "Sent GUI response." << endl;
+	cout << "Sync: Sent GUI response." << endl;
 #endif
 }
 
@@ -337,7 +345,11 @@ service_gui_requests() {
 void
 wait_for_clients() {
 	// Every client process on the machine must contact us before beginning next turn
+	// XXX declare only once
 	set<int> clients_done;
+#if DEBUG
+	cout << "Sync: Waiting for clients..." << endl;
+#endif
 	while (clients_done.size() < total_teams) {
 		string type = antix::recv_str(sync_rep_sock);
 
@@ -352,7 +364,14 @@ wait_for_clients() {
 		if (clients_done.count( done_msg.my_id() ) == 0) {
 			clients_done.insert(done_msg.my_id());
 		}
+#if DEBUG
+		cout << "Sync: Just received done from client " << done_msg.my_id() << endl;
+		cout << "Sync: Heard done from " << clients_done.size() << " clients. There are " << total_teams << " teams." << endl;
+#endif
 	}
+#if DEBUG
+	cout << "Sync: Heard from all clients." << endl;
+#endif
 }
 
 /*

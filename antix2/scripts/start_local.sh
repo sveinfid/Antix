@@ -15,6 +15,9 @@ NUM_NODES=$1
 NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
 
+echo "Removing /tmp/node* ..."
+rm /tmp/node*
+
 # Start nodes first
 i=0
 while [ $i -lt $NUM_NODES ]

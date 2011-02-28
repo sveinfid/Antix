@@ -66,7 +66,7 @@ rebuild_entity_db() {
     antix::send_blank(*it);
   }
 #if DEBUG
-  cout << "Sent entity requests to nodes." << endl;
+  cout << "Sync: Sent entity requests to nodes." << endl;
 #endif
 
   // wait on response from each node
@@ -87,7 +87,7 @@ rebuild_entity_db() {
     }
   }
 //#if DEBUG
-  cout << "After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
+  cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
 //#endif
 }
 

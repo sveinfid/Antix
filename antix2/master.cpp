@@ -197,7 +197,7 @@ handle_done(zmq::socket_t *rep_sock,
 	// If we've heard from all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size()) {
 #if DEBUG
-		cout << "Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
+		cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
 		cout << "Turn " << turns++ << " done." << endl;
 		antix::send_blank(publish_sock);

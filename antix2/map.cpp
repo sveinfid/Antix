@@ -262,7 +262,10 @@ public:
 		assert(r->puck->held == true);
 
 		// remove puck from cell
+		// XXX debug
+		int size = Robot::matrix[ r->puck->index ].pucks.size();
 		Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
+		assert( Robot::matrix[ r->index ].pucks.size() == size - 1 );
 
 		bool deleted = false;
 		// remove puck from vector
@@ -287,8 +290,11 @@ public:
 	*/
 	vector<Robot *>::iterator
 	remove_robot(Robot *r, vector<Robot *>::iterator & it, vector<Robot *> *robots) {
+		// XXX debug
+		int size = Robot::matrix[ r->index ].robots.size();
 		// remove robot from cell
 		Robot::matrix[ r->index ].robots.erase(r);
+		assert( Robot::matrix[ r->index ].robots.size() == size - 1 );
 
 		// delete the robot's puck (if holding) from vector & memory
 		remove_puck(r, &pucks);
@@ -437,8 +443,6 @@ public:
 		what the robots in that team see
 
 		The actual sense logic is from rtv's Antix
-
-		XXX Really ugly repeating code
 	*/
 	void
 	build_sense_messages() {

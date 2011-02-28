@@ -23,7 +23,7 @@
 #include "antix.pb.h"
 
 #define SLEEP 0
-#define DEBUG 0
+#define DEBUG 1
 #define GUI 1
 // To disable asserts, define this
 //#define NDEBUG
@@ -179,30 +179,35 @@ public:
 	}
 
 	/*
-		Send master a message stating we're done a turn
-		Then wait until master contacts us so that all nodes/clients are in sync
+		Send req_sock a message stating we're done a turn
+		Then wait until sub_sock contacts us (so that all nodes/clients are in sync)
 	*/
 	static void
-	wait_for_next_turn(zmq::socket_t *master_req_sock,
-		zmq::socket_t *master_sub_sock,
+	wait_for_next_turn(zmq::socket_t *req_sock,
+		zmq::socket_t *sub_sock,
 		int id,
 		antixtransfer::done::Type type) {
 
 		antixtransfer::done done_msg;
 		done_msg.set_my_id( id );
 		done_msg.set_type( type );
-		send_pb_envelope(master_req_sock, &done_msg, "done");
-	#if DEBUG
-		cout << "Sent done signal to master" << endl;
-	#endif
+		int ret = send_pb_envelope(req_sock, &done_msg, "done");
+		assert(ret == 1);
+#if DEBUG
+		cout << "Sync: Sent done signal" << endl;
+#endif
 		// necessary response due to REQ socket
-		recv_blank(master_req_sock);
+		recv_blank(req_sock);
+
+#if DEBUG
+		cout << "Sync: Got rep from done send. Waiting for begin signal..." << endl;
+#endif
 
 		// now we block on PUB sock awaiting begin
-		recv_blank(master_sub_sock);
-	#if DEBUG
-		cout << "Received begin turn signal from master" << endl;
-	#endif
+		recv_blank(sub_sock);
+#if DEBUG
+		cout << "Sync: Received begin turn signal" << endl;
+#endif
 	}
 
 	/*
