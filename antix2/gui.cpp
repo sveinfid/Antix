@@ -101,21 +101,18 @@ UpdateAll() {
 // update the world - this is called whenever GLUT runs out of events
 // to process
 static void
-idle_func( void )
-{
+idle_func( void ) {
 	UpdateAll();
 }
 
 static void
-timer_func( int dummy )
-{
+timer_func( int dummy ) {
 	glutPostRedisplay(); // force redraw
 }
 
 // draw a robot
 void
-Draw(Robot *r)
-{
+Draw(Robot *r) {
 	glPushMatrix();
 
 	// shift into this robot's local coordinate frame
@@ -147,8 +144,7 @@ Draw(Robot *r)
 	}
 
 /* XXX not doing this for now
-  if( show_data )
-	 {
+  if( show_data ) {
 		glColor3f( 1,0,0 ); // red
 		
 		for (vector<SeeRobot>::iterator it = r->see_robots.begin(); it != r->see_robots.end(); it++) {
@@ -200,8 +196,7 @@ Draw(Robot *r)
 
 // utility
 void
-GlDrawCircle( double x, double y, double r, double count )
-{
+GlDrawCircle( double x, double y, double r, double count ) {
 	glBegin(GL_LINE_LOOP);
 	for( float a=0; a<(M_PI*2.0); a+=M_PI/count )
 		glVertex2f( x + sin(a) * r, y + cos(a) * r );
@@ -257,8 +252,7 @@ mouse_func(int button, int state, int x, int y) {
 // Robot static member methods ---------------------------------------------
 
 void
-InitGraphics( int argc, char* argv[] )
-{
+InitGraphics( int argc, char* argv[] ) {
 	// initialize opengl graphics
 	glutInit( &argc, argv );
 	glutInitWindowSize( winsize, winsize );
