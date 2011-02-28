@@ -23,7 +23,7 @@
 #include "antix.pb.h"
 
 #define SLEEP 0
-#define DEBUG 1
+#define DEBUG 0
 #define GUI 1
 // To disable asserts, define this
 //#define NDEBUG
@@ -66,6 +66,16 @@ public:
 	static void
 	sleep(int ms) {
 		usleep(ms * 1e3);
+	}
+
+	static void
+	check_zmq_version() {
+		int major, minor, patch;
+		zmq_version(&major, &minor, &patch);
+		if (major < 2 || minor < 1) {
+			cerr << "Error: we require at least ZMQ 2.1.x." << endl;
+			exit(-1);
+		}
 	}
 
 	static void
