@@ -40,6 +40,7 @@ public:
 		my_max_x = my_min_x + antix::offset_size;
 		antix::my_min_x = my_min_x;
 
+		// + 1000 as our calculations not exact in some places. Rounding error or?
 		Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
 		cout << "matrix is " << antix::matrix_width * antix::matrix_height << endl;
 
