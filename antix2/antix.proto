@@ -2,9 +2,15 @@ package antixtransfer;
 
 // node -> master initial connection message
 message connect_init_node {
+	message Team {
+		required int32 id = 1;
+		required int32 num_robots = 2;
+	}
+
 	required string ip_addr = 1;
   required string neighbour_port = 2;
   required string gui_port = 3;
+	repeated Team team = 4;
 }
 
 // client -> master initial connection message

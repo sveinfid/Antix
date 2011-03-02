@@ -70,6 +70,51 @@ zmq::socket_t *sync_pub_sock;
 zmq::socket_t *gui_rep_sock;
 
 /*
+	Wait until we hear from total_teams unique client connections
+	Add their data to pb_init_msg
+*/
+void
+wait_on_initial_clients(antixtransfer::connect_init_node *pb_init_msg) {
+	set<int> heard_clients;
+	antixtransfer::connect_init_client init_client;
+	while (heard_clients.size() < total_teams) {
+		antix::recv_pb(sync_rep_sock, &init_client, 0);
+		// haven't yet heard
+		if (heard_clients.count( init_client.id() ) == 0) {
+			heard_clients.insert( init_client.id() );
+			antixtransfer::connect_init_node::Team *team = pb_init_msg->add_team();
+			team->set_id( init_client.id() );
+			team->set_num_robots( init_client.num_robots() );
+			cout << "Start up: Got initialization message from client " << init_client.id();
+			cout << ". Expecting " << total_teams - heard_clients.size() << " more." << endl;
+		// have already heard. Shouldn't ever happen...
+		} else {
+			cerr << "Error: heard duplicate init message from a client" << endl;
+			exit(-1);
+		}
+	}
+}
+
+/*
+	Take the init_response message we were given from master and add to it
+	a list of homes from node_list message.
+
+	Then send init_response to our local clients
+*/
+void
+initial_begin_clients(antixtransfer::connect_init_response *init_response,
+	antixtransfer::Node_list *node_list) {
+	for (int i = 0; i < node_list->home_size(); i++) {
+		antixtransfer::connect_init_response::Home *h = init_response->add_home();
+		h->set_team( node_list->home(i).team() );
+		h->set_x( node_list->home(i).x() );
+		h->set_y( node_list->home(i).y() );
+	}
+	antix::send_pb(sync_pub_sock, &init_response);
+	cout << "Start up: Sent simulation parameters to clients." << endl;
+}
+
+/*
 	Find our starting x offset
 */
 double
@@ -389,8 +434,8 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 	
-	if (argc != 6) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <GUI port> <IPC ID # (unique to this computer)>" << endl;
+	if (argc != 7) {
+		cerr << "Usage: " << argv[0] << " <IP of master> <IP to listen on> <neighbour port> <GUI port> <IPC ID # (unique to this computer)> <number of teams>" << endl;
 		return -1;
 	}
 
@@ -399,15 +444,43 @@ main(int argc, char **argv) {
 	my_neighbour_port = string(argv[3]);
 	my_gui_port = string(argv[4]);
 	ipc_id = string(argv[5]);
+	total_teams = atoi(argv[6]);
+	assert(total_teams > 0);
 
 	// initialize move messages: only needs to be done once, so may as well do it here
 	move_left_msg.set_from_right(true);
 	move_right_msg.set_from_right(false);
 
+	// sync rep sock which receives done messages from clients
+	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+	sync_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "r"));
+
+	// sync pub sock which sends begin message to clients
+	sync_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
+	sync_pub_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "p"));
+
+	// rep socket that receives control messages from clients
+	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+	control_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "c"));
+
+	cout << "Waiting for connection from " << total_teams << " teams." << endl;
+
+	// Build message we will send to master
+	antixtransfer::connect_init_node pb_init_msg;
+	pb_init_msg.set_ip_addr(my_ip);
+	pb_init_msg.set_neighbour_port(my_neighbour_port);
+	pb_init_msg.set_gui_port(my_gui_port);
+
+	// this message also includes data on our teams: wait for teams to connect & set this
+	wait_on_initial_clients(&pb_init_msg);
+
+	// Now we connect to master & send our initialization data
+	// In response we get simulation parameters, node list, home list,
+	// and list of where robots are initially created
+
 	// socket to announce ourselves to master on
 	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
-	cout << "Connecting to master..." << endl;
 
 	// socket to receive list of nodes on (and receive turn begin signal)
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
@@ -415,17 +488,11 @@ main(int argc, char **argv) {
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
 
-	// send message announcing ourself. includes our own IP
+	// Send our init message announcing ourself
 	cout << "Sending master our existence notification..." << endl;
-
-	// create & send pb msg identifying ourself
-	antixtransfer::connect_init_node pb_init_msg;
-	pb_init_msg.set_ip_addr(my_ip);
-	pb_init_msg.set_neighbour_port(my_neighbour_port);
-	pb_init_msg.set_gui_port(my_gui_port);
 	antix::send_pb_envelope(master_req_sock, &pb_init_msg, "connect");
 
-	// receive message back stating our unique ID & simulation settings
+	// receive message back stating our unique ID & the simulation settings
 	antixtransfer::connect_init_response init_response;
 	antix::recv_pb(master_req_sock, &init_response, 0);
 	my_id = init_response.id();
@@ -437,25 +504,22 @@ main(int argc, char **argv) {
 	Robot::pickup_range = init_response.pickup_range();
 
 	cout << "We are now node ID " << my_id << endl;
+	cout << "Waiting for master to start simulation..." << endl;
 
-	// sync rep sock which receives done messages from clients
-	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	sync_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "r"));
-
-	// sync pub sock which sends begin message to clients
-	sync_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	sync_pub_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "p"));
-
-	// receive node list
 	// blocks until master publishes list of nodes: indicates simulation begin
+	// this also includes a list of homes & robot initial creation locations
 	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
 
 	if (node_list.node_size() < 3) {
 		cout << "Error: we need at least 3 nodes. Only received " << node_list.node_size() << " node(s)." << endl;
-		return -1;
+		exit(-1);
 	}
+
+	// Now that we have simulation params & home locations, pass them on to our
+	// local clients
+	initial_begin_clients(&init_response, &node_list);
 
 	// calculate our min / max x from the offset assigned to us in node_list
 	antix::offset_size = antix::world_size / node_list.node_size();
@@ -467,7 +531,7 @@ main(int argc, char **argv) {
 	my_map = new Map( find_map_offset(&node_list), &node_list, initial_puck_amount, my_id);
 
 	// Get number of teams
-	total_teams = node_list.robots_on_node_size();
+	total_teamsNOLONGERUSED = node_list.robots_on_node_size();
 #if DEBUG
 	cout << "Total teams: " << total_teams << endl;
 #endif
@@ -485,10 +549,6 @@ main(int argc, char **argv) {
 	// open REP socket where neighbours request border entities
 	neighbour_rep_sock = new zmq::socket_t(context, ZMQ_REP);
 	neighbour_rep_sock->bind(antix::make_endpoint(my_ip, my_neighbour_port));
-
-	// create REP socket that receives control messages from clients
-	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "c"));
 
 	// create REP socket that receives queries from GUI
 	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);

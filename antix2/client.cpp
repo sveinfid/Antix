@@ -250,7 +250,7 @@ main(int argc, char **argv) {
 	antixtransfer::connect_init_client init_req;
 	init_req.set_num_robots( num_robots );
 	init_req.set_id( my_id );
-	antix::send_pb_envelope(node_sync_req_sock, &init_req, "init_client");
+	antix::send_pb(node_sync_req_sock, &init_req);
 
 	// Get back blank in response since REQ sock
 	antix::recv_blank(node_sync_req_sock);
