@@ -42,6 +42,7 @@ public:
 	static double world_size;
 	static double my_min_x;
 	static int turn;
+	
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
 
@@ -351,16 +352,22 @@ public:
 	}
 
 	/*
-		these 3 cell methods from rtv's antix
+		these cell methods similar/same to those from rtv's antix
 	*/
+
 	static inline unsigned int
 	Cell_x(double x) {
 		const double d = antix::offset_size / (double) matrix_width;
 
-		cout << " x at first " << x;
-		x = x - my_min_x < 0 ? 0 : x - my_min_x;
-		cout << " x now " << x << endl;
+		// this can be < 0 and cause invalid value due to unsigned
+		const double new_x = x - my_min_x;
+		if (new_x < 0)
+			x = 0;
+		else
+			x = new_x;
+
 		// wraparound
+		// we don't wrap around x
 		/*
 		while (x > world_size)
 			x -= world_size;
@@ -369,9 +376,8 @@ public:
 			x += world_size;
 		*/
 		
-		unsigned int i = floor(x/d);
-		cout << "i " << i << " ";
-		assert(i < matrix_width * matrix_height);
+		//unsigned int i = floor(x/d);
+		//assert(i < matrix_width * matrix_height + 1000);
 
 		return floor(x / d);
 	}
@@ -381,33 +387,30 @@ public:
 		const double d = antix::world_size / (double) matrix_height;
 
 		// wraparound
-		/*
 		while (x > world_size)
 			x -= world_size;
-
 		while (x < 0)
 			x += world_size;
-		*/
-		unsigned int i = floor(x/d);
-		cout << "i " << i << " ";
-		assert(i < matrix_width * matrix_height);
+
+		//unsigned int i = floor(x/d);
+		//assert(i < matrix_width * matrix_height + 1000);
 
 		return floor(x / d);
 	}
 
 	static inline unsigned int
 	CellWrap(int x) {
-		while (x >= (int) matrix_width)
-			x -= matrix_width;
+		while (x >= (int) matrix_height)
+			x -= matrix_height;
 		while (x < 0)
-			x += matrix_width;
+			x += matrix_height;
 		return x;
 	}
 
 	static inline unsigned int
 	Cell(double x, double y) {
-		unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
-		assert(i < matrix_width * matrix_height);
+		//unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
+		//assert(i < matrix_width * matrix_height + 1000);
 		return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
 };

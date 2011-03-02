@@ -666,12 +666,14 @@ public:
 	inline void
 	UpdateSensorsCell(unsigned int x, unsigned int y, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		//unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
-		if (x < 0 || x > antix::matrix_width || y < 0 || y > antix::matrix_height)
+		//if (x < 0 || x > antix::matrix_width || y < 0 || y > antix::matrix_height)
+		// we don't wrap along x, so don't care about these cases
+		if (x < 0 || x > antix::matrix_width)
 			return;
-		//unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
-		unsigned int index( x + (y * antix::matrix_width) );
-		cout << "updatesens in cell index: " << index << " x " << x << " y " << y << endl;
+		// We don't wrap x, just y (since map split along x axis)
+		unsigned int index( x + (antix::CellWrap(y) * antix::matrix_width) );
 		assert( index < Robot::matrix.size());
+
 		TestRobotsInCell( Robot::matrix[index], r, robot_pb );
 		TestPucksInCell( Robot::matrix[index], r, robot_pb );
 	}
