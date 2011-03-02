@@ -78,13 +78,25 @@ set_node_offsets() {
 void
 setup_homes() {
 	cout << "Adding homes to node list..." << endl;
+	
+	int num_node = node_list.node_size();
+	double offset_size = world_size / node_list.node_size();
+	int home_iterator = 0;
+	
 	for (map<int, int>::iterator it = client_robot_map.begin(); it != client_robot_map.end(); it++) {
 		antixtransfer::Node_list::Home *h = node_list.add_home();
 		h->set_team( it->first );
+		
+		// only need to spread home equally among nodes by x coordinates
+		double x_low = (home_iterator%num_node) * offset_size;
+		double x_high = (home_iterator%num_node + 1) * offset_size;
+		
 		// XXX should ensure cannot overlap
-		h->set_x( antix::rand_between(0, world_size) );
+		h->set_x( antix::rand_between(x_low, x_high) );
 		h->set_y( antix::rand_between(0, world_size) );
 		cout << "Created home for team " << h->team() << " at (" << h->x() << ", " << h->y() << ")" << endl;
+		
+		home_iterator++;
 	}
 }
 
@@ -96,11 +108,18 @@ setup_homes() {
 void
 assign_robots_to_node() {
 	antixtransfer::Node_list::Robots_on_Node *rn;
+	
+	int num_node = node_list.node_size();
+	int home_iterator = 0;
+	
 	for (int i = 0; i < node_list.robots_on_node_size(); i++) {
 		rn = node_list.mutable_robots_on_node(i);
 		// 0 to max node id
-		rn->set_node( rand() % (next_node_id - 1) );
+		// create robots where the home is located at
+		rn->set_node(home_iterator%num_node);
 		cout << "Assigned robots from team " << node_list.robots_on_node(i).team() << " to node " << node_list.robots_on_node(i).node() << endl;
+		
+		home_iterator++;
 	}
 }
 
@@ -199,7 +218,7 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG
 		cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-		cout << "Turn " << turns++ << " done." << endl;
+		//cout << "Turn " << turns++ << " done." << endl;
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
 	}
