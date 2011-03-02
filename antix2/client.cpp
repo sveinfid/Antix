@@ -1,16 +1,12 @@
 /*
-	Client connects to master to get a list of nodes
-	and then connects to all nodes
+	Client connects to a node on its local machine & gets simulation parameters
+	Then it begins controlling robots
 */
 
 #include <map>
 #include "entities.cpp"
 
 using namespace std;
-
-string master_host;
-string master_client_port = "7771";
-string master_pub_port = "7773";
 
 string node_ipc_prefix = "/tmp/node";
 string node_ipc_id;
@@ -21,15 +17,11 @@ int num_robots;
 double home_radius;
 Home *my_home;
 
-// talk to master on this socket
-zmq::socket_t *master_req_sock;
-// receive list of nodes on this socket
-zmq::socket_t *master_sub_sock;
 // local socket to control sock of node on our machine
 zmq::socket_t *node_req_sock;
-// socket to node's rep sync sock
+// socket to node's rep sync sock (also used for initialization)
 zmq::socket_t *node_sync_req_sock;
-// socket to sync pub sock of node on our machine
+// socket to sync pub sock of node on our machine (also used for initialization)
 zmq::socket_t *node_sub_sock;
 
 // construct some protobuf messages here so we don't call constructor needlessly
@@ -207,14 +199,13 @@ sense_and_controller() {
 }
 
 /*
-  Look through the list of homes from node list & find our own
-  (As we need to know its location!)
+  Look through the list of homes from init response & find our own
 */
 Home *
-find_our_home(antixtransfer::Node_list *node_list) {
-	for (int i = 0; i < node_list->home_size(); i++) {
-		if (node_list->home(i).team() == my_id)
-			return new Home( node_list->home(i).x(), node_list->home(i).y(), home_radius, node_list->home(i).team() );
+find_our_home(antixtransfer::connect_init_response *init_response) {
+	for (int i = 0; i < init_response->home_size(); i++) {
+		if (init_response->home(i).team() == my_id)
+			return new Home( init_response->home(i).x(), init_response->home(i).y(), home_radius, init_response->home(i).team() );
 	}
 	return NULL;
 }
@@ -226,37 +217,19 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 
-	if (argc != 5) {
-		cerr << "Usage: " << argv[0] << " <IP of master> <# of robots> <client id> <node IPC id>" << endl;
+	if (argc != 4) {
+		cerr << "Usage: " << argv[0] << " <# of robots> <client id> <node IPC id>" << endl;
 		return -1;
 	}
-	master_host = string(argv[1]);
-	assert(atoi(argv[2]) > 0);
-	num_robots = atoi(argv[2]);
-	my_id = atoi(argv[3]);
-	node_ipc_id = string(argv[4]);
+	assert(atoi(argv[1]) > 0);
+	num_robots = atoi(argv[1]);
+	my_id = atoi(argv[2]);
+	node_ipc_id = string(argv[3]);
 
 	// initialize some protobufs that do not change
 	sense_req_msg.set_team(my_id);
 
-	// REQ socket to master_cli port
-	cout << "Connecting to master..." << endl;
-	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	master_req_sock->connect(antix::make_endpoint(master_host, master_client_port));
-	antixtransfer::connect_init_client init_req;
-	init_req.set_num_robots( num_robots );
-	init_req.set_id( my_id );
-	antix::send_pb_envelope(master_req_sock, &init_req, "init_client");
-	
-	// Response from master contains simulation settings & our unique id (team id)
-	antixtransfer::MasterServerClientInitialization init_response;
-	antix::recv_pb(master_req_sock, &init_response, 0);
-	home_radius = init_response.home_radius();
-	sleep_time = init_response.sleep_time();
-	Robot::pickup_range = init_response.pickup_range();
-	antix::world_size = init_response.world_size();
-
-	cout << "Connected." << endl;
+	cout << "Connecting to local node..." << endl;
 
 	// node sync req sock
 	node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
@@ -267,25 +240,37 @@ main(int argc, char **argv) {
 	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "p"));
 
-	// Subscribe to master's publish socket. A node list will be received
-	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_sub_sock->connect(antix::make_endpoint(master_host, master_pub_port)); 
-	// block until receipt of list of nodes indicating simulation beginning
-	antixtransfer::Node_list node_list;
-	antix::recv_pb(master_sub_sock, &node_list, 0);
-	cout << "Received nodes from master" << endl;
-	antix::print_nodes(&node_list);
-
-	// set our own home
-	my_home = find_our_home(&node_list);
-	assert(my_home != NULL);
-
 	// node control
 	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "c"));
 
-	cout << "Connected to local node." << endl;
+	cout << "Connected to local node. Telling it of our existence..." << endl;
+
+	// Identify ourself & specify num robots we want
+	antixtransfer::connect_init_client init_req;
+	init_req.set_num_robots( num_robots );
+	init_req.set_id( my_id );
+	antix::send_pb_envelope(node_sync_req_sock, &init_req, "init_client");
+
+	// Get back blank in response since REQ sock
+	antix::recv_blank(node_sync_req_sock);
+	
+	cout << "Waiting for signal for simulation begin..." << endl;
+
+	// Block and wait for response containing simulation params / home location
+	// This also indicates simulation begin
+	antixtransfer::connect_init_response init_response;
+	antix::recv_pb(node_sub_sock, &init_response, 0);
+	home_radius = init_response.home_radius();
+	sleep_time = init_response.sleep_time();
+	Robot::pickup_range = init_response.pickup_range();
+	antix::world_size = init_response.world_size();
+
+	// set our own home
+	my_home = find_our_home(&init_response);
+	assert(my_home != NULL);
+
+	cout << "Beginning simulation..." << endl;
 
 	// enter main loop
 	while (1) {

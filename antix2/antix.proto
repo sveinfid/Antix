@@ -13,16 +13,28 @@ message connect_init_client {
 	required int32 id = 2;
 }
 
-// master -> node/client response upon initial connect
+// master -> node response upon initial connect
+// node -> client message upon simulation start
+// master->node does not include any Homes, as they are not yet decided at that point
 message connect_init_response {
+  message Home {
+    required int32 team = 1;
+    required double x = 2;
+    required double y = 3;
+  }
+
 	required int32 id = 1;
 	required double world_size = 2;
 	required int32 sleep_time = 3;
   required double vision_range = 4;
   required double fov = 5;
   required double pickup_range = 6;
+	required double home_radius = 7;
+	required double robot_radius = 8;
+	required double pickup_range = 9;
 	// only relevant for node
-	optional int32 puck_amount = 7;
+	optional int32 puck_amount = 10;
+	repeated Home home = 11;
 
 	// more... same as MasterServerClient/NodeInitialization?
 }
