@@ -208,7 +208,7 @@ handle_done(zmq::socket_t *rep_sock,
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
-	antix::check_zmq_version();
+	//antix::check_zmq_version();
 	zmq::context_t context(1);
 	srand( time(NULL) );
 	srand48( time(NULL) );

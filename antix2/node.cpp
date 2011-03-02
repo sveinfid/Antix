@@ -436,8 +436,6 @@ main(int argc, char **argv) {
 	Robot::fov = init_response.fov();
 	Robot::pickup_range = init_response.pickup_range();
 
-	antix::matrix_width = floor(antix::world_size / Robot::vision_range);
-
 	cout << "We are now node ID " << my_id << endl;
 
 	// sync rep sock which receives done messages from clients
@@ -461,6 +459,9 @@ main(int argc, char **argv) {
 
 	// calculate our min / max x from the offset assigned to us in node_list
 	antix::offset_size = antix::world_size / node_list.node_size();
+
+	antix::matrix_height = ceil(antix::world_size / Robot::vision_range);
+	antix::matrix_width = ceil(antix::offset_size / Robot::vision_range);
 
 	// Initialize map object
 	my_map = new Map( find_map_offset(&node_list), &node_list, initial_puck_amount, my_id);

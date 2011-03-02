@@ -38,9 +38,10 @@ public:
 		int my_id) : my_min_x(my_min_x) {
 
 		my_max_x = my_min_x + antix::offset_size;
+		antix::my_min_x = my_min_x;
 
-		// this can probably be less. save memory XXX
-		Robot::matrix.resize(antix::matrix_width * antix::matrix_width);
+		Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
+		cout << "matrix is " << antix::matrix_width * antix::matrix_height << endl;
 
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
 		populate_homes(node_list);
@@ -475,8 +476,8 @@ public:
 			robot_pb->set_last_x( (*r)->last_x );
 			robot_pb->set_last_y( (*r)->last_y );
 
-			int x( antix::Cell( (*r)->x ) );
-			int y( antix::Cell( (*r)->y ) );
+			int x( antix::Cell_x( (*r)->x ) );
+			int y( antix::Cell_y( (*r)->y ) );
 
 			// we will now find what robots & pucks we can see, but before that,
 			// clear our see_pucks (and see_robots when we care...)
@@ -664,7 +665,13 @@ public:
 	*/
 	inline void
 	UpdateSensorsCell(unsigned int x, unsigned int y, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
-		unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
+		//unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
+		if (x < 0 || x > antix::matrix_width || y < 0 || y > antix::matrix_height)
+			return;
+		//unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
+		unsigned int index( x + (y * antix::matrix_width) );
+		cout << "updatesens in cell index: " << index << " x " << x << " y " << y << endl;
+		assert( index < Robot::matrix.size());
 		TestRobotsInCell( Robot::matrix[index], r, robot_pb );
 		TestPucksInCell( Robot::matrix[index], r, robot_pb );
 	}

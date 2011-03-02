@@ -29,3 +29,6 @@ antix.pb.o: antix.proto
 
 clean:
 	rm -f $(targets) $(gui_targets) antix.pb.*
+
+clean2:
+	rm -f $(targets) $(gui_targets)

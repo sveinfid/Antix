@@ -40,8 +40,10 @@ class antix {
 public:
 	static double offset_size;
 	static double world_size;
+	static double my_min_x;
 	static int turn;
 	static unsigned int matrix_width;
+	static unsigned int matrix_height;
 
 	/*
 		Take a host and a port, return c_str
@@ -352,15 +354,43 @@ public:
 		these 3 cell methods from rtv's antix
 	*/
 	static inline unsigned int
-	Cell(double x) {
-		const double d = antix::world_size / (double) matrix_width;
+	Cell_x(double x) {
+		const double d = antix::offset_size / (double) matrix_width;
 
+		cout << " x at first " << x;
+		x = x - my_min_x < 0 ? 0 : x - my_min_x;
+		cout << " x now " << x << endl;
 		// wraparound
+		/*
 		while (x > world_size)
 			x -= world_size;
 
 		while (x < 0)
 			x += world_size;
+		*/
+		
+		unsigned int i = floor(x/d);
+		cout << "i " << i << " ";
+		assert(i < matrix_width * matrix_height);
+
+		return floor(x / d);
+	}
+
+	static inline unsigned int
+	Cell_y(double x) {
+		const double d = antix::world_size / (double) matrix_height;
+
+		// wraparound
+		/*
+		while (x > world_size)
+			x -= world_size;
+
+		while (x < 0)
+			x += world_size;
+		*/
+		unsigned int i = floor(x/d);
+		cout << "i " << i << " ";
+		assert(i < matrix_width * matrix_height);
 
 		return floor(x / d);
 	}
@@ -376,13 +406,17 @@ public:
 
 	static inline unsigned int
 	Cell(double x, double y) {
-		return ( Cell(x) + ( Cell(y) * matrix_width ) );
+		unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
+		assert(i < matrix_width * matrix_height);
+		return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
 };
 
 double antix::offset_size;
 double antix::world_size;
+double antix::my_min_x;
 unsigned int antix::matrix_width;
+unsigned int antix::matrix_height;
 int antix::turn = 0;
 
 #endif
