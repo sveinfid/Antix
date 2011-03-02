@@ -6,6 +6,7 @@
 
 // OS X users need <glut/glut.h> instead
 #include <GL/glut.h>
+#include "zpr.h"
 
 using namespace std;
 
@@ -272,6 +273,7 @@ InitGraphics( int argc, char* argv[] ) {
 	glLoadIdentity();
 	glScalef( 1.0/world_size, 1.0/world_size, 1 ); 
 	glPointSize( 4.0 );
+	zprInit();
 }
 
 void

@@ -17,12 +17,15 @@ libraries=-lzmq -lprotobuf
 
 all: $(objs) $(targets) $(gui_targets)
 
-gui: gui.cpp
-	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
+gui: gui.cpp zpr.o
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) zpr.o $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
 
 antix.pb.o: antix.proto
 	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
 	g++ $(CFLAGS) -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
+
+zpr.o:
+	gcc -c zpr.c $(GLUTFLAGS) $(GLUTLIBS)
 
 .cpp: master.cpp operator.cpp node.cpp client.cpp antix.pb.o antix.cpp entities.cpp map.cpp
 	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
