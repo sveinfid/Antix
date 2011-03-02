@@ -140,6 +140,8 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	init_response.set_sleep_time(sleep_time);
 	init_response.set_puck_amount(initial_pucks_per_node);
 	init_response.set_vision_range(vision_range);
+	init_response.set_home_radius(home_radius);
+	init_response.set_robot_radius(robot_radius);
 	init_response.set_fov(fov);
 	init_response.set_pickup_range(pickup_range);
 	antix::send_pb(nodes_socket, &init_response);
@@ -155,6 +157,19 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	cout << " Neighbour port: " << node->neighbour_port();
 	cout << " GUI port: " << node->gui_port();
 	cout << " Assigned id " << node->id() << "." << endl;
+
+	// Init message sent by node also contains info on teams
+	for (int i = 0; i < init_msg.team_size(); i++) {
+		int client_id = init_msg.team(i).id();
+
+		if (client_robot_map.count( client_id ) == 0) {
+			client_robot_map.insert( pair<int, int>(client_id, init_msg.team(i).num_robots() ) );
+			// record id & how many robots in node_list for transmission to nodes
+			antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
+			rn->set_num_robots( init_msg.team(i).num_robots() );
+			rn->set_team( client_id );
+		}
+	}
 
 	cout << "Total nodes: " << node_list.node_size() << "." << endl;
 }
@@ -292,6 +307,7 @@ main(int argc, char **argv) {
 		if (items[1].revents & ZMQ_POLLIN) {
 			string type = antix::recv_str(&clients_socket);
 
+			/*
 			if (type == "init_client") {
 				// client sends a second message part indicating # of robots it wants
 				antixtransfer::connect_init_client init_request;
@@ -312,6 +328,8 @@ main(int argc, char **argv) {
 				send_client_init(&clients_socket, client_id);
 
 			} else if (type == "init_gui_client") {
+			*/
+			if (type == "init_gui_client") {
 				cout << "GUI client connected." << endl;
 				send_client_init(&clients_socket, -1);
 

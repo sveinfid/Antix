@@ -16,12 +16,12 @@ NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
 
 # First start the node for this machine
-$ANTIX_PATH/scripts/run_node.tcl $MASTER &
+$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &
 
 # Then start the client processes
 count=0
 while [ $count -lt $NUM_TEAMS ]
 do
-  $ANTIX_PATH/scripts/run_client.tcl $MASTER $ROBOTS_PER_TEAM $count &
+  $ANTIX_PATH/scripts/run_client.tcl $ROBOTS_PER_TEAM $count &
   count=`expr $count + 1`
 done

@@ -79,6 +79,8 @@ wait_on_initial_clients(antixtransfer::connect_init_node *pb_init_msg) {
 	antixtransfer::connect_init_client init_client;
 	while (heard_clients.size() < total_teams) {
 		antix::recv_pb(sync_rep_sock, &init_client, 0);
+		// Blank since nothing to tell the client yet
+		antix::send_blank(sync_rep_sock);
 		// haven't yet heard
 		if (heard_clients.count( init_client.id() ) == 0) {
 			heard_clients.insert( init_client.id() );
@@ -110,7 +112,7 @@ initial_begin_clients(antixtransfer::connect_init_response *init_response,
 		h->set_x( node_list->home(i).x() );
 		h->set_y( node_list->home(i).y() );
 	}
-	antix::send_pb(sync_pub_sock, &init_response);
+	antix::send_pb(sync_pub_sock, init_response);
 	cout << "Start up: Sent simulation parameters to clients." << endl;
 }
 
@@ -530,8 +532,6 @@ main(int argc, char **argv) {
 	// Initialize map object
 	my_map = new Map( find_map_offset(&node_list), &node_list, initial_puck_amount, my_id);
 
-	// Get number of teams
-	total_teamsNOLONGERUSED = node_list.robots_on_node_size();
 #if DEBUG
 	cout << "Total teams: " << total_teams << endl;
 #endif

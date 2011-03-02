@@ -37,10 +37,9 @@ message connect_init_response {
   required double pickup_range = 6;
 	required double home_radius = 7;
 	required double robot_radius = 8;
-	required double pickup_range = 9;
 	// only relevant for node
-	optional int32 puck_amount = 10;
-	repeated Home home = 11;
+	optional int32 puck_amount = 9;
+	repeated Home home = 10;
 
 	// more... same as MasterServerClient/NodeInitialization?
 }
