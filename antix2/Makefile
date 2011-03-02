@@ -31,7 +31,7 @@ zpr.o:
 	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
 
 clean:
-	rm -f $(targets) $(gui_targets) antix.pb.*
+	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o
 
 clean2:
-	rm -f $(targets) $(gui_targets)
+	rm -f $(targets) $(gui_targets) zpr.o
