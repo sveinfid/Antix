@@ -391,6 +391,15 @@ public:
 		r_pb->set_id( r->id );
 	}
 
+	void
+	check_in_border_robot(antixtransfer::SendMap *map, Robot *r) {
+		for (int i = 0; i < map->robot_size(); i++) {
+			if (map->robot(i).id() == r->id && map->robot(i).team() == r->team)
+				return;
+		}
+		cout << "Error: robot not found in border map! In cell " << r->index << endl;
+	}
+
 	/*
 		Clear the last iteration's border entities, and place any of our robots &
 		pucks where they belong
@@ -406,18 +415,67 @@ public:
 		foreign_pucks.clear();
 		foreign_robots.clear();
 
-		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-			if ((*it)->x > my_max_x - Robot::vision_range)
-				add_border_puck(border_map_right, *it);
-			else if ((*it)->x < my_min_x + Robot::vision_range)
-				add_border_puck(border_map_left, *it);
+		// look down the cells on far left (whole height where x = 0)
+		// check 3 furthest left cols (x = 0, 1, 2)
+		for (int x = 0; x <= 2; x++) {
+			for (int y = 0; y < antix::matrix_height; y++) {
+				// 2d array into 1d matrix: x + y*width
+				int index = x + y * antix::matrix_width;
+				for (set<Robot *>::iterator it = Robot::matrix[index].robots.begin(); it != Robot::matrix[index].robots.end(); it++) {
+					if ((*it)->x < my_min_x + Robot::vision_range)
+						add_border_robot(border_map_left, *it);
+				}
+				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
+					if ((*it)->x < my_min_x + Robot::vision_range)
+						add_border_puck(border_map_left, *it);
+				}
+			}
 		}
 
+		// and on far right
+		int x_index = antix::Cell_x(antix::my_min_x + antix::offset_size);
+		cout << " Far right cell is x " << x_index << endl;
+		// check 3 farthest right columns. x_index = column on furthest right
+		for (int x = x_index; x >= x_index - 2; x--) {
+			for (int y = 0; y < antix::matrix_height; y++) {
+				// 2d array into 1d matrix: x + y*width
+				int index = x + y * antix::matrix_width;
+				cout << "Border loop x " << x << " y " << y << " index " << index << endl;
+				for (set<Robot *>::iterator it = Robot::matrix[index].robots.begin(); it != Robot::matrix[index].robots.end(); it++) {
+					if ((*it)->x > my_max_x - Robot::vision_range)
+						add_border_robot(border_map_right, *it);
+				}
+				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
+					if ((*it)->x > my_max_x - Robot::vision_range)
+						add_border_puck(border_map_right, *it);
+				}
+			}
+		}
+
+		/*
+		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+			if ((*it)->x > my_max_x - Robot::vision_range) {
+				//add_border_puck(border_map_right, *it);
+				check_in_border_puck(border_map_right, *it);
+			}
+			else if ((*it)->x < my_min_x + Robot::vision_range) {
+				//add_border_puck(border_map_left, *it);
+				check_in_border_puck(border_map_left, *it);
+			}
+		}
+		*/
+
+		// XXX check here whether these are all found and added by the above
+		// we don't check puck since it's hard to identify exactly due to no id
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
-			if ((*it)->x > my_max_x - Robot::vision_range)
-				add_border_robot(border_map_right, *it);
-			else if ((*it)->x < my_min_x + Robot::vision_range)
-				add_border_robot(border_map_left, *it);
+			if ((*it)->x > my_max_x - Robot::vision_range) {
+				//add_border_robot(border_map_right, *it);
+				check_in_border_robot(border_map_right, *it);
+			}
+			else if ((*it)->x < my_min_x + Robot::vision_range) {
+				//add_border_robot(border_map_left, *it);
+				check_in_border_robot(border_map_left, *it);
+			}
 		}
 
 		/*

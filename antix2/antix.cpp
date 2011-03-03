@@ -409,6 +409,10 @@ public:
 
 	static inline unsigned int
 	Cell(double x, double y) {
+		unsigned int cx = Cell_x(x);
+		unsigned int cy = Cell_y(y);
+		unsigned int i = cx + cy * matrix_width;
+		cout << "Cell: x " << cx << " y " << cy << " = " << i << endl;
 		//unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
 		//assert(i < matrix_width * matrix_height + 1000);
 		return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
