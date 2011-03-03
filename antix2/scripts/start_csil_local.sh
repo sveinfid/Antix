@@ -16,6 +16,7 @@ MASTER=$1
 NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
 HOST=`hostname`
+MY_IP=`$ANTIX_PATH/scripts/get_ip.tcl`
 
 # Before running simulation, remove old sockets. This can fail if node sockets
 # exist from other users...
@@ -27,7 +28,9 @@ then
 fi
 
 # First start the node for this machine
-$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &> /home/$USER/node.$HOST.log &
+#$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &> /home/$USER/node.$HOST.log &
+# <master ip> <my ip> <node port> <gui port> <ipc suffix> <num teams>
+$ANTIX_PATH/node $MASTER $MY_IP 3000 4000 0 $NUM_TEAMS &> /home/$USER/node.$HOST.log &
 
 # Then start the client processes
 rm -f /home/$USER/clients.$HOST.log
