@@ -233,7 +233,7 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG
 		cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-		//cout << "Turn " << turns++ << " done." << endl;
+		cout << "Turn " << turns++ << " done." << endl;
 		antix::send_blank(publish_sock);
 		nodes_done->clear();
 	}
