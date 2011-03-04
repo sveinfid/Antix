@@ -20,8 +20,8 @@ public:
 	double my_max_x;
 
 	// the robots & pucks we control
-	vector<Puck *> pucks;
-	vector<Robot *> robots;
+	vector<Puck *> pucks; //TODO: might be able to remove this
+	vector<Robot *> robots; //TODO: remove this
 	// sent to us by neighbours
 	vector<Puck> foreign_pucks;
 	vector<Robot> foreign_robots;
@@ -29,7 +29,7 @@ public:
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> homes;
 	
-	Robot* bots[1000][1000];
+	Robot* bots[1000][1000]; //bots[teamsize][amount of robots per team]
 
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;
@@ -96,7 +96,7 @@ public:
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
 					bots[r -> team][r -> id] = r; //XXX Gordon's Test
-					robots.push_back(r);
+					robots.push_back(r); //TODO, remove robots
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
 					Robot::matrix[index].robots.insert( r );
