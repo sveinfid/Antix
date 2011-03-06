@@ -190,7 +190,9 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 void
 send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
-	my_map->build_move_message(&move_left_msg, &move_right_msg);
+	// build border entities at same time
+	//my_map->build_move_message(&move_left_msg, &move_right_msg);
+	my_map->build_moves_and_border_entities(&move_left_msg, &move_right_msg, &border_map_left, &border_map_right);
 
 	// Send our move messages
 	antix::send_pb(left_req_sock, &move_left_msg);
@@ -208,7 +210,7 @@ send_move_messages() {
 void
 exchange_foreign_entities() {
 	// first we re-calculate what entities local to us are near borders
-	my_map->rebuild_border_entities(&border_map_left, &border_map_right);
+	//my_map->rebuild_border_entities(&border_map_left, &border_map_right);
 
 	// We wait for any requests (move requests in this case), to which we respond
 	// by giving the requester a list of our foreign entities
@@ -531,6 +533,7 @@ main(int argc, char **argv) {
 
 	// Initialize map object
 	my_map = new Map( find_map_offset(&node_list), &node_list, initial_puck_amount, my_id);
+	antix::matrix_right_x_col = antix::Cell_x(antix::my_min_x + antix::offset_size);
 
 #if DEBUG
 	cout << "Total teams: " << total_teams << endl;

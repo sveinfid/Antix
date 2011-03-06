@@ -45,6 +45,7 @@ public:
 	
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
+	static unsigned int matrix_right_x_col;
 
 	/*
 		Take a host and a port, return c_str
@@ -424,6 +425,7 @@ double antix::world_size;
 double antix::my_min_x;
 unsigned int antix::matrix_width;
 unsigned int antix::matrix_height;
+unsigned int antix::matrix_right_x_col;
 int antix::turn = 0;
 
 #endif
