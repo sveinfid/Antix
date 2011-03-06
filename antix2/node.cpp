@@ -374,15 +374,23 @@ service_gui_requests() {
 #if DEBUG
 	cout << "Sync: Checking GUI requests..." << endl;
 #endif
-	antix::recv_blank(gui_rep_sock);
-	// Respond by sending a list of our entities
-	// XXX declare only once
-	antixtransfer::SendMap_GUI gui_map;
-	my_map->build_gui_map(&gui_map);
-	antix::send_pb(gui_rep_sock, &gui_map);
+	antixtransfer::GUI_Request req;
+	antix::recv_pb(gui_rep_sock, &req, 0);
+	
+	//only sent map if GUI request for it
+	if(req.r()){
+		// Respond by sending a list of our entities
+		// XXX declare only once
+		antixtransfer::SendMap_GUI gui_map;
+		my_map->build_gui_map(&gui_map);
+		antix::send_pb(gui_rep_sock, &gui_map);
 #if DEBUG
-	cout << "Sync: Sent GUI response." << endl;
+		cout << "Sync: Sent GUI response." << endl;
 #endif
+	}else {
+		antix::send_blank(gui_rep_sock);
+	}
+
 }
 
 /*

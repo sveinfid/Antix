@@ -37,6 +37,11 @@ vector<Robot> robots;
 
 antixtransfer::Node_list node_list;
 
+//keep track of which node to listen to
+int current_node = 0;
+//listen to all nodes
+bool all_node = false;
+
 void
 associate_robot_with_home(Robot *r) {
 	for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
@@ -61,31 +66,62 @@ void
 rebuild_entity_db() {
 	pucks.clear();
 	robots.clear();
+	/*
+	int node_iterator = 0;
 
 	// send request to every node
 	for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
-		antix::send_blank(*it);
-	}
+		//do not sent to every node, just current node 
+		//antix::send_blank(*it);
+		cout << "CURRENT NODE: " << node_iterator << endl;
+		if(node_iterator == abs(current_node%node_list.node_size()))
+		{
+			cout << "SEND MESSAGE: " << node_iterator << endl;
+			antix::send_blank(*it);
+		}
+		node_iterator++;
+			
+	}*/
+	
 #if DEBUG
 	cout << "Sync: Sent entity requests to nodes." << endl;
 #endif
 
+	int node_iterator = 0;
+	
 	// wait on response from each node
 	for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
-		antixtransfer::SendMap_GUI map;
-		antix::recv_pb(*it, &map, 0);
 		
-		// add received pucks
-		for (int l = 0; l < map.puck_size(); l++) {
-			pucks.push_back( Puck(map.puck(l).x(), map.puck(l).y(), false ) );
-		}
+		//do not wait for every node, just current node
+		if(all_node || (node_iterator == abs(current_node%node_list.node_size())))
+		{
+			antixtransfer::GUI_Request req;
+			req.set_r(true);
+			antix::send_pb(*it, &req);
+			
+			antixtransfer::SendMap_GUI map;
+			antix::recv_pb(*it, &map, 0);
+			
+			// add received pucks
+			for (int l = 0; l < map.puck_size(); l++) {
+				pucks.push_back( Puck(map.puck(l).x(), map.puck(l).y(), false ) );
+			}
 
-		// and robots
-		for (int l = 0; l < map.robot_size(); l++) {
-			Robot r(map.robot(l).x(), map.robot(l).y(), map.robot(l).team(), map.robot(l).a());
-			associate_robot_with_home(&r);
-			robots.push_back(r);
+			// and robots
+			for (int l = 0; l < map.robot_size(); l++) {
+				Robot r(map.robot(l).x(), map.robot(l).y(), map.robot(l).team(), map.robot(l).a());
+				associate_robot_with_home(&r);
+				robots.push_back(r);
+			}
 		}
+		else {
+			antixtransfer::GUI_Request req;
+			req.set_r(false);
+			antix::send_pb(*it, &req);
+			antix::recv_blank(*it);
+			
+		}
+		node_iterator++;
 	}
 //#if DEBUG
 	cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
@@ -249,6 +285,31 @@ mouse_func(int button, int state, int x, int y) {
 	}
 }
 
+static void
+processSpecialKeys(int key, int x, int y) {
+	
+	switch(key) {
+		case GLUT_KEY_LEFT : 
+			current_node--;
+			//cout << "PRESSED LEFT KEY" << abs(current_node%node_list.node_size()) << endl;
+			break;
+		case GLUT_KEY_RIGHT : 
+			current_node++; 
+			//cout << "PRESSED RIGHT KEY" << abs(current_node%node_list.node_size()) << endl;
+			break;
+		case GLUT_KEY_UP : 
+			all_node = true;
+			//cout << "PRESSED UP KEY" << all_node << endl;
+			break;
+		case GLUT_KEY_DOWN : 
+			all_node = false;
+			//cout << "PRESSED DOWN KEY" << all_node << endl;
+			break;
+			
+	}
+}
+
+
 //
 // Robot static member methods ---------------------------------------------
 
@@ -263,6 +324,7 @@ InitGraphics( int argc, char* argv[] ) {
 	glutDisplayFunc( display_func );
 	glutTimerFunc( 50, timer_func, 0 );
 	glutMouseFunc( mouse_func );
+	glutSpecialFunc( processSpecialKeys ); //handle user key press (special key: LEFT/RIGHT)
 	glutIdleFunc( idle_func );
 	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	glEnable( GL_BLEND );
