@@ -4,7 +4,7 @@
 # processes, until we reach csil machine N = number of nodes
 #
 
-WORKSTATIONS=workstations.txt_partial
+WORKSTATIONS=workstations.txt2
 ANTIX_PATH=/home/wjs2/Antix/antix2
 USER=wjs2
 
@@ -28,4 +28,5 @@ do
   then
     break
   fi
+	sleep 5
 done

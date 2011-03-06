@@ -231,3 +231,7 @@ message sense_data {
 
   repeated Robot robot = 1;
 }
+
+message GUI_Request {
+  required bool r = 1;
+}

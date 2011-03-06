@@ -20,14 +20,16 @@ public:
 	double my_max_x;
 
 	// the robots & pucks we control
-	vector<Puck *> pucks;
-	vector<Robot *> robots;
+	vector<Puck *> pucks; //TODO: might be able to remove this
+	vector<Robot *> robots; //TODO: remove this
 	// sent to us by neighbours
 	vector<Puck> foreign_pucks;
 	vector<Robot> foreign_robots;
 
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> homes;
+	
+	Robot* bots[1000][1000]; //bots[teamsize][amount of robots per team]
 
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;
@@ -93,7 +95,8 @@ public:
 					assert(h != NULL);
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
-					robots.push_back(r);
+					bots[r -> team][r -> id] = r; //XXX Gordon's Test
+					robots.push_back(r); //TODO, remove robots
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
 					Robot::matrix[index].robots.insert( r );
@@ -158,11 +161,18 @@ public:
 #if DEBUG
 		cout << "Trying to find robot with team " << team << " and id " << id << endl;
 #endif
+
+		return bots[team][id];
+		//Matrix(cell(x,y))
+		
+		
+		
+		/*
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			if ((*it)->team == team && (*it)->id == id)
 				return *it;
 		}
-		return NULL;
+		return NULL;*/
 	}
 
 	void
@@ -202,6 +212,7 @@ public:
 		r->v = v;
 		r->w = w;
 		r->has_puck = has_puck;
+		bots[r->team][r->id] = r;
 		robots.push_back(r);
 
 		unsigned int new_index = antix::Cell( x, y );

@@ -62,9 +62,9 @@ zprReshape(int w,int h)
     glViewport(0,0,w,h);
 
     _top    =  1.0;
-    _bottom = -1.0;
-    _left   = -(double)w/(double)h;
-    _right  = -_left;
+    _bottom = 0;	//ensure there's no extra space around the main screen
+    _left   = 0;
+    _right  = (double)w/(double)h;
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -119,7 +119,8 @@ zprMotion(int x, int y)
     if (dx==0 && dy==0)
         return;
 
-    if (_mouseMiddle || (_mouseLeft && _mouseRight))
+	//switch mouse key for rotate to zoom (easier for user to control)
+	if (_mouseLeft)
     {
         double s = exp((double)dy*0.01);
 
@@ -130,7 +131,7 @@ zprMotion(int x, int y)
         changed = true;
     }
     else
-        if (_mouseLeft)
+        if (_mouseMiddle || (_mouseLeft && _mouseRight))
         {
             double ax,ay,az;
             double bx,by,bz;

@@ -1,10 +1,19 @@
-- make able to run multiple nodes on single machine while not increasing the number of client processes on that machine
-- replace Robots vector with map<team, Robot>. this makes find_robot() faster, and we always need easy access to all robots anyway due to needing to build GUI map
-	- probably can entirely remove vector<Puck *> pucks. No real need? GUI perhaps...
-	- but for GUI we could just go through every cell. that may be markedly slower however
 - put back in sensing using foreign robots/pucks. Currently they are ignored
 	- foreign pucks have been ignored the whole time, but we used to deal with foreign robots prior to grid
-- make building of border entities (those close to border) use the grid instead of the vector
-- likewise with building move entities (those that are out of range and need to be moved)
+
+- Use matrix to build border/move messages:
+	- make building of border entities (those close to border) use the grid instead of the vector
+	- likewise with building move entities (those that are out of range and need to be moved)
+
 - scoring
+
 - collisions
+
+- optimize:
+	- constructors
+	- loops (.end())
+	- last_x/last_y from node to client every time not necessary
+	- some data sent between nodes unnecessary:
+		- seen / foreign messages can probably be pruned (team, id)
+
+- foreign puck pickup
