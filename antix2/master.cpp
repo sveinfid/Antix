@@ -16,7 +16,7 @@ using namespace std;
 /*
 	Simulation settings
 */
-const double world_size = 10.0;
+const double world_size = 100.0;
 const int sleep_time = 1000;
 // pucks per node to initially create
 const int initial_pucks_per_node = 100;

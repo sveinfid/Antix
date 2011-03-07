@@ -46,8 +46,9 @@ public:
 		antix::my_min_x = my_min_x;
 
 		// + 1000 as our calculations not exact in some places. Rounding error or?
-		Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
-		cout << "matrix is " << antix::matrix_width * antix::matrix_height << endl;
+		//Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
+		Robot::matrix.resize(antix::matrix_height * antix::matrix_height);
+		cout << "Matrix has " << Robot::matrix.size() << " cells" << endl;
 
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
 		populate_homes(node_list);
@@ -103,9 +104,9 @@ public:
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
 					Robot::matrix[index].robots.insert( r );
-	#if DEBUG
+#if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
-	#endif
+#endif
 				}
 			}
 		}
@@ -203,7 +204,7 @@ public:
 		double last_y) {
 
 #if DEBUG
-		cout << "Moving: added new robot with a " << a << " w " << w << "(Turn " << antix::turn << ")" << endl;
+		cout << "Moving: added new robot team " << team << " id " << id << " with a " << a << " w " << w << " (" << x << ", " << y << ") (Turn " << antix::turn << ")" << endl;
 #endif
 		Robot *r = new Robot(x, y, id, team, last_x, last_y);
 		r->a = a;
@@ -280,6 +281,7 @@ public:
 
 		bool deleted = false;
 		// remove puck from vector
+		// XXX bad. Could be a set instead for better access time?
 		for (vector<Puck*>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 			if ((*it) == r->puck) {
 				pucks.erase(it);
@@ -353,7 +355,7 @@ public:
 			if (map->robot(i).id() == r->id && map->robot(i).team() == r->team)
 				return;
 		}
-		cout << "Error: robot not found in border map! In cell " << r->index << endl;
+		cout << "Error: robot not found in border map! In cell " << r->index << " id " << r->id << " team " << r->team << " at (" << r->x << ", " << r->y << ")" << endl;
 	}
 
 	/*
@@ -563,6 +565,7 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
+				//cout << "Index left " << index << " x " << x << " y " << y << endl;
 				// Look at the robots & pucks
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
@@ -575,14 +578,29 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
+				//cout << "Index right " << index << " x " << x << " y " << y << endl;
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 			}
 		}
 
-#if DEBUG
+		// It's also possible for robots to wrap around to cells on far side of world
+		// this may only be needed for far left node?
+		for (int x = antix::matrix_right_world_col; x >= antix::matrix_right_world_col - 2; x--) {
+			for (int y = 0; y < antix::matrix_height; y++) {
+				// 2d array into 1d matrix: x + y*width
+				int index = x + y * antix::matrix_width;
+				//assert(index < antix::matrix_height * antix::matrix_width);
+				assert(index < antix::matrix_height * antix::matrix_height);
+				//cout << "Index FAR right " << index << " x " << x << " y " << y << endl;
+				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
+				//examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
+			}
+		}
+
+//#if DEBUG
 		check_correct_robots_in_border(border_map_left, border_map_right);
 		check_correct_robots_in_move(move_left_msg, move_right_msg);
-#endif
+//#endif
 	}
 
 	/*
@@ -715,7 +733,6 @@ public:
 		cout << "Updating poses for all robots..." << endl;
 	#endif
 		for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
-			assert((*it)->id < 1000);
 			(*it)->update_pose();
 		}
 	#if DEBUG

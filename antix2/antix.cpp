@@ -46,6 +46,7 @@ public:
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
 	static unsigned int matrix_right_x_col;
+	static unsigned int matrix_right_world_col;
 
 	/*
 		Take a host and a port, return c_str
@@ -413,7 +414,7 @@ public:
 		unsigned int cx = Cell_x(x);
 		unsigned int cy = Cell_y(y);
 		unsigned int i = cx + cy * matrix_width;
-		//cout << "Cell: x " << cx << " y " << cy << " = " << i << endl;
+		//cout << "Cell: cx " << cx << " x " << x << " cy " << cy << " y " << y << " = " << i << endl;
 		//unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
 		//assert(i < matrix_width * matrix_height + 1000);
 		return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
@@ -426,6 +427,7 @@ double antix::my_min_x;
 unsigned int antix::matrix_width;
 unsigned int antix::matrix_height;
 unsigned int antix::matrix_right_x_col;
+unsigned int antix::matrix_right_world_col;
 int antix::turn = 0;
 
 #endif

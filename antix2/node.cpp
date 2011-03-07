@@ -542,6 +542,7 @@ main(int argc, char **argv) {
 	// Initialize map object
 	my_map = new Map( find_map_offset(&node_list), &node_list, initial_puck_amount, my_id);
 	antix::matrix_right_x_col = antix::Cell_x(antix::my_min_x + antix::offset_size);
+	antix::matrix_right_world_col = antix::Cell_x(antix::world_size);
 
 #if DEBUG
 	cout << "Total teams: " << total_teams << endl;
