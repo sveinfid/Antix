@@ -1,10 +1,6 @@
 - put back in sensing using foreign robots/pucks. Currently they are ignored
 	- foreign pucks have been ignored the whole time, but we used to deal with foreign robots prior to grid
 
-- Use matrix to build border/move messages:
-	- make building of border entities (those close to border) use the grid instead of the vector
-	- likewise with building move entities (those that are out of range and need to be moved)
-
 - scoring
 
 - collisions
@@ -15,5 +11,6 @@
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:
 		- seen / foreign messages can probably be pruned (team, id)
+	- Optimize remove_puck() in map? Goes through vector currently
 
 - foreign puck pickup

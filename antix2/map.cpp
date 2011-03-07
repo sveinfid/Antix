@@ -10,6 +10,9 @@
 
 #include "entities.cpp"
 
+#define LEFT_CELLS 0
+#define RIGHT_CELLS 1
+
 using namespace std;
 
 class Map {
@@ -153,9 +156,6 @@ public:
 		}
 	}
 
-	/*
-		XXX unacceptable cost to find each robot this way!
-	*/
 	Robot *
 	find_robot(int team, int id) {
 #if DEBUG
@@ -164,8 +164,6 @@ public:
 
 		return bots[team][id];
 		//Matrix(cell(x,y))
-		
-		
 		
 		/*
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
@@ -263,7 +261,7 @@ public:
 		Remove the puck that robot is carrying, if it is carrying one
 	*/
 	void
-	remove_puck(Robot *r, vector<Puck *> *pucks) {
+	remove_puck(Robot *r) {
 #if DEBUG
 		cout << "Trying to remove puck of robot " << r->id << " team " << r->team << endl;
 #endif
@@ -275,16 +273,16 @@ public:
 		assert(r->puck->held == true);
 
 		// remove puck from cell
-		// XXX debug
+		// XXX debugging code
 		int size = Robot::matrix[ r->puck->index ].pucks.size();
 		Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
 		assert( Robot::matrix[ r->index ].pucks.size() == size - 1 );
 
 		bool deleted = false;
 		// remove puck from vector
-		for (vector<Puck*>::iterator it = pucks->begin(); it != pucks->end(); it++) {
+		for (vector<Puck*>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 			if ((*it) == r->puck) {
-				pucks->erase(it);
+				pucks.erase(it);
 				deleted = true;
 				break;
 			}
@@ -297,136 +295,30 @@ public:
 		r->has_puck = false;
 	}
 
-
 	/*
 		Remove robot from our records, and any associated puck
 	*/
-	vector<Robot *>::iterator
-	remove_robot(Robot *r, vector<Robot *>::iterator & it, vector<Robot *> *robots) {
-		// XXX debug
-		int size = Robot::matrix[ r->index ].robots.size();
-		// remove robot from cell
-		Robot::matrix[ r->index ].robots.erase(r);
-		assert( Robot::matrix[ r->index ].robots.size() == size - 1 );
+	void
+	remove_robot(set<Robot *>::iterator & it) {
+		Robot *r = *it;
 
 		// delete the robot's puck (if holding) from vector & memory
-		remove_puck(r, &pucks);
+		remove_puck(r);
+
+		// XXX have to remove from vector since vector is still used in some places
+		// this is slow and should be removed
+		bool deleted = false;
+		for (vector<Robot *>::iterator v_it = robots.begin(); v_it != robots.end(); v_it++) {
+			if (*v_it == r) {
+				robots.erase(v_it);
+				deleted = true;
+				break;
+			}
+		}
+		assert(deleted == true);
 
 		// delete robot from memory
 		delete r;
-
-		// delete robot from vector & return next in vector
-		return robots->erase(it);
-	}
-
-	/*
-		Look through our list of robots to see if any are outside of our range
-		If found, add the relevant data to a move_bot message
-		and remove relevant data from our records
-	*/
-	void
-	build_move_message(antixtransfer::move_bot *move_left_msg, antixtransfer::move_bot *move_right_msg) {
-
-		move_left_msg->clear_robot();
-		move_right_msg->clear_robot();
-
-		vector<Robot *>::iterator it = robots.begin();
-		// while loop as iterator may be updated other due to deletion
-		while (it != robots.end()) {
-			// We do these 4 cases as it's possible the robot has looped around the world
-			// where the robot will be less than our x but actually travels to the right
-			// node (one case)
-
-			// If robot's x is less than ours and bigger than our left neighbours, send
-			// to our left neighbour
-			if ((*it)->x < my_min_x && (*it)->x > my_min_x - antix::offset_size) {
-				add_robot_to_move_msg(*it, move_left_msg);
-				it = remove_robot(*it, it, &robots);
-	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (1)" << endl;
-	#endif
-
-			// Otherwise if it's less than ours and smaller than our left neighbour's,
-			// assume that we are the far right node: send it to our right neighbour
-			} else if ((*it)->x < my_min_x) {
-				add_robot_to_move_msg(*it, move_right_msg);
-				it = remove_robot(*it, it, &robots);
-	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (2)" << endl;
-	#endif
-
-			// If robot's x is bigger than ours and smaller than our right neighbour's, we
-			// send it to our right neighbour
-			} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + antix::offset_size) {
-				add_robot_to_move_msg(*it, move_right_msg);
-				it = remove_robot(*it, it, &robots);
-	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to right node (3)" << endl;
-	#endif
-
-			// Otherwise it's bigger than ours and bigger than our right neighbour's,
-			// assume we are the far left node: send it to our left neighbour
-			} else if ((*it)->x >= my_max_x) {
-				add_robot_to_move_msg(*it, move_left_msg);
-				it = remove_robot(*it, it, &robots);
-	#if DEBUG
-				cout << "Moving robot " << (*it)->id << " on team " << (*it)->team << " to left node (4)" << endl;
-	#endif
-
-			} else {
-				it++;
-			}
-		}
-	}
-
-	vector<Robot *>::iterator
-	move_robot_if_needed (Robot *r,
-		vector<Robot *>::iterator & it,
-		vector<Robot *> *robots,
-		antixtransfer::move_bot *move_left_msg,
-		antixtransfer::move_bot *move_right_msg) {
-
-		// We do these 4 cases as it's possible the robot has looped around the world
-		// where the robot will be less than our x but actually travels to the right
-		// node (one case)
-
-		// If robot's x is less than ours and bigger than our left neighbours, send
-		// to our left neighbour
-		if (r->x < my_min_x && r->x > my_min_x - antix::offset_size) {
-			add_robot_to_move_msg(r, move_left_msg);
-			it = remove_robot(r, it, robots);
-	#if DEBUG
-			cout << "Moving robot " << r->id << " on team " << r->team << " to left node (1)" << endl;
-	#endif
-
-		// Otherwise if it's less than ours and smaller than our left neighbour's,
-		// assume that we are the far right node: send it to our right neighbour
-		} else if (r->x < my_min_x) {
-			add_robot_to_move_msg(r, move_right_msg);
-			it = remove_robot(r, it, robots);
-	#if DEBUG
-			cout << "Moving robot " << r->id << " on team " << r->team << " to right node (2)" << endl;
-	#endif
-
-		// If robot's x is bigger than ours and smaller than our right neighbour's, we
-		// send it to our right neighbour
-		} else if (r->x >= my_max_x && r->x < my_max_x + antix::offset_size) {
-			add_robot_to_move_msg(r, move_right_msg);
-			it = remove_robot(r, it, robots);
-	#if DEBUG
-			cout << "Moving robot " << r->id << " on team " << r->team << " to right node (3)" << endl;
-	#endif
-
-		// Otherwise it's bigger than ours and bigger than our right neighbour's,
-		// assume we are the far left node: send it to our left neighbour
-		} else if (r->x >= my_max_x) {
-			add_robot_to_move_msg(r, move_left_msg);
-			it = remove_robot(r, it, robots);
-	#if DEBUG
-			cout << "Moving robot " << r->id << " on team " << r->team << " to left node (4)" << endl;
-	#endif
-		}
-		return it;
 	}
 
 	/*
@@ -452,6 +344,9 @@ public:
 		r_pb->set_id( r->id );
 	}
 
+	/*
+		Debug function. Make sure the given robot is actually in the given map
+	*/
 	void
 	check_in_border_robot(antixtransfer::SendMap *map, Robot *r) {
 		for (int i = 0; i < map->robot_size(); i++) {
@@ -462,105 +357,180 @@ public:
 	}
 
 	/*
-		Clear the last iteration's border entities, and place any of our robots &
-		pucks where they belong
+		Debug function: Look through robot vector and find those that need to be
+		in border map. Make sure they are actually in the given border maps
+
+		We don't check puck since it's hard to identify exactly due to no id
 	*/
 	void
-	rebuild_border_entities(antixtransfer::SendMap *border_map_left, antixtransfer::SendMap *border_map_right) {
-
-		border_map_left->clear_robot();
-		border_map_left->clear_puck();
-		border_map_right->clear_robot();
-		border_map_right->clear_puck();
-
-		foreign_pucks.clear();
-		foreign_robots.clear();
-
-		// look down the cells on far left (whole height where x = 0)
-		// check 3 furthest left cols (x = 0, 1, 2)
-		for (int x = 0; x <= 2; x++) {
-			for (int y = 0; y < antix::matrix_height; y++) {
-				// 2d array into 1d matrix: x + y*width
-				int index = x + y * antix::matrix_width;
-				for (set<Robot *>::iterator it = Robot::matrix[index].robots.begin(); it != Robot::matrix[index].robots.end(); it++) {
-					if ((*it)->x < my_min_x + Robot::vision_range)
-						add_border_robot(border_map_left, *it);
-				}
-				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
-					if ((*it)->x < my_min_x + Robot::vision_range)
-						add_border_puck(border_map_left, *it);
-				}
-			}
-		}
-
-		// and on far right
-		// check 3 farthest right columns. start from column on furthest right and go back
-		for (int x = antix::matrix_right_x_col; x >= antix::matrix_right_x_col - 2; x--) {
-			for (int y = 0; y < antix::matrix_height; y++) {
-				// 2d array into 1d matrix: x + y*width
-				int index = x + y * antix::matrix_width;
-				cout << "Border loop x " << x << " y " << y << " index " << index << endl;
-				for (set<Robot *>::iterator it = Robot::matrix[index].robots.begin(); it != Robot::matrix[index].robots.end(); it++) {
-					if ((*it)->x > my_max_x - Robot::vision_range)
-						add_border_robot(border_map_right, *it);
-				}
-				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
-					if ((*it)->x > my_max_x - Robot::vision_range)
-						add_border_puck(border_map_right, *it);
-				}
-			}
-		}
-
-		/*
-		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-			if ((*it)->x > my_max_x - Robot::vision_range) {
-				//add_border_puck(border_map_right, *it);
-				check_in_border_puck(border_map_right, *it);
-			}
-			else if ((*it)->x < my_min_x + Robot::vision_range) {
-				//add_border_puck(border_map_left, *it);
-				check_in_border_puck(border_map_left, *it);
-			}
-		}
-		*/
-
-		// XXX check here whether these are all found and added by the above
-		// we don't check puck since it's hard to identify exactly due to no id
+	check_correct_robots_in_border(antixtransfer::SendMap *border_map_left, antixtransfer::SendMap *border_map_right) {
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			if ((*it)->x > my_max_x - Robot::vision_range) {
-				//add_border_robot(border_map_right, *it);
 				check_in_border_robot(border_map_right, *it);
 			}
 			else if ((*it)->x < my_min_x + Robot::vision_range) {
-				//add_border_robot(border_map_left, *it);
 				check_in_border_robot(border_map_left, *it);
 			}
 		}
+	}
 
-		/*
-		// for debugging
-		cout << "Left border entities: " << endl;
-		for (int i = 0; i < border_map_left->robot_size(); i++) {
-			cout << "Robot at " << border_map_left->robot(i).x() << ", " << border_map_left->robot(i).y() << endl;
+	/*
+		Debug function
+		Make sure the given Robot is in the given move_bot message
+	*/
+	void
+	check_in_move_msg(Robot *r, antixtransfer::move_bot *move_bot) {
+		for (int i = 0; i < move_bot->robot_size(); i++) {
+			if (move_bot->robot(i).id() == r->id && move_bot->robot(i).team() == r->team)
+				return;
 		}
-		for (int i = 0; i < border_map_left->puck_size(); i++) {
-			cout << "Puck at " << border_map_left->puck(i).x() << ", " << border_map_left->puck(i).y() << endl;
+		cout << "Error: robot not found in move msg! In cell " << r->index << endl;
+	}
+
+	/*
+		Debug function: Look through robot vector & find those that need to be moved
+		Make sure they are actually in the given move messages
+	*/
+	void
+	check_correct_robots_in_move(antixtransfer::move_bot *move_left_msg,
+		antixtransfer::move_bot *move_right_msg) {
+
+		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+			// If robot's x is less than ours and bigger than our left neighbours, send
+			// to our left neighbour
+			if ((*it)->x < my_min_x && (*it)->x > my_min_x - antix::offset_size) {
+				check_in_move_msg(*it, move_left_msg);
+
+			// Otherwise if it's less than ours and smaller than our left neighbour's,
+			// assume that we are the far right node: send it to our right neighbour
+			} else if ((*it)->x < my_min_x) {
+				check_in_move_msg(*it, move_right_msg);
+
+			// If robot's x is bigger than ours and smaller than our right neighbour's,
+			// we send it to our right neighbour
+			} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + antix::offset_size) {
+				check_in_move_msg(*it, move_right_msg);
+
+			// Otherwise it's bigger than ours and bigger than our right neighbour's,
+			// assume we are the far left node: send it to our left neighbour
+			} else if ((*it)->x >= my_max_x) {
+				check_in_move_msg(*it, move_left_msg);
+
+			}
+		}
+	}
+
+	/*
+		Look at the pucks and robots in the given cell
+		Add them to the respective protobuf messages if necessary
+	*/
+	void
+	examine_border_cell(int index,
+		antixtransfer::move_bot *move_left_msg,
+		antixtransfer::move_bot *move_right_msg,
+		antixtransfer::SendMap *border_map_left,
+		antixtransfer::SendMap *border_map_right,
+		int side) {
+
+		set<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
+		set<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
+		set<Robot *>::iterator current_it_robot;
+
+		set<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
+		set<Puck *>::const_iterator end_puck = Robot::matrix[index].pucks.end();
+
+		// Robots
+		// while loop as iterator may be updated other due to deletion
+		while (it_robot != end_robot) {
+			// Increment and store next in it_robot due to possible removal from set
+			current_it_robot = it_robot;
+			it_robot++;
+
+			assert((*current_it_robot)->id < 1000 && (*current_it_robot)->id >= 0);
+
+			// First we look whether robot needs to move to another node
+
+			if (side == LEFT_CELLS) {
+				// If robot's x is less than ours and bigger than our left neighbours,
+				// send to our left neighbour
+				if ((*current_it_robot)->x < my_min_x && (*current_it_robot)->x > my_min_x - antix::offset_size) {
+#if DEBUG
+					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to left node (1)" << endl;
+#endif
+					add_robot_to_move_msg(*current_it_robot, move_left_msg);
+					remove_robot(current_it_robot);
+					Robot::matrix[index].robots.erase(current_it_robot);
+					continue;
+
+				// Otherwise if it's less than ours and smaller than our left neighbour's,
+				// assume that we are the far right node: send it to our right neighbour
+				} else if ((*current_it_robot)->x < my_min_x) {
+#if DEBUG
+					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to right node (2)" << endl;
+#endif
+					add_robot_to_move_msg(*current_it_robot, move_right_msg);
+					remove_robot(current_it_robot);
+					Robot::matrix[index].robots.erase(current_it_robot);
+					continue;
+				}
+
+			// Otherwise right side cell
+			} else {
+				// If robot's x is bigger than ours and smaller than our right neighbour's,
+				// we send it to our right neighbour
+				if ((*current_it_robot)->x >= my_max_x && (*current_it_robot)->x < my_max_x + antix::offset_size) {
+#if DEBUG
+					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to right node (3)" << endl;
+#endif
+					add_robot_to_move_msg(*current_it_robot, move_right_msg);
+					remove_robot(current_it_robot);
+					Robot::matrix[index].robots.erase(current_it_robot);
+					continue;
+
+				// Otherwise it's bigger than ours and bigger than our right neighbour's,
+				// assume we are the far left node: send it to our left neighbour
+				} else if ((*current_it_robot)->x >= my_max_x) {
+#if DEBUG
+					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to left node (4)" << endl;
+#endif
+					add_robot_to_move_msg(*current_it_robot, move_left_msg);
+					remove_robot(current_it_robot);
+					Robot::matrix[index].robots.erase(current_it_robot);
+					continue;
+				}
+			}
+
+			// Check whether on the border
+			if (side == LEFT_CELLS) {
+				if ((*current_it_robot)->x < my_min_x + Robot::vision_range)
+					add_border_robot(border_map_left, *current_it_robot);
+
+			// Right side
+			} else {
+				// Then if it doesn't move, check whether it's on the border
+				if ((*current_it_robot)->x > my_max_x - Robot::vision_range)
+					add_border_robot(border_map_right, *current_it_robot);
+			}
 		}
 
-		cout << "Right border entities: " << endl;
-		for (int i = 0; i < border_map_right->robot_size(); i++) {
-			cout << "Robot at " << border_map_right->robot(i).x() << ", " << border_map_right->robot(i).y() << endl;
+		// Pucks
+		for ( ; it_puck != end_puck; it_puck++) {
+			if (side == LEFT_CELLS) {
+				if ((*it_puck)->x < my_min_x + Robot::vision_range)
+					add_border_puck(border_map_left, *it_puck);
+			} else {
+				if ((*it_puck)->x > my_max_x - Robot::vision_range)
+					add_border_puck(border_map_right, *it_puck);
+			}
 		}
-		for (int i = 0; i < border_map_right->puck_size(); i++) {
-			cout << "Puck at " << border_map_right->puck(i).x() << ", " << border_map_right->puck(i).y() << endl;
-		}
-		*/
 	}
 
 	/*
 		Look at the robots on the far left and far right of our matrix
-		Find those which need to be moved to another node, add them to message, and remove
-		Find those which are within sight distance to tell our neighbours
+		Find those which need to be moved to another node, add them to move messages,
+		and remove.
+		Find those which are within sight distance to tell our neighbours and add them
+		to border messages.
 
 		We do this at same time as we only want to iterate over the cells once
 	*/
@@ -593,67 +563,26 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
-				// Robots
-				vector<Robot *>::iterator it = Robot::matrix[index].robots.begin();
-				// while loop as iterator may be updated other due to deletion
-				while (it != Robot::matrix[index].robots.end()) {
-					// First look whether the robot needs to move
-					vector<Robot *>::iterator next_it = move_robot_if_needed(*it, it, &robots, move_left_msg, move_right_msg);
-
-					// iterator changed, so we moved a robot. don't look at if on border
-					if (*it != *next_it) {
-						it = next_it;
-						continue;
-					} else {
-						it++;
-					}
-
-					// Then if it doesn't move, check whether it's on the border
-					if ((*it)->x < my_min_x + Robot::vision_range)
-						add_border_robot(border_map_left, *it);
-				}
-
-				// Pucks
-				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
-					if ((*it)->x < my_min_x + Robot::vision_range)
-						add_border_puck(border_map_left, *it);
-				}
+				// Look at the robots & pucks
+				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
 		}
 
 		// and on far right
-		// check 3 farthest right columns. start from column on furthest right and go back
+		// check 3 farthest right columns. start from column on furthest right
+		// and go back
 		for (int x = antix::matrix_right_x_col; x >= antix::matrix_right_x_col - 2; x--) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
-				// Robots
-				vector<Robot *>::iterator it = Robot::matrix[index].robots.begin();
-				// while loop as iterator may be updated other due to deletion
-				while (it != Robot::matrix[index].robots.end()) {
-					// First look whether the robot needs to move
-					vector<Robot *>::iterator next_it = move_robot_if_needed(*it, it, &robots, move_left_msg, move_right_msg);
-
-					// iterator changed, so we moved a robot. don't look at if on border
-					if (*it != *next_it) {
-						it = next_it;
-						continue;
-					} else {
-						it++;
-					}
-
-					// Then if it doesn't move, check whether it's on the border
-					if ((*it)->x > my_max_x - Robot::vision_range)
-						add_border_robot(border_map_right, *it);
-				}
-
-				// Pucks
-				for (set<Puck *>::iterator it = Robot::matrix[index].pucks.begin(); it != Robot::matrix[index].pucks.end(); it++) {
-					if ((*it)->x > my_max_x - Robot::vision_range)
-						add_border_puck(border_map_right, *it);
-				}
+				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 			}
 		}
+
+#if DEBUG
+		check_correct_robots_in_border(border_map_left, border_map_right);
+		check_correct_robots_in_move(move_left_msg, move_right_msg);
+#endif
 	}
 
 	/*
@@ -710,69 +639,6 @@ public:
 			UpdateSensorsCell(x-1, y+1, *r, robot_pb);
 			UpdateSensorsCell(x+0, y+1, *r, robot_pb);
 			UpdateSensorsCell(x+1, y+1, *r, robot_pb);
-
-			// look at all other robots to see if we can see them
-			/*
-			for (vector<Robot *>::iterator other = robots.begin(); other != robots.end(); other++) {
-				// we don't look at ourself
-				if (*r == *other)
-					continue;
-				
-				double dx( antix::WrapDistance( (*other)->x - (*r)->x ) );
-				if ( fabs(dx) > Robot::vision_range )
-					continue;
-
-				double dy( antix::WrapDistance( (*other)->y - (*r)->y ) );
-				if ( fabs(dy) > Robot::vision_range )
-					continue;
-
-				double range = hypot( dx, dy );
-				if (range > Robot::vision_range )
-					continue;
-
-				// check that it's in fov
-				double absolute_heading = atan2( dy, dx );
-				double relative_heading = antix::AngleNormalize(absolute_heading - (*r)->a);
-				if ( fabs(relative_heading) > Robot::fov/2.0 )
-					continue;
-
-				// we can see the robot
-				antixtransfer::sense_data::Robot::Seen_Robot *seen_robot = robot_pb->add_seen_robot();
-				seen_robot->set_range( range );
-				seen_robot->set_bearing( relative_heading );
-			}
-			*/
-
-			// now look at all the pucks
-			/*
-			for (vector<Puck *>::iterator puck = pucks.begin(); puck != pucks.end(); puck++) {
-				double dx( antix::WrapDistance( (*puck)->x - (*r)->x ) );
-				if ( fabs(dx) > Robot::vision_range )
-					continue;
-
-				double dy( antix::WrapDistance( (*puck)->y - (*r)->y ) );
-				if ( fabs(dy) > Robot::vision_range )
-					continue;
-
-				double range = hypot( dx, dy );
-				if (range > Robot::vision_range)
-					continue;
-
-				// fov check
-				double absolute_heading = atan2( dy, dx );
-				double relative_heading = antix::AngleNormalize( absolute_heading - (*r)->a );
-				if ( fabs(relative_heading) > Robot::fov/2.0 )
-					continue;
-
-				// we can see the puck
-				antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
-				seen_puck->set_range( range );
-				seen_puck->set_bearing ( relative_heading );
-				seen_puck->set_held( (*puck)->held );
-
-				(*r)->see_pucks.push_back(SeePuck(*puck, range));
-			}
-			*/
 
 			// now look at foreign robots
 			/* XXX right now we don't care about foreign robots
@@ -849,6 +715,7 @@ public:
 		cout << "Updating poses for all robots..." << endl;
 	#endif
 		for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+			assert((*it)->id < 1000);
 			(*it)->update_pose();
 		}
 	#if DEBUG
