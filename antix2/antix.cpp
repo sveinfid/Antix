@@ -42,6 +42,7 @@ public:
 	static double world_size;
 	static double my_min_x;
 	static int turn;
+	static double home_radius;
 	
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
@@ -425,6 +426,7 @@ public:
 double antix::offset_size;
 double antix::world_size;
 double antix::my_min_x;
+double antix::home_radius;
 unsigned int antix::matrix_width;
 unsigned int antix::matrix_height;
 unsigned int antix::matrix_right_x_col;

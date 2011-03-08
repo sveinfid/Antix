@@ -519,6 +519,7 @@ main(int argc, char **argv) {
 	sleep_time = init_response.sleep_time();
 	int initial_puck_amount = init_response.puck_amount();
 	antix::world_size = init_response.world_size();
+	antix::home_radius = init_response.home_radius();
 	Robot::vision_range = init_response.vision_range();
 	Robot::fov = init_response.fov();
 	Robot::pickup_range = init_response.pickup_range();
