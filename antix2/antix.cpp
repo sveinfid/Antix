@@ -17,16 +17,17 @@
 #include <unistd.h>
 #include <math.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <set>
 
 #include "antix.pb.h"
 
+// To disable asserts, define this
+//#define NDEBUG
+#include <assert.h>
+
 #define SLEEP 0
 #define DEBUG 0
 #define GUI 1
-// To disable asserts, define this
-//#define NDEBUG
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.

@@ -471,6 +471,16 @@ main(int argc, char **argv) {
 	move_left_msg.set_from_right(true);
 	move_right_msg.set_from_right(false);
 
+	// socket to announce ourselves to master on
+	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
+
+	// socket to receive list of nodes on (and receive turn begin signal)
+	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	// subscribe to all messages on this socket
+	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+
 	// sync rep sock which receives done messages from clients
 	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
 	sync_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "r"));
@@ -497,16 +507,6 @@ main(int argc, char **argv) {
 	// Now we connect to master & send our initialization data
 	// In response we get simulation parameters, node list, home list,
 	// and list of where robots are initially created
-
-	// socket to announce ourselves to master on
-	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
-
-	// socket to receive list of nodes on (and receive turn begin signal)
-	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	// subscribe to all messages on this socket
-	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
 
 	// Send our init message announcing ourself
 	cout << "Sending master our existence notification..." << endl;

@@ -17,10 +17,11 @@ set workstations [split $workstations \n]
 
 foreach w $workstations {
 	puts "${w}:"
- catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca pkill -9 tclsh8.5} output
+ catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca /home/${::env(USER)}/Antix/antix2/scripts/kill_local.tcl} output
  puts "\t${output}"
- catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca pkill -9 client} output
- puts "\t${output}"
- catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca pkill -9 node} output
- puts "\t${output}"
+
+ #catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca pkill -9 client} output
+ #puts "\t${output}"
+# catch {exec -ignorestderr ssh -oStrictHostKeyChecking=no -p 24 ${w}.csil.sfu.ca pkill -9 node} output
+# puts "\t${output}"
 }
