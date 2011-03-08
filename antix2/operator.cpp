@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 
 	// send message with no content to indicate begin
 	antix::send_blank(&sock);
-	cout << "Sent begin command to master." << endl;
+	cout << "Sent signal to master." << endl;
 
 	// get a blank ACK or else the REP socket will hang
 	zmq::message_t resp;

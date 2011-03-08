@@ -69,6 +69,14 @@ zmq::socket_t *sync_pub_sock;
 // gui requests entities on this sock
 zmq::socket_t *gui_rep_sock;
 
+void
+shutdown() {
+	cout << "Received shutdown message from master. Shutting down..." << endl;
+	cout << "Sending shutdown message to our clients..." << endl;
+	antix::send_str(sync_pub_sock, "s");
+	exit(0);
+}
+
 /*
 	Wait until we hear from total_teams unique client connections
 	Add their data to pb_init_msg
@@ -566,6 +574,9 @@ main(int argc, char **argv) {
 	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);
 	gui_rep_sock->bind(antix::make_endpoint(my_ip, my_gui_port));
 
+	// response from master (sync message)
+	string response;
+
 	// enter main loop
 	while (1) {
 		// update poses for internal robots
@@ -595,7 +606,9 @@ main(int argc, char **argv) {
 		wait_for_clients();
 
 		// tell master we're done the work for this turn & wait for signal
-		antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
+		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
+		if (response == "s")
+			shutdown();
 
 		// tell clients to begin
 		begin_clients();

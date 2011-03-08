@@ -30,6 +30,7 @@ const double home_radius = 0.1;
 const double robot_radius = 0.01;
 const double pickup_range = vision_range / 5.0;
 
+bool shutting_down = false;
 // track whether simulation has begun
 bool begun = false;
 
@@ -230,11 +231,17 @@ handle_done(zmq::socket_t *rep_sock,
 	
 	// If we've heard from all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size()) {
+		if (shutting_down) {
+			cout << "Sync: Sending shutdown message to nodes..." << endl;
+			antix::send_str(publish_sock, "s");
+
+		} else {
 #if DEBUG
-		cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
+			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-		cout << "Turn " << turns++ << " done." << endl;
-		antix::send_blank(publish_sock);
+			cout << "Turn " << turns++ << " done." << endl;
+			antix::send_str(publish_sock, "b");
+		}
 		nodes_done->clear();
 	}
 }
@@ -343,38 +350,48 @@ main(int argc, char **argv) {
 		// message from an operator
 		// this can only be a message indicating the beginning of a simulation
 		if (items[2].revents & ZMQ_POLLIN) {
-			cout << "Operator sent begin signal." << endl;
-			antix::recv_blank(&operators_socket);
-			antix::send_blank(&operators_socket);
+			// if already begun, this is a shutdown signal
+			if (begun) {
+				antix::recv_blank(&operators_socket);
+				cout << "Operator sent shutdown signal. Shutting down..." << endl;
+				shutting_down = true;
+				antix::send_blank(&operators_socket);
 
-			// ensure we have at least 3 nodes
-			if ( node_list.node_size() < 3 ) {
-				cout << "Error starting simulation: we need at least 3 nodes." << endl;
-				continue;
+			// otherwise telling us to begin
+			} else {
+				cout << "Operator sent begin signal." << endl;
+				antix::recv_blank(&operators_socket);
+				antix::send_blank(&operators_socket);
+
+				// ensure we have at least 3 nodes
+				if ( node_list.node_size() < 3 ) {
+					cout << "Error starting simulation: we need at least 3 nodes." << endl;
+					continue;
+				}
+
+				// assign each node in our list an x offset
+				set_node_offsets();
+
+				// set homes & their locations in the node list
+				setup_homes();
+
+				// assign nodes to create robots for each team initially
+				assign_robots_to_node();
+
+				// send message on publish_socket containing a list of nodes
+				antix::send_pb(&publish_socket, &node_list);
+				cout << "Sent node list to nodes." << endl;
+				cout << "Nodes sent:" << endl;
+				antix::print_nodes(&node_list);
+				cout << "Homes sent:" << endl;
+				for (int i = 0; i < node_list.home_size(); i++)
+					cout << "Home with team id " << node_list.home(i).team() << endl;
+
+				cout << "Simulation begun." << endl;
+				begun = true;
+
+				// any nodes that connect after this get unexpected results
 			}
-
-			// assign each node in our list an x offset
-			set_node_offsets();
-
-			// set homes & their locations in the node list
-			setup_homes();
-
-			// assign nodes to create robots for each team initially
-			assign_robots_to_node();
-
-			// send message on publish_socket containing a list of nodes
-			antix::send_pb(&publish_socket, &node_list);
-			cout << "Sent node list to nodes." << endl;
-			cout << "Nodes sent:" << endl;
-			antix::print_nodes(&node_list);
-			cout << "Homes sent:" << endl;
-			for (int i = 0; i < node_list.home_size(); i++)
-				cout << "Home with team id " << node_list.home(i).team() << endl;
-
-			cout << "Simulation begun." << endl;
-			begun = true;
-
-			// any nodes that connect after this get unexpected results
 		}
 	}
 

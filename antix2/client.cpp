@@ -27,6 +27,12 @@ zmq::socket_t *node_sub_sock;
 // construct some protobuf messages here so we don't call constructor needlessly
 antixtransfer::control_message sense_req_msg;
 
+void
+shutdown() {
+	cout << "Received shutdown message from node. Shutting down..." << endl;
+	exit(0);
+}
+
 /*
 	Node has sent us the following sense data with at least one robot
 	Decide what to do and send a response
@@ -272,12 +278,17 @@ main(int argc, char **argv) {
 
 	cout << "Beginning simulation..." << endl;
 
+	// response from node on sync sock
+	string response;
+
 	// enter main loop
 	while (1) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
 
-		antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
+		response = antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
+		if (response == "s")
+			shutdown();
 
 #if DEBUG
 		antix::turn++;

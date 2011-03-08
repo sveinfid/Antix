@@ -197,7 +197,7 @@ public:
 		Send req_sock a message stating we're done a turn
 		Then wait until sub_sock contacts us (so that all nodes/clients are in sync)
 	*/
-	static void
+	static string
 	wait_for_next_turn(zmq::socket_t *req_sock,
 		zmq::socket_t *sub_sock,
 		int id,
@@ -219,10 +219,11 @@ public:
 #endif
 
 		// now we block on PUB sock awaiting begin
-		recv_blank(sub_sock);
+		string s = recv_str(sub_sock);
 #if DEBUG
-		cout << "Sync: Received begin turn signal" << endl;
+		cout << "Sync: Received awaited signal" << endl;
 #endif
+		return s;
 	}
 
 	/*
