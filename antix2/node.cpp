@@ -636,6 +636,9 @@ main(int argc, char **argv) {
 		// wait for all clients to be done
 		wait_for_clients();
 
+#if DEBUG_SYNC
+		cout << "Sync: Sending done to master & awaiting response..." << endl;
+#endif
 		// tell master we're done the work for this turn & wait for signal
 		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
 		if (response == "s")
@@ -644,6 +647,9 @@ main(int argc, char **argv) {
 			cout << "ERROR: Got PUB/SUB sync in main loop" << endl;
 			exit(-1);
 		}
+#if DEBUG_SYNC
+		cout << "Sync: Received begin from master, sending begin to clients..." << endl;
+#endif
 
 		// tell clients to begin
 		begin_clients();
