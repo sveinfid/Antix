@@ -94,32 +94,47 @@ public:
 	static void
 	send_blank(zmq::socket_t *sock) {
 		zmq::message_t blank(1);
-		sock->send(blank);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->send(blank);
+		assert(rc == 1);
 	}
 
 	static int
 	recv_blank(zmq::socket_t *sock) {
 		zmq::message_t blank(1);
-		return sock->recv(&blank);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->recv(&blank);
+		assert(rc == 1);
+		return rc;
 	}
 
 	static int
 	recv_blank(zmq::socket_t *sock, int flags) {
 		zmq::message_t blank(1);
-		return sock->recv(&blank, flags);
+		int rc = -1;
+		rc = sock->recv(&blank, flags);
+		return rc;
 	}
 
 	static void
 	send_str(zmq::socket_t *sock, string s) {
 		zmq::message_t msg(s.size() + 1);
 		memcpy(msg.data(), s.c_str(), s.size() + 1);
-		sock->send(msg);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->send(msg);
+		assert(rc == 1);
 	}
 
 	static string
 	recv_str(zmq::socket_t *sock) {
 		zmq::message_t msg;
-		sock->recv(&msg);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->recv(&msg);
+		assert(rc == 1);
 		return string( (char *) msg.data() );
 	}
 
@@ -146,7 +161,10 @@ public:
 	send_blank_envelope(zmq::socket_t *sock, string address) {
 		zmq::message_t type(address.size() + 1);
 		memcpy(type.data(), address.c_str(), address.size() + 1);
-		sock->send(type, ZMQ_SNDMORE);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->send(type, ZMQ_SNDMORE);
+		assert(rc == 1);
 		send_blank(sock);
 	}
 
@@ -154,7 +172,10 @@ public:
 	send_pb_envelope(zmq::socket_t *sock, google::protobuf::Message *pb_obj, string address) {
 		zmq::message_t type(address.size() + 1);
 		memcpy(type.data(), address.c_str(), address.size() + 1);
-		sock->send(type, ZMQ_SNDMORE);
+		int rc = -1;
+		//while (rc != 1)
+			rc = sock->send(type, ZMQ_SNDMORE);
+		assert(rc == 1);
 		return send_pb(sock, pb_obj);
 	}
 
@@ -169,7 +190,11 @@ public:
 		zmq::message_t msg( pb_as_str.size() + 1 );
 		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() + 1);
 
-		return socket->send(msg);
+		int rc = -1;
+		//while (rc != 1);
+			rc = socket->send(msg);
+		assert(rc == 1);
+		return rc;
 	}
 
 	/*

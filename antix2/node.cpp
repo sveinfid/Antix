@@ -647,6 +647,7 @@ main(int argc, char **argv) {
 			cout << "ERROR: Got PUB/SUB sync in main loop" << endl;
 			exit(-1);
 		}
+		assert(response == "b");
 #if DEBUG_SYNC
 		cout << "Sync: Received begin from master, sending begin to clients..." << endl;
 #endif
