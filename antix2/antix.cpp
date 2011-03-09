@@ -29,7 +29,7 @@
 #define GUI 1
 
 #define DEBUG 0
-#define DEBUG_SYNC 1
+#define DEBUG_SYNC 0
 
 #if DEBUG
 #define DEBUG_SYNC 1

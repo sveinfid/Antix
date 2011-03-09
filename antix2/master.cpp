@@ -370,6 +370,8 @@ main(int argc, char **argv) {
 			cout << "Simulation begun." << endl;
 			begun = true;
 		}
+
+		antix::sleep(1000);
 	}
 
 	// polling set

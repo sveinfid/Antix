@@ -548,18 +548,15 @@ main(int argc, char **argv) {
 	synchronize_sub_sock(master_sub_sock, master_req_sock);
 
 	cout << "Waiting for master to start simulation..." << endl;
-	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "start", 0);
 
 	// blocks until master publishes list of nodes: indicates simulation begin
 
 	// should only be start
 	string s;
-	antix::recv_str(master_sub_sock, &s, 0);
-	if (s != "start") {
-		cout << "Got " << s << " on master. Expected 'start'" << endl;
-		exit(-1);
+	while (s != "start") {
+		s = antix::recv_str(master_sub_sock);
 	}
-	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+	cout << "Got start signal from master. Getting list of nodes..." << endl;
 
 	// this message includes a list of homes & robot initial creation locations
 	antix::recv_pb(master_sub_sock, &node_list, 0);
