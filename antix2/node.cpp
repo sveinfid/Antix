@@ -121,10 +121,11 @@ synchronise_clients() {
 			antix::send_blank(sync_rep_sock);
 			if (heard_clients.count( sync_msg.my_id() ) == 0) {
 				heard_clients.insert( sync_msg.my_id() );
-				cout << "Client with team " << sync_msg.my_id() << " synchronised." << endl;
+				cout << "Client with team " << sync_msg.my_id() << " synchronised. ";
+				cout << heard_clients.size() << " sync'd, expecting " << total_teams << endl;
 			}
 		}
-		antix::sleep(500);
+		antix::sleep(200);
 	}
 }
 
