@@ -275,7 +275,8 @@ exchange_foreign_entities() {
 	int responses = 0;
 	int requests = 0;
 #if DEBUG_SYNC
-	cout << "Sync: Waiting for messages from neighbours in exchange_foreign_entities()" << endl;
+	cout << "Sync: Waiting for messages from neighbours in exchange_foreign_entities()";
+	cout << " (turn " << antix::turn << ")" << endl;
 #endif
 	// Keep waiting for messages until we've received the number we expect
 	while (responses < 2 || requests < 2) {
@@ -440,13 +441,12 @@ service_gui_requests() {
 		antixtransfer::SendMap_GUI gui_map;
 		my_map->build_gui_map(&gui_map);
 		antix::send_pb(gui_rep_sock, &gui_map);
-#if DEBUG_SYNC
-		cout << "Sync: Sent GUI response." << endl;
-#endif
 	}else {
 		antix::send_blank(gui_rep_sock);
 	}
-
+#if DEBUG_SYNC
+	cout << "Sync: Sent GUI response." << endl;
+#endif
 }
 
 /*
@@ -679,7 +679,7 @@ main(int argc, char **argv) {
 		if (response == "s")
 			shutdown();
 		else if (response == "sync") {
-			cout << "ERROR: Got PUB/SUB sync in main loop" << endl;
+			cout << "Error: Got PUB/SUB sync in main loop" << endl;
 			exit(-1);
 		}
 		assert(response == "b");
@@ -689,8 +689,11 @@ main(int argc, char **argv) {
 
 		// tell clients to begin
 		begin_clients();
+#if DEBUG_SYNC
+		antix::turn++;
+#endif
 #if DEBUG
-		cout << "Turn " << antix::turn++ << " done." << endl;
+		cout << "Turn " << antix::turn << " done." << endl;
 #endif
 
 #if SLEEP

@@ -189,7 +189,7 @@ handle_node_sync(zmq::socket_t *node_rep_sock, set<int> *nodes_synced) {
 
 	if (nodes_synced->count( sync_msg.my_id() ) == 0) {
 		nodes_synced->insert( sync_msg.my_id() );
-		cout << "Node " << sync_msg.my_id() << " synchronised." << endl;
+		cout << "Node " << sync_msg.my_id() << " synchronised. Need " << node_list.node_size() - nodes_synced->size() << " more." << endl;
 	}
 }
 

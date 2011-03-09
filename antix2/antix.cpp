@@ -28,7 +28,9 @@
 #define SLEEP 0
 #define GUI 1
 
+// Debug everything
 #define DEBUG 0
+// Debug just syncing
 #define DEBUG_SYNC 0
 
 #if DEBUG
