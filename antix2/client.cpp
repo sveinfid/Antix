@@ -33,6 +33,20 @@ shutdown() {
 	exit(0);
 }
 
+void
+synchronize_sub_sock() {
+	antixtransfer::node_master_sync sync_msg;
+	sync_msg.set_my_id( my_id );
+
+	string s;
+	while (s != "cli_sync")
+		s = antix::recv_str(node_sub_sock);
+	antix::recv_blank(node_sub_sock);
+
+	antix::send_pb(node_sync_req_sock, &sync_msg);
+	antix::recv_blank(node_sync_req_sock);
+}
+
 /*
 	Node has sent us the following sense data with at least one robot
 	Decide what to do and send a response
@@ -286,12 +300,20 @@ main(int argc, char **argv) {
 
 	// Get back blank in response since REQ sock
 	antix::recv_blank(node_sync_req_sock);
+
+	// Make sure we are synchronized with node's pub sock
+	synchronize_sub_sock();
 	
 	cout << "Waiting for signal for simulation begin..." << endl;
 
-	// Block and wait for response containing simulation params / home location
+	// Wait for response containing simulation params / home location
 	// This also indicates simulation begin
 	antixtransfer::connect_init_response init_response;
+	// we may get messages on sub sock from node syncing other clients. ignore
+	string s;
+	while (s != "cli_begin")
+		s = antix::recv_str(node_sub_sock);
+
 	antix::recv_pb(node_sub_sock, &init_response, 0);
 	home_radius = init_response.home_radius();
 	sleep_time = init_response.sleep_time();

@@ -106,6 +106,29 @@ wait_on_initial_clients(antixtransfer::connect_init_node *pb_init_msg) {
 }
 
 /*
+	Continue to send messages on our pub sock until all clients have told us
+	that they have heard us
+*/
+void
+synchronise_clients() {
+	set<int> heard_clients;
+	antixtransfer::node_master_sync sync_msg;
+	while (heard_clients.size() < total_teams) {
+		antix::send_blank_envelope(sync_pub_sock, "cli_sync");
+		// if hear a message
+		if (antix::recv_pb(sync_rep_sock, &sync_msg, ZMQ_NOBLOCK) == 1) {
+			// since rep sock, must respond
+			antix::send_blank(sync_rep_sock);
+			if (heard_clients.count( sync_msg.my_id() ) == 0) {
+				heard_clients.insert( sync_msg.my_id() );
+				cout << "Client with team " << sync_msg.my_id() << " synchronised." << endl;
+			}
+		}
+		antix::sleep(500);
+	}
+}
+
+/*
 	PUB/SUB can be desynchronised after initial connection. Synchronise them.
 
 	Listen on sub sock until we hear a message
@@ -137,7 +160,7 @@ initial_begin_clients(antixtransfer::connect_init_response *init_response,
 		h->set_x( node_list->home(i).x() );
 		h->set_y( node_list->home(i).y() );
 	}
-	antix::send_pb(sync_pub_sock, init_response);
+	antix::send_pb_envelope(sync_pub_sock, init_response, "cli_begin");
 	cout << "Start up: Sent simulation parameters to clients." << endl;
 }
 
@@ -520,6 +543,9 @@ main(int argc, char **argv) {
 
 	// this message also includes data on our teams: wait for teams to connect & set this
 	wait_on_initial_clients(&pb_init_msg);
+
+	// Make sure all clients can hear messages on our PUB sock before continuing
+	synchronise_clients();
 
 	// Now we connect to master & send our initialization data
 	// In response we get simulation parameters, node list, home list,
