@@ -132,7 +132,8 @@ void
 handle_node_init(zmq::socket_t *nodes_socket) {
 	// this message should be node giving its ip & listening port
 	antixtransfer::connect_init_node init_msg;
-	antix::recv_pb(nodes_socket, &init_msg, 0);
+	int rc = antix::recv_pb(nodes_socket, &init_msg, 0);
+	assert(rc == 1);
 
 	// respond with an id for the node & config info
 	antixtransfer::connect_init_response init_response;
@@ -182,7 +183,8 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 void
 handle_node_sync(zmq::socket_t *node_rep_sock, set<int> *nodes_synced) {
 	antixtransfer::node_master_sync sync_msg;
-	antix::recv_pb(node_rep_sock, &sync_msg, 0);
+	int rc = antix::recv_pb(node_rep_sock, &sync_msg, 0);
+	assert(rc == 1);
 	antix::send_blank(node_rep_sock);
 
 	if (nodes_synced->count( sync_msg.my_id() ) == 0) {
@@ -224,7 +226,8 @@ handle_done(zmq::socket_t *rep_sock,
 	*/
 
 	antixtransfer::done done_msg;
-	antix::recv_pb(rep_sock, &done_msg, 0);
+	int rc = antix::recv_pb(rep_sock, &done_msg, 0);
+	assert(rc == 1);
 
 	// we must respond since this is a REP socket
 	antix::send_blank(rep_sock);

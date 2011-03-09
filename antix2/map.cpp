@@ -32,7 +32,7 @@ public:
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> homes;
 	
-	Robot* bots[1000][100000]; //bots[teamsize][amount of robots per team]
+	Robot* bots[1000][5000]; //bots[teamsize][amount of robots per team]
 
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;

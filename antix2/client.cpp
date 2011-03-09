@@ -197,7 +197,8 @@ sense_and_controller() {
 	// Get the sense data back from the node
 	antixtransfer::sense_data sense_msg;
 	// Get the sense data from every node
-	antix::recv_pb(node_req_sock, &sense_msg, 0);
+	int rc = antix::recv_pb(node_req_sock, &sense_msg, 0);
+	assert(rc == 1);
 
 #if DEBUG_SYNC
 	cout << "Sync: Got sense data with " << sense_msg.robot_size() << " robots." << endl;
@@ -314,7 +315,8 @@ main(int argc, char **argv) {
 	while (s != "cli_begin")
 		s = antix::recv_str(node_sub_sock);
 
-	antix::recv_pb(node_sub_sock, &init_response, 0);
+	int rc = antix::recv_pb(node_sub_sock, &init_response, 0);
+	assert(rc == 1);
 	home_radius = init_response.home_radius();
 	sleep_time = init_response.sleep_time();
 	Robot::pickup_range = init_response.pickup_range();

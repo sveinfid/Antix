@@ -86,7 +86,8 @@ wait_on_initial_clients(antixtransfer::connect_init_node *pb_init_msg) {
 	set<int> heard_clients;
 	antixtransfer::connect_init_client init_client;
 	while (heard_clients.size() < total_teams) {
-		antix::recv_pb(sync_rep_sock, &init_client, 0);
+		int rc = antix::recv_pb(sync_rep_sock, &init_client, 0);
+		assert(rc == 1);
 		// Blank since nothing to tell the client yet
 		antix::send_blank(sync_rep_sock);
 		// haven't yet heard
@@ -188,7 +189,8 @@ find_map_offset(antixtransfer::Node_list *node_list) {
 */
 void
 update_foreign_entities(zmq::socket_t *sock) {
-	antix::recv_pb(sock, &sendmap_recv, 0);
+	int rc = antix::recv_pb(sock, &sendmap_recv, 0);
+	assert(rc == 1);
 
 	// foreign robots
 	for (int i = 0; i < sendmap_recv.robot_size(); i++) {
@@ -298,7 +300,8 @@ exchange_foreign_entities() {
 
 		// neighbour request
 		if (items[2].revents & ZMQ_POLLIN) {
-			antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
+			int rc = antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
+			assert(rc == 1);
 			// we have received a move request: first update our local records with
 			// the sent bots
 			handle_move_request(&move_bot_msg);
@@ -379,7 +382,8 @@ service_control_messages() {
 	for (int i = 0; i < total_teams + my_map->sense_map.size(); i++) {
 		// XXX declare this once?
 		antixtransfer::control_message msg;
-		antix::recv_pb(control_rep_sock, &msg, 0);
+		int rc = antix::recv_pb(control_rep_sock, &msg, 0);
+		assert(rc == 1);
 
 		// If more than 0 robots given, this is a message indicating commands for robots
 		if (msg.robot_size() > 0) {
@@ -425,7 +429,8 @@ service_gui_requests() {
 	cout << "Sync: Checking GUI requests..." << endl;
 #endif
 	antixtransfer::GUI_Request req;
-	antix::recv_pb(gui_rep_sock, &req, 0);
+	int rc = antix::recv_pb(gui_rep_sock, &req, 0);
+	assert(rc == 1);
 	
 	//only sent map if GUI request for it
 	if(req.r()){
@@ -460,7 +465,8 @@ wait_for_clients() {
 
 		// XXX declare only once
 		antixtransfer::done done_msg;
-		antix::recv_pb(sync_rep_sock, &done_msg, 0);
+		int rc = antix::recv_pb(sync_rep_sock, &done_msg, 0);
+		assert(rc == 1);
 
 		// respond since rep sock
 		antix::send_blank(sync_rep_sock);
@@ -557,7 +563,8 @@ main(int argc, char **argv) {
 
 	// receive message back stating our unique ID & the simulation settings
 	antixtransfer::connect_init_response init_response;
-	antix::recv_pb(master_req_sock, &init_response, 0);
+	int rc = antix::recv_pb(master_req_sock, &init_response, 0);
+	assert(rc == 1);
 	my_id = init_response.id();
 	sleep_time = init_response.sleep_time();
 	int initial_puck_amount = init_response.puck_amount();
@@ -585,7 +592,8 @@ main(int argc, char **argv) {
 	cout << "Got start signal from master. Getting list of nodes..." << endl;
 
 	// this message includes a list of homes & robot initial creation locations
-	antix::recv_pb(master_sub_sock, &node_list, 0);
+	rc = antix::recv_pb(master_sub_sock, &node_list, 0);
+	assert(rc == 1);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
 
