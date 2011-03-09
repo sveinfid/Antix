@@ -50,7 +50,7 @@ message node_node_sync {
 
 message node_master_sync {
 	required int32 my_id = 1;
-	required int32 heard_id = 2;
+//	required int32 heard_id = 2;
 }
 
 // used to have synchronous turns

@@ -377,6 +377,10 @@ main(int argc, char **argv) {
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_sub_sock->connect(antix::make_endpoint(master_host, master_sub_port));
 
+	string s;
+	while (s != "start") {
+		s = antix::recv_str(master_sub_sock);
+	}
 	// block until receipt of list of nodes indicating simulation beginning
 	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received nodes from master" << endl;

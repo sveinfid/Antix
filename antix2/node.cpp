@@ -106,6 +106,23 @@ wait_on_initial_clients(antixtransfer::connect_init_node *pb_init_msg) {
 }
 
 /*
+	PUB/SUB can be desynchronised after initial connection. Synchronise them.
+
+	Listen on sub sock until we hear a message
+	Make a request on req_sock after we have heard one
+*/
+void
+synchronize_sub_sock(zmq::socket_t *sub_sock, zmq::socket_t *req_sock) {
+	antixtransfer::node_master_sync sync_msg;
+	sync_msg.set_my_id(my_id);
+
+	antix::recv_blank(sub_sock);
+
+	antix::send_pb_envelope(req_sock, &sync_msg, "sync");
+	antix::recv_blank(req_sock);
+}
+
+/*
 	Take the init_response message we were given from master and add to it
 	a list of homes from node_list message.
 
@@ -525,10 +542,26 @@ main(int argc, char **argv) {
 	Robot::pickup_range = init_response.pickup_range();
 
 	cout << "We are now node ID " << my_id << endl;
+
+	// ZMQ pub/sub can lose initial messages: synchronize them
+	cout << "Synchronizing PUB/SUB with master..." << endl;
+	synchronize_sub_sock(master_sub_sock, master_req_sock);
+
 	cout << "Waiting for master to start simulation..." << endl;
+	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "start", 0);
 
 	// blocks until master publishes list of nodes: indicates simulation begin
-	// this also includes a list of homes & robot initial creation locations
+
+	// should only be start
+	string s;
+	antix::recv_str(master_sub_sock, &s, 0);
+	if (s != "start") {
+		cout << "Got " << s << " on master. Expected 'start'" << endl;
+		exit(-1);
+	}
+	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+
+	// this message includes a list of homes & robot initial creation locations
 	antix::recv_pb(master_sub_sock, &node_list, 0);
 	cout << "Received list of nodes:" << endl;
 	antix::print_nodes(&node_list);
@@ -610,6 +643,10 @@ main(int argc, char **argv) {
 		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
 		if (response == "s")
 			shutdown();
+		else if (response == "sync") {
+			cout << "ERROR: Got PUB/SUB sync in main loop" << endl;
+			exit(-1);
+		}
 
 		// tell clients to begin
 		begin_clients();

@@ -176,6 +176,22 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 }
 
 /*
+	A node has sent a message indicating it has heard a message on our pub sock
+	Add it to the set if it is not already there
+*/
+void
+handle_node_sync(zmq::socket_t *node_rep_sock, set<int> *nodes_synced) {
+	antixtransfer::node_master_sync sync_msg;
+	antix::recv_pb(node_rep_sock, &sync_msg, 0);
+	antix::send_blank(node_rep_sock);
+
+	if (nodes_synced->count( sync_msg.my_id() ) == 0) {
+		nodes_synced->insert( sync_msg.my_id() );
+		cout << "Node " << sync_msg.my_id() << " synchronised." << endl;
+	}
+}
+
+/*
 	Send simulation parameters and an ID to the client
 */
 void
@@ -280,118 +296,117 @@ main(int argc, char **argv) {
 
 	cout << "Master started." << endl;
 
+	set<int> nodes_synced;
+
+	// Init nodes, GUI client
+	// Sync PUB sock
+	// Handle operator begin
+	while (!begun) {
+		string type;
+
+		// send a message on our pub sock so connected nodes can hear it (for sync)
+		antix::send_blank_envelope(&publish_socket, "sync");
+
+		// attempt to recv from node
+		if (antix::recv_str(&nodes_socket, &type, ZMQ_NOBLOCK) == 1) {
+			if (type == "connect") {
+				handle_node_init(&nodes_socket);
+
+			} else if (type == "sync") {
+				handle_node_sync(&nodes_socket, &nodes_synced);
+
+			} else {
+				cerr << "Error: unknown type from node connection" << endl;
+				exit(-1);
+			}
+		}
+
+		// GUI client
+		if (antix::recv_str(&clients_socket, &type, ZMQ_NOBLOCK) == 1) {
+			if (type == "init_gui_client") {
+				cout << "GUI client connected." << endl;
+				send_client_init(&clients_socket, -1);
+			} else {
+				cerr << "Error: unknown type from client connection" << endl;
+				exit(-1);
+			}
+		}
+		
+		// Operator
+		if (antix::recv_blank(&operators_socket, ZMQ_NOBLOCK) == 1) {
+			cout << "Operator sent begin signal." << endl;
+			antix::send_blank(&operators_socket);
+
+			// ensure we have at least 3 nodes
+			if ( node_list.node_size() < 3 ) {
+				cerr << "Error starting simulation: we need at least 3 nodes." << endl;
+				continue;
+			}
+
+			// ensure all nodes are synced on our pub sock
+			if ( nodes_synced.size() != node_list.node_size() ) {
+				cerr << "Error: Nodes are not yet synchronised on PUB socket." << endl;
+				continue;
+			}
+
+			// assign each node in our list an x offset
+			set_node_offsets();
+
+			// set homes & their locations in the node list
+			setup_homes();
+
+			// assign nodes to create robots for each team initially
+			assign_robots_to_node();
+
+			// send message on publish_socket containing a list of nodes
+			antix::send_pb_envelope(&publish_socket, &node_list, "start");
+			cout << "Sent node list to nodes." << endl;
+			cout << "Nodes sent:" << endl;
+			antix::print_nodes(&node_list);
+			cout << "Homes sent:" << endl;
+			for (int i = 0; i < node_list.home_size(); i++)
+				cout << "Home with team id " << node_list.home(i).team() << endl;
+
+			cout << "Simulation begun." << endl;
+			begun = true;
+		}
+	}
+
 	// polling set
 	zmq::pollitem_t items [] = {
 		{ nodes_socket, 0, ZMQ_POLLIN, 0 },
-		{ clients_socket, 0, ZMQ_POLLIN, 0},
 		{ operators_socket, 0, ZMQ_POLLIN, 0}
 	};
-	// respond to messages forever
+	// respond to shutdown messages from operator
+	// and turn done messages from node
+	// expect operator sending shutdown
 	while (1) {
-		zmq::message_t message;
-		zmq::poll(&items [0], 3, -1);
+		//zmq::message_t message;
+		zmq::poll(&items [0], 2, -1);
 
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
 			string type = antix::recv_str(&nodes_socket);
 
-			// Multiple possible messages from node
-			// a message upon initial connection
-			if (type == "connect") { 
-				handle_node_init(&nodes_socket);
-
+			// Multiple possible messages from node, but expect only 'done'
 			// a node stating it has finished its work for this turn
-			} else if (type == "done") {
+			if (type == "done") {
 				handle_done(&nodes_socket, &publish_socket, &nodes_done);
 
 			// should never get here...
 			} else {
 				cerr << "Error: Unknown node message!" << endl;
-			}
-		}
-
-		// message from a client / GUI
-		if (items[1].revents & ZMQ_POLLIN) {
-			string type = antix::recv_str(&clients_socket);
-
-			/*
-			if (type == "init_client") {
-				// client sends a second message part indicating # of robots it wants
-				antixtransfer::connect_init_client init_request;
-				antix::recv_pb(&clients_socket, &init_request, 0);
-
-				int client_id = init_request.id();
-
-				if (client_robot_map.count( client_id ) == 0) {
-					client_robot_map.insert( pair<int, int>(client_id, init_request.num_robots() ) );
-					// record id & how many robots in node_list for transmission to nodes
-					antixtransfer::Node_list::Robots_on_Node *rn = node_list.add_robots_on_node();
-					rn->set_num_robots( init_request.num_robots() );
-					rn->set_team( client_id );
-				}
-
-				cout << "Client connected with ID " << client_id << ". Wants " << init_request.num_robots() << " robots." << endl;
-				
-				send_client_init(&clients_socket, client_id);
-
-			} else if (type == "init_gui_client") {
-			*/
-			if (type == "init_gui_client") {
-				cout << "GUI client connected." << endl;
-				send_client_init(&clients_socket, -1);
-
-/*
-			} else if (type == "done") {
-				handle_done(&clients_socket, &publish_socket, &nodes_done, &clients_done);
-				*/
+				exit(-1);
 			}
 		}
 
 		// message from an operator
-		// this can only be a message indicating the beginning of a simulation
-		if (items[2].revents & ZMQ_POLLIN) {
-			// if already begun, this is a shutdown signal
-			if (begun) {
-				antix::recv_blank(&operators_socket);
-				cout << "Operator sent shutdown signal. Shutting down..." << endl;
-				shutting_down = true;
-				antix::send_blank(&operators_socket);
-
-			// otherwise telling us to begin
-			} else {
-				cout << "Operator sent begin signal." << endl;
-				antix::recv_blank(&operators_socket);
-				antix::send_blank(&operators_socket);
-
-				// ensure we have at least 3 nodes
-				if ( node_list.node_size() < 3 ) {
-					cout << "Error starting simulation: we need at least 3 nodes." << endl;
-					continue;
-				}
-
-				// assign each node in our list an x offset
-				set_node_offsets();
-
-				// set homes & their locations in the node list
-				setup_homes();
-
-				// assign nodes to create robots for each team initially
-				assign_robots_to_node();
-
-				// send message on publish_socket containing a list of nodes
-				antix::send_pb(&publish_socket, &node_list);
-				cout << "Sent node list to nodes." << endl;
-				cout << "Nodes sent:" << endl;
-				antix::print_nodes(&node_list);
-				cout << "Homes sent:" << endl;
-				for (int i = 0; i < node_list.home_size(); i++)
-					cout << "Home with team id " << node_list.home(i).team() << endl;
-
-				cout << "Simulation begun." << endl;
-				begun = true;
-
-				// any nodes that connect after this get unexpected results
-			}
+		if (items[1].revents & ZMQ_POLLIN) {
+			// this is a shutdown signal
+			antix::recv_blank(&operators_socket);
+			cout << "Operator sent shutdown signal. Shutting down..." << endl;
+			shutting_down = true;
+			antix::send_blank(&operators_socket);
 		}
 	}
 
