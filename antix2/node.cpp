@@ -231,8 +231,8 @@ exchange_foreign_entities() {
 	// Both of these must be 2 before we continue (hear from both neighbour nodes)
 	int responses = 0;
 	int requests = 0;
-#if DEBUG
-	cout << "Sync: Waiting for responses in exchange_foreign_entities()" << endl;
+#if DEBUG_SYNC
+	cout << "Sync: Waiting for messages from neighbours in exchange_foreign_entities()" << endl;
 #endif
 	// Keep waiting for messages until we've received the number we expect
 	while (responses < 2 || requests < 2) {
@@ -276,7 +276,7 @@ exchange_foreign_entities() {
 #endif
 		}
 	}
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: done exchange_foreign_entities" << endl;
 #endif
 }
@@ -324,7 +324,7 @@ parse_client_message(antixtransfer::control_message *msg) {
 */
 void
 service_control_messages() {
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Waiting for control requests from clients..." << endl;
 #endif
 
@@ -371,7 +371,7 @@ service_control_messages() {
 		}
 	}
 
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Done responding to client control messages." << endl;
 #endif
 }
@@ -381,7 +381,7 @@ service_control_messages() {
 */
 void
 service_gui_requests() {
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Checking GUI requests..." << endl;
 #endif
 	antixtransfer::GUI_Request req;
@@ -394,7 +394,7 @@ service_gui_requests() {
 		antixtransfer::SendMap_GUI gui_map;
 		my_map->build_gui_map(&gui_map);
 		antix::send_pb(gui_rep_sock, &gui_map);
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Sent GUI response." << endl;
 #endif
 	}else {
@@ -412,7 +412,7 @@ wait_for_clients() {
 	// Every client process on the machine must contact us before beginning next turn
 	// XXX declare only once
 	set<int> clients_done;
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Waiting for clients..." << endl;
 #endif
 	while (clients_done.size() < total_teams) {
@@ -429,12 +429,12 @@ wait_for_clients() {
 		if (clients_done.count( done_msg.my_id() ) == 0) {
 			clients_done.insert(done_msg.my_id());
 		}
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Just received done from client " << done_msg.my_id() << endl;
 		cout << "Sync: Heard done from " << clients_done.size() << " clients. There are " << total_teams << " teams." << endl;
 #endif
 	}
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Heard from all clients." << endl;
 #endif
 }

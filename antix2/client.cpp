@@ -171,13 +171,13 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 */
 void
 sense_and_controller() {
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Requesting sense data from node for my team: " << my_id << "..." << endl;
 #endif
 	// Ask local node what the robots from our team sees
 	antix::send_pb(node_req_sock, &sense_req_msg);
 
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Awaiting sense data response..." << endl;
 #endif
 	// Get the sense data back from the node
@@ -185,7 +185,7 @@ sense_and_controller() {
 	// Get the sense data from every node
 	antix::recv_pb(node_req_sock, &sense_msg, 0);
 
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Got sense data with " << sense_msg.robot_size() << " robots." << endl;
 #endif
 
@@ -193,13 +193,13 @@ sense_and_controller() {
 	if (sense_msg.robot_size() > 0) {
 		controller(node_req_sock, &sense_msg);
 
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Awaiting responses from node we sent commands to..." << endl;
 #endif
 		// get response back since REQ sock
 		antix::recv_blank(node_req_sock);
 	}
-#if DEBUG
+#if DEBUG_SYNC
 	cout << "Sync: Sensing & controlling done." << endl;
 #endif
 }

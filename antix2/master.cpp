@@ -232,11 +232,11 @@ handle_done(zmq::socket_t *rep_sock,
 	// If we've heard from all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size()) {
 		if (shutting_down) {
-			cout << "Sync: Sending shutdown message to nodes..." << endl;
+			cout << "Sending shutdown message to nodes..." << endl;
 			antix::send_str(publish_sock, "s");
 
 		} else {
-#if DEBUG
+#if DEBUG_SYNC
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
 			cout << "Turn " << turns++ << " done." << endl;
