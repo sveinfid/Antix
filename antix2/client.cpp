@@ -238,17 +238,43 @@ main(int argc, char **argv) {
 	cout << "Connecting to local node..." << endl;
 
 	// node sync req sock
-	node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	node_sync_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "r"));
+	try {
+		node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	} catch (zmq::error_t e) {
+		cout << "Node sync req new: " << e.what() << endl;
+	}
+
+	try {
+		node_sync_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "r"));
+	} catch (zmq::error_t e) {
+		cout << "Node sync req connect: " << e.what() << endl;
+	}
 
 	// node sync sub sock
-	node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "p"));
+	try {
+		node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+	} catch (zmq::error_t e) {
+		cout << "Node sync sub new: " << e.what() << endl;
+	}
+
+	try {
+		node_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+		node_sub_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "p"));
+	} catch (zmq::error_t e) {
+		cout << "Node sync sub connect: " << e.what() << endl;
+	}
 
 	// node control
-	node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "c"));
+	try {
+		node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	} catch (zmq::error_t e) {
+		cout << "Node req new: " << e.what() << endl;
+	}
+	try {
+		node_req_sock->connect(antix::make_endpoint_ipc(node_ipc_prefix + node_ipc_id + "c"));
+	} catch (zmq::error_t e) {
+		cout << "Node req connect: " << e.what() << endl;
+	}
 
 	cout << "Connected to local node. Telling it of our existence..." << endl;
 
