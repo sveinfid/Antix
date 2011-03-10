@@ -36,6 +36,8 @@ bool begun = false;
 
 int turns = 0;
 
+time_t start_time;
+
 /*
 	Master network settings
 */
@@ -258,7 +260,11 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG_SYNC
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-			cout << "Turn " << turns++ << " done." << endl;
+			if (turns % 20 == 0) {
+				cout << turns / (time(NULL) - start_time) << " turns/second (" << turns << " turns)" << endl;
+			}
+			turns++;
+			//cout << "Turn " << turns << " done." << endl;
 			antix::send_str(publish_sock, "b");
 		}
 		nodes_done->clear();
@@ -306,6 +312,8 @@ main(int argc, char **argv) {
 	// Handle operator begin
 	while (!begun) {
 		string type;
+
+		antix::sleep(1000);
 
 		// send a message on our pub sock so connected nodes can hear it (for sync)
 		antix::send_blank_envelope(&publish_socket, "sync");
@@ -373,9 +381,9 @@ main(int argc, char **argv) {
 			cout << "Simulation begun." << endl;
 			begun = true;
 		}
-
-		antix::sleep(1000);
 	}
+
+	start_time = time(NULL);
 
 	// polling set
 	zmq::pollitem_t items [] = {
