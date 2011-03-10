@@ -42,3 +42,6 @@ do
 	$ANTIX_PATH/client $ROBOTS_PER_TEAM $count 0 &>> /home/$USER/clients.$HOST.log &
   count=`expr $count + 1`
 done
+
+# Keep SSH open
+$ANTIX_PATH/scripts/sleep.tcl
