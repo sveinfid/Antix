@@ -220,7 +220,7 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		);
 	}
 #if DEBUG
-	cout << i << " robots transferred to this node." << endl;
+	cout << i+1 << " robots transferred to this node." << endl;
 #endif
 }
 
@@ -334,10 +334,7 @@ parse_client_message(antixtransfer::control_message *msg) {
 	Robot *r;
 	for (int i = 0; i < msg->robot_size(); i++) {
 		r = my_map->find_robot(msg->team(), msg->robot(i).id());
-		if (r == NULL) {
-			cerr << "Error: got a control message for a robot I couldn't find!" << endl;
-			continue;
-		}
+		assert(r != NULL);
 
 		if (msg->robot(i).type() == antixtransfer::control_message::SETSPEED) {
 			r->setspeed(msg->robot(i).v(), msg->robot(i).w(), msg->robot(i).last_x(), msg->robot(i).last_y());

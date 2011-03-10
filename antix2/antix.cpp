@@ -453,7 +453,9 @@ public:
 		//cout << "Cell: cx " << cx << " x " << x << " cy " << cy << " y " << y << " = " << i << endl;
 		//unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
 		//assert(i < matrix_width * matrix_height + 1000);
-		return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
+		assert( i < matrix_height * matrix_height );
+		return i;
+		//return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
 };
 

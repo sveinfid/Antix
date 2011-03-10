@@ -124,7 +124,7 @@ public:
 		index = 0;
 	}
 
-	// Used in GUI
+	// Used in GUI & foreign robots
 	Robot(double x, double y, int team, double a) : x(x), y(y), team(team), a(a) {
 		id = -1;
 		v = 0;

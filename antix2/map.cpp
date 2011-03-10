@@ -481,7 +481,7 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_left_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(current_it_robot);
+					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 
 				// Otherwise if it's less than ours and smaller than our left neighbour's,
@@ -492,7 +492,7 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_right_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(current_it_robot);
+					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 				}
 
@@ -506,7 +506,7 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_right_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(current_it_robot);
+					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 
 				// Otherwise it's bigger than ours and bigger than our right neighbour's,
@@ -517,7 +517,7 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_left_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(current_it_robot);
+					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 				}
 			}
@@ -585,6 +585,7 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
+				assert(index < Robot::matrix.size());
 				//cout << "Index left " << index << " x " << x << " y " << y << endl;
 				// Look at the robots & pucks
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
@@ -598,6 +599,7 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
+				assert(index < Robot::matrix.size());
 				//cout << "Index right " << index << " x " << x << " y " << y << endl;
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 			}
@@ -609,8 +611,8 @@ public:
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_width;
+				assert(index < Robot::matrix.size());
 				//assert(index < antix::matrix_height * antix::matrix_width);
-				assert(index < antix::matrix_height * antix::matrix_height);
 				//cout << "Index FAR right " << index << " x " << x << " y " << y << endl;
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 				//examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
