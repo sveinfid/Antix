@@ -14,7 +14,7 @@
 #define RIGHT_CELLS 1
 
 #define BOTS_TEAM_SIZE 1000
-#define BOTS_ROBOTS_SIZE 6000
+#define BOTS_ROBOT_SIZE 6000
 
 using namespace std;
 
