@@ -295,7 +295,7 @@ public:
 		// XXX debugging code
 		int size = Robot::matrix[ r->puck->index ].pucks.size();
 		Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
-		assert( Robot::matrix[ r->index ].pucks.size() == size - 1 );
+		assert( Robot::matrix[ r->puck->index ].pucks.size() == size - 1 );
 
 		bool deleted = false;
 		// remove puck from vector
@@ -467,6 +467,10 @@ public:
 			// Increment and store next in it_robot due to possible removal from set
 			current_it_robot = it_robot;
 			it_robot++;
+			// dumb check that iterators work as i expect
+			if (it_robot != end_robot) {
+				assert( (*it_robot)->team != (*current_it_robot)->team || (*it_robot)->id != (*current_it_robot)->id );
+			}
 
 			//assert((*current_it_robot)->id < 1000 && (*current_it_robot)->id >= 0);
 
@@ -634,6 +638,7 @@ public:
 	void
 	build_sense_messages() {
 		// clear old sense data
+		// XXX check this
 		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
 			delete it->second;
 		}
