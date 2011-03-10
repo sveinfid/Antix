@@ -293,9 +293,8 @@ public:
 
 		// remove puck from cell
 		// XXX debugging code
-		int size = Robot::matrix[ r->puck->index ].pucks.size();
-		Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
-		assert( Robot::matrix[ r->puck->index ].pucks.size() == size - 1 );
+		int removed = Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
+		assert(removed > 0);
 
 		bool deleted = false;
 		// remove puck from vector
@@ -337,7 +336,13 @@ public:
 		}
 		assert(deleted == true);
 
+		assert(r->team < BOTS_TEAM_SIZE);
+		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = NULL;
+
+		// from matrix
+		int removed = Robot::matrix[r->index].robots.erase(r);
+		assert(removed > 0);
 
 		// delete robot from memory
 		delete r;
@@ -458,12 +463,6 @@ public:
 		set<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
 		set<Robot *>::iterator current_it_robot;
 
-		set<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
-		set<Puck *>::const_iterator end_puck = Robot::matrix[index].pucks.end();
-
-		//cout << "this far 1 in examine border cell " << endl;
-		//fflush(stdout);
-
 		// Robots
 		// while loop as iterator may be updated other due to deletion
 		while (it_robot != end_robot) {
@@ -477,9 +476,6 @@ public:
 
 			//assert((*current_it_robot)->id < 1000 && (*current_it_robot)->id >= 0);
 
-			//cout << "this far 2 in examine border cell " << endl;
-			//fflush(stdout);
-
 			// First we look whether robot needs to move to another node
 
 			if (side == LEFT_CELLS) {
@@ -491,7 +487,6 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_left_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 
 				// Otherwise if it's less than ours and smaller than our left neighbour's,
@@ -502,7 +497,6 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_right_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 				}
 
@@ -516,7 +510,6 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_right_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 
 				// Otherwise it's bigger than ours and bigger than our right neighbour's,
@@ -527,13 +520,9 @@ public:
 #endif
 					add_robot_to_move_msg(*current_it_robot, move_left_msg);
 					remove_robot(current_it_robot);
-					Robot::matrix[index].robots.erase(*current_it_robot);
 					continue;
 				}
 			}
-
-			cout << "this far 3 in examine border cell " << endl;
-			fflush(stdout);
 
 			// Check whether on the border
 			if (side == LEFT_CELLS) {
@@ -548,8 +537,8 @@ public:
 			}
 		}
 
-		//cout << "this far 4 in examine border cell " << endl;
-		//fflush(stdout);
+		set<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
+		set<Puck *>::const_iterator end_puck = Robot::matrix[index].pucks.end();
 
 		// Pucks
 		for ( ; it_puck != end_puck; it_puck++) {
@@ -595,9 +584,6 @@ public:
 
 		// Now we look at robots and pucks on the sides of the matrix
 
-		//cout << "in build moves 0" << endl;
-		//fflush(stdout);
-
 		// look down the cells on far left (whole height where x = 0)
 		// check 3 furthest left cols (x = 0, 1, 2)
 		for (int x = 0; x <= 2; x++) {
@@ -610,9 +596,6 @@ public:
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
 		}
-
-		cout << "in build moves 1 " << endl;
-		fflush(stdout);
 
 		// and on far right
 		// check 3 farthest right columns. start from column on furthest right
@@ -627,9 +610,6 @@ public:
 			}
 		}
 
-		//cout << "in build moves 2 " << endl;
-		//fflush(stdout);
-
 		// It's also possible for robots to wrap around to cells on far side of world
 		// this may only be needed for far left node?
 		for (int x = antix::matrix_right_world_col; x >= antix::matrix_right_world_col - 2; x--) {
@@ -643,8 +623,6 @@ public:
 				//examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
 		}
-		//cout << "in build moves 3 " << endl;
-		//fflush(stdout);
 
 #if DEBUG
 		check_correct_robots_in_border(border_map_left, border_map_right);

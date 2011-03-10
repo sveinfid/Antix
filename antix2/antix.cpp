@@ -26,12 +26,12 @@
 #include <assert.h>
 
 #define SLEEP 0
-#define GUI 0
+#define GUI 1
 
 // Debug everything
 #define DEBUG 0
 // Debug just syncing
-#define DEBUG_SYNC 1
+#define DEBUG_SYNC 0
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
