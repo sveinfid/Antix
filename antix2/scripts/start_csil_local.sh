@@ -27,11 +27,6 @@ then
 	exit -1
 fi
 
-# First start the node for this machine
-#$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &> /home/$USER/node.$HOST.log &
-# <master ip> <my ip> <node port> <gui port> <ipc suffix> <num teams>
-$ANTIX_PATH/node $MASTER $MY_IP 3000 4000 0 $NUM_TEAMS &> /home/$USER/node.$HOST.log &
-
 # Then start the client processes
 rm -f /home/$USER/clients.$HOST.log
 count=0
@@ -44,4 +39,9 @@ do
 done
 
 # Keep SSH open
-$ANTIX_PATH/scripts/sleep.tcl
+#$ANTIX_PATH/scripts/sleep.tcl
+
+# First start the node for this machine
+#$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &> /home/$USER/node.$HOST.log &
+# <master ip> <my ip> <node port> <gui port> <ipc suffix> <num teams>
+$ANTIX_PATH/node $MASTER $MY_IP 3000 4000 0 $NUM_TEAMS &> /home/$USER/node.$HOST.log
