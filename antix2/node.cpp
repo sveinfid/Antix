@@ -458,8 +458,9 @@ wait_for_clients() {
 #if DEBUG_SYNC
 	cout << "Sync: Waiting for clients..." << endl;
 #endif
+	string type;
 	while (clients_done.size() < total_teams) {
-		string type = antix::recv_str(sync_rep_sock);
+		type = antix::recv_str(sync_rep_sock);
 
 		// XXX declare only once
 		antixtransfer::done done_msg;
@@ -470,9 +471,9 @@ wait_for_clients() {
 		antix::send_blank(sync_rep_sock);
 
 		// if haven't yet heard from this client
-		if (clients_done.count( done_msg.my_id() ) == 0) {
+		//if (clients_done.count( done_msg.my_id() ) == 0) {
 			clients_done.insert(done_msg.my_id());
-		}
+		//}
 #if DEBUG_SYNC
 		cout << "Sync: Just received done from client " << done_msg.my_id() << endl;
 		cout << "Sync: Heard done from " << clients_done.size() << " clients. There are " << total_teams << " teams." << endl;
@@ -677,10 +678,12 @@ main(int argc, char **argv) {
 		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
 		if (response == "s")
 			shutdown();
+#ifndef NDEBUG
 		else if (response == "sync") {
 			cout << "Error: Got PUB/SUB sync in main loop" << endl;
 			exit(-1);
 		}
+#endif
 		assert(response == "b");
 #if DEBUG_SYNC
 		cout << "Sync: Received begin from master, sending begin to clients..." << endl;

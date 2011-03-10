@@ -10,9 +10,11 @@
 
 #include "entities.cpp"
 
+// for examine_border_cell()
 #define LEFT_CELLS 0
 #define RIGHT_CELLS 1
 
+// for bots[][]
 #define BOTS_TEAM_SIZE 1000
 #define BOTS_ROBOT_SIZE 6000
 
@@ -292,22 +294,10 @@ public:
 		assert(r->puck->held == true);
 
 		// remove puck from cell
-		// XXX debugging code
-		int size = Robot::matrix[ r->puck->index].pucks.size();
 		antix::EraseAll( r->puck, Robot::matrix[ r->puck->index ].pucks );
-		assert( Robot::matrix[ r->puck->index ].pucks.size() == size - 1 );
 
-		bool deleted = false;
 		// remove puck from vector
-		// XXX bad. Could be a set instead for better access time?
-		for (vector<Puck*>::iterator it = pucks.begin(); it != pucks.end(); it++) {
-			if ((*it) == r->puck) {
-				pucks.erase(it);
-				deleted = true;
-				break;
-			}
-		}
-		assert(deleted == true);
+		antix::EraseAll( r->puck, pucks );
 		
 		// remove record on robot to deleted puck
 		delete r->puck;
@@ -325,25 +315,16 @@ public:
 		// delete the robot's puck (if holding) from vector & memory
 		remove_puck(r);
 
-		// XXX have to remove from vector since vector is still used in some places
-		// this is slow and should be removed
-		bool deleted = false;
-		for (vector<Robot *>::iterator v_it = robots.begin(); v_it != robots.end(); v_it++) {
-			if (*v_it == r) {
-				robots.erase(v_it);
-				deleted = true;
-				break;
-			}
-		}
-		assert(deleted == true);
+		// remove from vector of all robots
+		antix::EraseAll( r, robots );
 
+		// from bots[][]
 		assert(r->team < BOTS_TEAM_SIZE);
 		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = NULL;
 
-		int index = r->index;
-
 		// delete robot from memory
+		int index = r->index;
 		delete r;
 
 		// from matrix
@@ -375,14 +356,18 @@ public:
 
 	/*
 		Debug function. Make sure the given robot is actually in the given map
+		True if it is, false otherwise
 	*/
-	void
+	bool
 	check_in_border_robot(antixtransfer::SendMap *map, Robot *r) {
 		for (int i = 0; i < map->robot_size(); i++) {
 			if (map->robot(i).id() == r->id && map->robot(i).team() == r->team)
-				return;
+				return true;
 		}
+#if DEBUG
 		cout << "Error: robot not found in border map! In cell " << r->index << " id " << r->id << " team " << r->team << " at (" << r->x << ", " << r->y << ")" << endl;
+#endif
+		return false;
 	}
 
 	/*
@@ -395,25 +380,28 @@ public:
 	check_correct_robots_in_border(antixtransfer::SendMap *border_map_left, antixtransfer::SendMap *border_map_right) {
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			if ((*it)->x > my_max_x - Robot::vision_range) {
-				check_in_border_robot(border_map_right, *it);
+				assert(check_in_border_robot(border_map_right, *it));
 			}
 			else if ((*it)->x < my_min_x + Robot::vision_range) {
-				check_in_border_robot(border_map_left, *it);
+				assert(check_in_border_robot(border_map_left, *it));
 			}
 		}
 	}
 
 	/*
-		Debug function
-		Make sure the given Robot is in the given move_bot message
+		Debug function. Make sure the given Robot is in the given move_bot message
+		True if it is, false otherwise
 	*/
-	void
+	bool
 	check_in_move_msg(Robot *r, antixtransfer::move_bot *move_bot) {
 		for (int i = 0; i < move_bot->robot_size(); i++) {
 			if (move_bot->robot(i).id() == r->id && move_bot->robot(i).team() == r->team)
-				return;
+				return true;
 		}
+#if DEBUG
 		cout << "Error: robot not found in move msg! In cell " << r->index << endl;
+#endif
+		return false;
 	}
 
 	/*
@@ -428,22 +416,22 @@ public:
 			// If robot's x is less than ours and bigger than our left neighbours, send
 			// to our left neighbour
 			if ((*it)->x < my_min_x && (*it)->x > my_min_x - antix::offset_size) {
-				check_in_move_msg(*it, move_left_msg);
+				assert(check_in_move_msg(*it, move_left_msg));
 
 			// Otherwise if it's less than ours and smaller than our left neighbour's,
 			// assume that we are the far right node: send it to our right neighbour
 			} else if ((*it)->x < my_min_x) {
-				check_in_move_msg(*it, move_right_msg);
+				assert(check_in_move_msg(*it, move_right_msg));
 
 			// If robot's x is bigger than ours and smaller than our right neighbour's,
 			// we send it to our right neighbour
 			} else if ((*it)->x >= my_max_x && (*it)->x < my_max_x + antix::offset_size) {
-				check_in_move_msg(*it, move_right_msg);
+				assert(check_in_move_msg(*it, move_right_msg));
 
 			// Otherwise it's bigger than ours and bigger than our right neighbour's,
 			// assume we are the far left node: send it to our left neighbour
 			} else if ((*it)->x >= my_max_x) {
-				check_in_move_msg(*it, move_left_msg);
+				assert(check_in_move_msg(*it, move_left_msg));
 
 			}
 		}
@@ -618,7 +606,7 @@ public:
 			}
 		}
 
-#if DEBUG
+#ifndef NDEBUG
 		check_correct_robots_in_border(border_map_left, border_map_right);
 		check_correct_robots_in_move(move_left_msg, move_right_msg);
 #endif
@@ -633,7 +621,7 @@ public:
 	void
 	build_sense_messages() {
 		// clear old sense data
-		// XXX check this
+		// XXX check this deletes as expected
 		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
 			delete it->second;
 		}
@@ -741,9 +729,9 @@ public:
 			}
 			*/
 		}
-	#if DEBUG
+#if DEBUG
 		cout << "Sensors re-calculated." << endl;
-	#endif
+#endif
 	}
 
 	/*
@@ -751,15 +739,15 @@ public:
 	*/
 	void
 	update_poses() {
-	#if DEBUG
+#if DEBUG
 		cout << "Updating poses for all robots..." << endl;
-	#endif
+#endif
 		for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			(*it)->update_pose();
 		}
-	#if DEBUG
+#if DEBUG
 		cout << "Poses updated for all robots." << endl;
-	#endif
+#endif
 	}
 
 	/*
@@ -790,6 +778,7 @@ public:
 	UpdateSensorsCell(unsigned int x, unsigned int y, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		//unsigned int index( antix::CellWrap(x) + ( antix::CellWrap(y) * antix::matrix_width ) );
 		//if (x < 0 || x > antix::matrix_width || y < 0 || y > antix::matrix_height)
+
 		// we don't wrap along x, so don't care about these cases
 		if (x < 0 || x > antix::matrix_width)
 			return;
@@ -872,7 +861,8 @@ public:
 			//r->see_pucks.push_back(SeePuck(*puck, range));
 			r->see_pucks.push_back(SeePuck(*puck, range_approx));
 
-			// XXX make sure this puck is in vector as well
+			// make sure this puck is in vector as well
+#ifndef NDEBUG
 			bool found = false;
 			for (vector<Puck *>::iterator it2 = pucks.begin(); it2 != pucks.end(); it2++) {
 				if ( (*it2) == *puck ) {
@@ -881,6 +871,7 @@ public:
 				}
 			}
 			assert(found == true);
+#endif
 		}
 	}
 };

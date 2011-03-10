@@ -76,8 +76,6 @@ public:
 */
 class MatrixCell {
 public:
-	//set<Robot *> robots;
-	//set<Puck *> pucks;
 	vector<Robot *> robots;
 	vector<Puck *> pucks;
 };
@@ -146,14 +144,14 @@ public:
 #if DEBUG
 		cout << "Updating pose of robot " << id << " team " << team << endl;
 #endif
-		double dx = v * antix::fast_cos(a);
-		double dy = v * antix::fast_sin(a);
-		double da = w;
+		const double dx = v * antix::fast_cos(a);
+		const double dy = v * antix::fast_sin(a);
+		const double da = w;
 
 		x = antix::DistanceNormalize(x + dx);
 		y = antix::DistanceNormalize(y + dy);
 
-		unsigned int new_index = antix::Cell( x, y );
+		const unsigned int new_index = antix::Cell( x, y );
 #if DEBUG
 		cout << "Moving: before AngleNormalize: a " << a << " da " << da << endl;
 #endif
@@ -172,17 +170,11 @@ public:
 		}
 
 		if (new_index != index ) {
-			int size = matrix[index].robots.size();
 			antix::EraseAll( this, matrix[index].robots );
-			assert( matrix[index].robots.size() == size - 1);
-
 			matrix[new_index].robots.push_back( this );
 
 			if (has_puck) {
-				size = matrix[index].pucks.size();
 				antix::EraseAll( puck, matrix[index].pucks );
-				assert( matrix[index].pucks.size() == size - 1);
-
 				matrix[new_index].pucks.push_back( puck );
 				puck->index = new_index;
 			}
@@ -218,12 +210,12 @@ public:
 		// check we aren't already holding a puck
 		if (has_puck)
 			return;
+		assert(puck == NULL);
 		
 		// see if we can find an available puck to pick up
 		for (vector<SeePuck>::iterator it = see_pucks.begin(); it != see_pucks.end(); it++) {
-			// XXX ugly. We need to check if the puck we see hasn't already moved out
-			// of the node
-			// not really necessary, but doesn't hurt (other than CPU!)
+			// Check if the puck we see hasn't already moved out of the node
+#ifndef NDEBUG
 			bool found = false;
 			for (vector<Puck *>::iterator it2 = pucks->begin(); it2 != pucks->end(); it2++) {
 				if ( (*it2) == it->puck ) {
@@ -232,9 +224,12 @@ public:
 				}
 			}
 			assert(found == true);
+#endif
 
 			// If the puck isn't held and it's within range
 			if ( !it->puck->held && it->range < pickup_range ) {
+				assert(it->puck->robot == NULL);
+				assert(it->puck->held == false);
 				has_puck = true;
 				puck = it->puck;
 				puck->held = true;
@@ -242,10 +237,7 @@ public:
 
 				// ensure puck is in our same cell
 				if (puck->index != index) {
-					int size = matrix[puck->index].pucks.size();
 					antix::EraseAll( puck, matrix[puck->index].pucks );
-					assert( matrix[puck->index].pucks.size() == size - 1);
-
 					matrix[index].pucks.push_back( puck );
 					puck->index = index;
 				}
@@ -270,8 +262,8 @@ public:
 		if (!has_puck)
 			return;
 
-		// XXX make sure puck is still in puck vector
-		// probably not needed
+		// make sure puck is still in the puck vector
+#ifndef NDEBUG
 		bool found = false;
 		for (vector<Puck *>::iterator it = pucks->begin(); it != pucks->end(); it++) {
 			if ( (*it) == puck ) {
@@ -280,12 +272,13 @@ public:
 			}
 		}
 		assert(found == true);
+#endif
 
 		assert(puck != NULL);
 		assert(puck->robot == this);
 		assert(puck->held == true);
 		
-		// otherwise free it
+		// free it
 		has_puck = false;
 		puck->held = false;
 		puck->robot = NULL;
@@ -302,17 +295,4 @@ double Robot::vision_range;
 double Robot::vision_range_squared;
 vector<MatrixCell> Robot::matrix;
 
-// Robot class for clients
-class CRobot {
-public:
-	double last_x;
-	double last_y;
-
-	CRobot(double last_x, double last_y) : last_x(last_x), last_y(last_y) {}
-	CRobot() {
-		// XXX potentially bad
-		last_x = 0.0;
-		last_y = 0.0;
-	}
-};
 #endif

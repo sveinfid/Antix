@@ -16,10 +16,10 @@ using namespace std;
 /*
 	Simulation settings
 */
-const double world_size = 100.0;
+const double world_size = 10.0;
 const int sleep_time = 1000;
 // pucks per node to initially create
-const int initial_pucks_per_node = 100;
+const int initial_pucks_per_node = 1000;
 // range of robot sight
 const double vision_range = 0.1;
 // robot fov

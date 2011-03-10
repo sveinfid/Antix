@@ -89,16 +89,19 @@ rebuild_entity_db() {
 
 	int node_iterator = 0;
 	
+	// XXX declare once
+	antixtransfer::GUI_Request req;
+
 	// wait on response from each node
 	for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
 		
 		//do not wait for every node, just current node
 		if(all_node || (node_iterator == abs(current_node%node_list.node_size())))
 		{
-			antixtransfer::GUI_Request req;
 			req.set_r(true);
 			antix::send_pb(*it, &req);
 			
+			// XXX declare once
 			antixtransfer::SendMap_GUI map;
 			antix::recv_pb(*it, &map, 0);
 			
@@ -115,17 +118,15 @@ rebuild_entity_db() {
 			}
 		}
 		else {
-			antixtransfer::GUI_Request req;
 			req.set_r(false);
 			antix::send_pb(*it, &req);
 			antix::recv_blank(*it);
-			
 		}
 		node_iterator++;
 	}
-//#if DEBUG
+#ifndef NDEBUG
 	cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
-//#endif
+#endif
 }
 
 void

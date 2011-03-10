@@ -63,10 +63,10 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 	// For each robot in the sense data from this node, build a decision
 	for (int i = 0; i < sense_msg->robot_size(); i++) {
-		double x = sense_msg->robot(i).x();
-		double y = sense_msg->robot(i).y();
-		double a = sense_msg->robot(i).a();
-		double id = sense_msg->robot(i).id();
+		const double x = sense_msg->robot(i).x();
+		const double y = sense_msg->robot(i).y();
+		const double a = sense_msg->robot(i).a();
+		const double id = sense_msg->robot(i).id();
 		double last_x = sense_msg->robot(i).last_x();
 		double last_y = sense_msg->robot(i).last_y();
 #if DEBUG
@@ -81,10 +81,10 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 		double heading_error(0.0);
 		// distance and angle to home
-		double dx( antix::WrapDistance( my_home->x - x ) );
-		double dy( antix::WrapDistance( my_home->y - y ) );
-		double da( antix::fast_atan2( dy, dx ) );
-		double dist( hypot( dx, dy ) );
+		const double dx( antix::WrapDistance( my_home->x - x ) );
+		const double dy( antix::WrapDistance( my_home->y - y ) );
+		const double da( antix::fast_atan2( dy, dx ) );
+		const double dist( hypot( dx, dy ) );
 
 		// if this robot is holding a puck
 		if (sense_msg->robot(i).has_puck()) {
@@ -105,15 +105,15 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 				double closest_range(1e9);
 				// Look at all the pucks we can see
 				for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
-					double puck_range = sense_msg->robot(i).seen_puck(j).range();
-					bool puck_held = sense_msg->robot(i).seen_puck(j).held();
-					double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
+					const double puck_range = sense_msg->robot(i).seen_puck(j).range();
+					const bool puck_held = sense_msg->robot(i).seen_puck(j).held();
+					const double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
 
 					// If one is within pickup distance, try to pick it up
 					if (puck_range < Robot::pickup_range && !puck_held) {
-	#if DEBUG
+#if DEBUG
 						cout << "Trying to pick up a puck" << endl;
-	#endif
+#endif
 						// remember this location
 						r->set_last_x(x);
 						r->set_last_y(y);
@@ -138,8 +138,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 			// we don't see any pucks
 			} else {
-				double lx( antix::WrapDistance( last_x - x ) );
-				double ly( antix::WrapDistance( last_y - y ) );
+				const double lx( antix::WrapDistance( last_x - x ) );
+				const double ly( antix::WrapDistance( last_y - y ) );
 
 				// go towards last place a puck was picked up (or attempted pick up in
 				// the case of this version
@@ -195,6 +195,7 @@ sense_and_controller() {
 	cout << "Sync: Awaiting sense data response..." << endl;
 #endif
 	// Get the sense data back from the node
+	// XXX declare once
 	antixtransfer::sense_data sense_msg;
 	// Get the sense data from every node
 	int rc = antix::recv_pb(node_req_sock, &sense_msg, 0);

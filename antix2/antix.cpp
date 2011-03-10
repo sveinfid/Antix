@@ -235,6 +235,7 @@ public:
 		int id,
 		antixtransfer::done::Type type) {
 
+		// XXX declare once
 		antixtransfer::done done_msg;
 		done_msg.set_my_id( id );
 		done_msg.set_type( type );
@@ -356,10 +357,10 @@ public:
 	WrapDistance(double d) {
 		const double halfworld( world_size * 0.5 );
 
-		if( d > halfworld )
-		d -= world_size;
-		else if( d < -halfworld )
-		d += world_size;
+		if ( d > halfworld )
+			d -= world_size;
+		else if ( d < -halfworld )
+			d += world_size;
 
 		return d;
 	}
@@ -370,8 +371,10 @@ public:
 	*/
 	static double
 	DistanceNormalize(double d) {
-		while( d < 0 ) d += world_size;
-		while( d > world_size ) d -= world_size;
+		while ( d < 0 )
+			d += world_size;
+		while ( d > world_size )
+			d -= world_size;
 		return d; 
 	}
 
@@ -381,8 +384,10 @@ public:
 	*/
 	static double
 	AngleNormalize(double a) {
-		while( a < -M_PI ) a += 2.0*M_PI;
-		while( a >  M_PI ) a -= 2.0*M_PI;	 
+		while ( a < -M_PI )
+			a += 2.0*M_PI;
+		while ( a >  M_PI )
+			a -= 2.0*M_PI;	 
 		return a;
 	}
 
@@ -517,9 +522,13 @@ public:
 	template <class T, class C>
 	static void
 	EraseAll( T thing, C &container ) {
+#ifndef NDEBUG
+		int size = container.size();
+#endif
 		container.erase(
 			std::remove( container.begin(), container.end(), thing ), container.end()
 		);
+		assert(container.size() == size - 1);
 	}
 };
 
