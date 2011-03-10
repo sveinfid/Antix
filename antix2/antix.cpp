@@ -453,6 +453,62 @@ public:
 		return i;
 		//return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
+
+	/*
+		fast_ trig functions from rtv's antix
+	*/
+	static inline double
+	fast_atan2(double y, double x) {
+		const double piD2(M_PI/2.0);
+		double atan;
+		double z = y/x;
+
+		if (x == 0.0) {
+			if ( y > 0.0 )
+				return piD2;
+			if ( y == 0.0 )
+				return 0.0;
+			return -piD2;
+		}
+
+		if ( fabs(z) < 1.0 ) {
+			atan = z / (1.0 + 0.28 * z * z);
+			if ( x < 0.0 ) {
+				if ( y < 0.0 )
+					return atan - M_PI;
+				return atan + M_PI;
+			}
+		} else {
+			atan = piD2 - z / (z*z + 0.28f);
+			if ( y < 0.0f )
+				return atan - M_PI;
+		}
+		return atan;
+	}
+
+	static inline double
+	fast_sin(double x) {
+		const double B = 4/M_PI;
+		const double C = -4/(M_PI*M_PI);
+		const double P = 0.225;
+		const double y = B * x + C * x * fabs(x);
+		return (P * (y * fabs(y) - y) + y);
+	}
+
+	static inline double
+	fast_cos(double x) {
+		const double B = 4/M_PI;
+		const double C = -4/(M_PI*M_PI);
+		const double P = 0.225;
+
+		x = x + M_PI/2;
+		if (x > M_PI) {
+			x -= 2 * M_PI;
+		}
+
+		double y = B * x + C * x * fabs(x);
+		return (P * (y * fabs(y) - y) + y);
+	}
 };
 
 double antix::offset_size;

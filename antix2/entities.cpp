@@ -144,8 +144,8 @@ public:
 #if DEBUG
 		cout << "Updating pose of robot " << id << " team " << team << endl;
 #endif
-		double dx = v * cos(a);
-		double dy = v * sin(a);
+		double dx = v * antix::fast_cos(a);
+		double dy = v * antix::fast_sin(a);
 		double da = w;
 
 		x = antix::DistanceNormalize(x + dx);

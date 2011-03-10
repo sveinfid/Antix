@@ -706,7 +706,7 @@ public:
 					continue;
 
 				// check that it's in fov
-				double absolute_heading = atan2( dy, dx );
+				double absolute_heading = antix::fast_atan2( dy, dx );
 				double relative_heading = antix::AngleNormalize(absolute_heading - (*r)->a);
 				if ( fabs(relative_heading) > Robot::fov/2.0 )
 					continue;
@@ -734,7 +734,7 @@ public:
 					continue;
 
 				// fov check
-				double absolute_heading = atan2( dy, dx );
+				double absolute_heading = antix::fast_atan2( dy, dx );
 				double relative_heading = antix::AngleNormalize( absolute_heading - (*r)->a );
 				if ( fabs(relative_heading) > Robot::fov/2.0 )
 					continue;
@@ -830,7 +830,7 @@ public:
 				continue;
 
 			// check that it's in fov
-			const double absolute_heading = atan2( dy, dx );
+			const double absolute_heading = antix::fast_atan2( dy, dx );
 			const double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
 			if ( fabs(relative_heading) > Robot::fov/2.0 )
 				continue;
@@ -862,7 +862,7 @@ public:
 				continue;
 
 			// fov check
-			const double absolute_heading = atan2( dy, dx );
+			const double absolute_heading = antix::fast_atan2( dy, dx );
 			const double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
 			if ( fabs(relative_heading) > Robot::fov/2.0 )
 				continue;

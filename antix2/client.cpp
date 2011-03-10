@@ -83,7 +83,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		// distance and angle to home
 		double dx( antix::WrapDistance( my_home->x - x ) );
 		double dy( antix::WrapDistance( my_home->y - y ) );
-		double da( atan2( dy, dx ) );
+		double da( antix::fast_atan2( dy, dx ) );
 		double dist( hypot( dx, dy ) );
 
 		// if this robot is holding a puck
@@ -143,7 +143,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 				// go towards last place a puck was picked up (or attempted pick up in
 				// the case of this version
-				heading_error = antix::AngleNormalize( atan2(ly, lx) - a );
+				heading_error = antix::AngleNormalize( antix::fast_atan2(ly, lx) - a );
 
 				// if the robot is at the location of last attempted puck, choose random
 				if ( hypot( lx, ly ) < 0.05 ) {
