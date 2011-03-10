@@ -49,7 +49,7 @@ public:
 		antix::my_min_x = my_min_x;
 
 		for (int i = 0; i < BOTS_TEAM_SIZE; i++) {
-			for (int j = 0; i < BOTS_ROBOT_SIZE; j++) {
+			for (int j = 0; j < BOTS_ROBOT_SIZE; j++) {
 				bots[i][j] = NULL;
 			}
 		}
