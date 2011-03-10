@@ -261,7 +261,9 @@ handle_done(zmq::socket_t *rep_sock,
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
 			if (turns % 20 == 0) {
-				cout << turns / (time(NULL) - start_time) << " turns/second (" << turns << " turns)" << endl;
+				const double seconds = time(NULL) - start_time;
+				if (seconds != 0)
+					cout << turns / seconds << " turns/second (" << turns << " turns)" << endl;
 			}
 			turns++;
 			//cout << "Turn " << turns << " done." << endl;

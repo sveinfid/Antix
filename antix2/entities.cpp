@@ -85,6 +85,7 @@ public:
 	static double pickup_range;
 	static double fov;
 	static double vision_range;
+	static double vision_range_squared;
 	static vector<MatrixCell> matrix;
 
 	// index into matrix
@@ -287,6 +288,7 @@ public:
 double Robot::pickup_range;
 double Robot::fov;
 double Robot::vision_range;
+double Robot::vision_range_squared;
 vector<MatrixCell> Robot::matrix;
 
 // Robot class for clients

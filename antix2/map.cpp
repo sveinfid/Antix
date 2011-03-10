@@ -815,27 +815,30 @@ public:
 			if (r == *other)
 				continue;
 			
-			double dx( antix::WrapDistance( (*other)->x - r->x ) );
+			const double dx( antix::WrapDistance( (*other)->x - r->x ) );
 			if ( fabs(dx) > Robot::vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( (*other)->y - r->y ) );
+			const double dy( antix::WrapDistance( (*other)->y - r->y ) );
 			if ( fabs(dy) > Robot::vision_range )
 				continue;
 
-			double range = hypot( dx, dy );
-			if (range > Robot::vision_range )
+			//double range = hypot( dx, dy );
+			//if (range > Robot::vision_range )
+			const double dsq = dx*dx + dy*dy;
+			if ( dsq > Robot::vision_range_squared )
 				continue;
 
 			// check that it's in fov
-			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
+			const double absolute_heading = atan2( dy, dx );
+			const double relative_heading = antix::AngleNormalize(absolute_heading - r->a);
 			if ( fabs(relative_heading) > Robot::fov/2.0 )
 				continue;
 
 			// we can see the robot
 			antixtransfer::sense_data::Robot::Seen_Robot *seen_robot = robot_pb->add_seen_robot();
-			seen_robot->set_range( range );
+			//seen_robot->set_range( range );
+			seen_robot->set_range( sqrt(dsq) );
 			seen_robot->set_bearing( relative_heading );
 		}
 	}
@@ -844,31 +847,36 @@ public:
 	TestPucksInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		// check which pucks in this cell we can see
 		for (set<Puck *>::iterator puck = cell.pucks.begin(); puck != cell.pucks.end(); puck++) {
-			double dx( antix::WrapDistance( (*puck)->x - r->x ) );
+			const double dx( antix::WrapDistance( (*puck)->x - r->x ) );
 			if ( fabs(dx) > Robot::vision_range )
 				continue;
 
-			double dy( antix::WrapDistance( (*puck)->y - r->y ) );
+			const double dy( antix::WrapDistance( (*puck)->y - r->y ) );
 			if ( fabs(dy) > Robot::vision_range )
 				continue;
 
-			double range = hypot( dx, dy );
-			if (range > Robot::vision_range)
+			//double range = hypot( dx, dy );
+			//if (range > Robot::vision_range)
+			const double dsq = dx*dx + dy*dy;
+			if ( dsq > Robot::vision_range_squared )
 				continue;
 
 			// fov check
-			double absolute_heading = atan2( dy, dx );
-			double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
+			const double absolute_heading = atan2( dy, dx );
+			const double relative_heading = antix::AngleNormalize( absolute_heading - r->a );
 			if ( fabs(relative_heading) > Robot::fov/2.0 )
 				continue;
 
 			// we can see the puck
 			antixtransfer::sense_data::Robot::Seen_Puck *seen_puck = robot_pb->add_seen_puck();
-			seen_puck->set_range( range );
+			const double range_approx = sqrt(dsq);
+			//seen_puck->set_range( range );
+			seen_puck->set_range( range_approx );
 			seen_puck->set_bearing ( relative_heading );
 			seen_puck->set_held( (*puck)->held );
 
-			r->see_pucks.push_back(SeePuck(*puck, range));
+			//r->see_pucks.push_back(SeePuck(*puck, range));
+			r->see_pucks.push_back(SeePuck(*puck, range_approx));
 
 			// XXX make sure this puck is in vector as well
 			bool found = false;
