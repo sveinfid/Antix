@@ -244,6 +244,9 @@ send_move_messages() {
 	// build border entities at same time
 	//my_map->build_move_message(&move_left_msg, &move_right_msg);
 	my_map->build_moves_and_border_entities(&move_left_msg, &move_right_msg, &border_map_left, &border_map_right);
+	
+	cout << "Got past build moves & border entities" << endl;
+	fflush(stdout);
 
 	// Send our move messages
 	antix::send_pb(left_req_sock, &move_left_msg);
@@ -277,6 +280,7 @@ exchange_foreign_entities() {
 #if DEBUG_SYNC
 	cout << "Sync: Waiting for messages from neighbours in exchange_foreign_entities()";
 	cout << " (turn " << antix::turn << ")" << endl;
+	fflush(stdout);
 #endif
 	// Keep waiting for messages until we've received the number we expect
 	while (responses < 2 || requests < 2) {
@@ -647,6 +651,7 @@ main(int argc, char **argv) {
 
 		// send movement requests to neighbouring nodes (a bot moved out of range)
 		send_move_messages();
+
 		// receive move requests & respond with foreign entities, receive move responses
 		exchange_foreign_entities();
 
