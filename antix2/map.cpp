@@ -13,6 +13,9 @@
 #define LEFT_CELLS 0
 #define RIGHT_CELLS 1
 
+#define BOTS_TEAM_SIZE 1000
+#define BOTS_ROBOTS_SIZE 6000
+
 using namespace std;
 
 class Map {
@@ -32,7 +35,7 @@ public:
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> homes;
 	
-	Robot* bots[1000][5000]; //bots[teamsize][amount of robots per team]
+	Robot* bots[BOTS_TEAM_SIZE][BOTS_ROBOT_SIZE]; //bots[teamsize][amount of robots per team]
 
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;
@@ -44,6 +47,12 @@ public:
 
 		my_max_x = my_min_x + antix::offset_size;
 		antix::my_min_x = my_min_x;
+
+		for (int i = 0; i < BOTS_TEAM_SIZE; i++) {
+			for (int j = 0; i < BOTS_ROBOT_SIZE; j++) {
+				bots[i][j] = NULL;
+			}
+		}
 
 		// + 1000 as our calculations not exact in some places. Rounding error or?
 		//Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
@@ -99,7 +108,12 @@ public:
 					assert(h != NULL);
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
+
+					// bots[][] array
+					assert(r->team < BOTS_TEAM_SIZE);
+					assert(r->id < BOTS_ROBOT_SIZE);
 					bots[r -> team][r -> id] = r; //XXX Gordon's Test
+
 					robots.push_back(r); //TODO, remove robots
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
@@ -162,6 +176,8 @@ public:
 #if DEBUG
 		cout << "Trying to find robot with team " << team << " and id " << id << endl;
 #endif
+		assert(team < BOTS_TEAM_SIZE);
+		assert(id < BOTS_ROBOT_SIZE);
 
 		return bots[team][id];
 		//Matrix(cell(x,y))
@@ -211,6 +227,8 @@ public:
 		r->v = v;
 		r->w = w;
 		r->has_puck = has_puck;
+		assert(r->team < BOTS_TEAM_SIZE);
+		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = r;
 		robots.push_back(r);
 
@@ -318,6 +336,8 @@ public:
 			}
 		}
 		assert(deleted == true);
+
+		bots[r->team][r->id] = NULL;
 
 		// delete robot from memory
 		delete r;
