@@ -76,8 +76,10 @@ public:
 */
 class MatrixCell {
 public:
-	set<Robot *> robots;
-	set<Puck *> pucks;
+	//set<Robot *> robots;
+	//set<Puck *> pucks;
+	vector<Robot *> robots;
+	vector<Puck *> pucks;
 };
 
 class Robot {
@@ -170,12 +172,18 @@ public:
 		}
 
 		if (new_index != index ) {
-			matrix[index].robots.erase( this );
-			matrix[new_index].robots.insert( this );
+			int size = matrix[index].robots.size();
+			antix::EraseAll( this, matrix[index].robots );
+			assert( matrix[index].robots.size() == size - 1);
+
+			matrix[new_index].robots.push_back( this );
 
 			if (has_puck) {
-				matrix[index].pucks.erase( puck );
-				matrix[new_index].pucks.insert( puck );
+				size = matrix[index].pucks.size();
+				antix::EraseAll( puck, matrix[index].pucks );
+				assert( matrix[index].pucks.size() == size - 1);
+
+				matrix[new_index].pucks.push_back( puck );
 				puck->index = new_index;
 			}
 			index = new_index;
@@ -234,8 +242,11 @@ public:
 
 				// ensure puck is in our same cell
 				if (puck->index != index) {
-					matrix[puck->index].pucks.erase( puck );
-					matrix[index].pucks.insert( puck );
+					int size = matrix[puck->index].pucks.size();
+					antix::EraseAll( puck, matrix[puck->index].pucks );
+					assert( matrix[puck->index].pucks.size() == size - 1);
+
+					matrix[index].pucks.push_back( puck );
 					puck->index = index;
 				}
 #if DEBUG

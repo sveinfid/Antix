@@ -18,6 +18,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <set>
+#include <algorithm>
 
 #include "antix.pb.h"
 
@@ -508,6 +509,17 @@ public:
 
 		double y = B * x + C * x * fabs(x);
 		return (P * (y * fabs(y) - y) + y);
+	}
+
+	/*
+		from rtv's Antix
+	*/
+	template <class T, class C>
+	static void
+	EraseAll( T thing, C &container ) {
+		container.erase(
+			std::remove( container.begin(), container.end(), thing ), container.end()
+		);
 	}
 };
 

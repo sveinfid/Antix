@@ -117,7 +117,7 @@ public:
 					robots.push_back(r); //TODO, remove robots
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
-					Robot::matrix[index].robots.insert( r );
+					Robot::matrix[index].robots.push_back( r );
 #if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
 #endif
@@ -137,7 +137,7 @@ public:
 			Puck *p = new Puck(my_min_x, my_max_x - 0.01);
 			unsigned int index = antix::Cell(p->x, p->y);
 			p->index = index;
-			Robot::matrix[index].pucks.insert( p );
+			Robot::matrix[index].pucks.push_back( p );
 			pucks.push_back( p );
 		}
 		cout << "Created " << pucks.size() << " pucks." << endl;
@@ -234,7 +234,7 @@ public:
 
 		unsigned int new_index = antix::Cell( x, y );
 		r->index = new_index;
-		Robot::matrix[new_index].robots.insert( r );
+		Robot::matrix[new_index].robots.push_back( r );
 
 		// If the robot is carrying a puck, we have to add a puck to our records
 		if (r->has_puck) {
@@ -245,7 +245,7 @@ public:
 			r->puck = p;
 
 			p->index = new_index;
-			Robot::matrix[new_index].pucks.insert( p );
+			Robot::matrix[new_index].pucks.push_back( p );
 
 			assert(r->has_puck == true);
 			assert(r->puck->robot == r);
@@ -293,8 +293,9 @@ public:
 
 		// remove puck from cell
 		// XXX debugging code
-		int removed = Robot::matrix[ r->puck->index ].pucks.erase( r->puck );
-		assert(removed > 0);
+		int size = Robot::matrix[ r->puck->index].pucks.size();
+		antix::EraseAll( r->puck, Robot::matrix[ r->puck->index ].pucks );
+		assert( Robot::matrix[ r->puck->index ].pucks.size() == size - 1 );
 
 		bool deleted = false;
 		// remove puck from vector
@@ -318,7 +319,7 @@ public:
 		Remove robot from our records, and any associated puck
 	*/
 	void
-	remove_robot(set<Robot *>::iterator & it) {
+	remove_robot(vector<Robot *>::iterator & it) {
 		Robot *r = *it;
 
 		// delete the robot's puck (if holding) from vector & memory
@@ -341,8 +342,9 @@ public:
 		bots[r->team][r->id] = NULL;
 
 		// from matrix
-		int removed = Robot::matrix[r->index].robots.erase(r);
-		assert(removed > 0);
+		int size = Robot::matrix[r->index].robots.size();
+		antix::EraseAll( r, Robot::matrix[r->index].robots );
+		assert(Robot::matrix[r->index].robots.size() == size - 1);
 
 		// delete robot from memory
 		delete r;
@@ -459,9 +461,9 @@ public:
 		antixtransfer::SendMap *border_map_right,
 		int side) {
 
-		set<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
-		set<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
-		set<Robot *>::iterator current_it_robot;
+		vector<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
+		vector<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
+		vector<Robot *>::iterator current_it_robot;
 
 		// Robots
 		// while loop as iterator may be updated other due to deletion
@@ -537,8 +539,8 @@ public:
 			}
 		}
 
-		set<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
-		set<Puck *>::const_iterator end_puck = Robot::matrix[index].pucks.end();
+		vector<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
+		vector<Puck *>::const_iterator end_puck = Robot::matrix[index].pucks.end();
 
 		// Pucks
 		for ( ; it_puck != end_puck; it_puck++) {
@@ -810,7 +812,7 @@ public:
 	void
 	TestRobotsInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		// look at robots in this cell and see if we can see them
-		for (set<Robot *>::iterator other = cell.robots.begin(); other != cell.robots.end(); other++) {
+		for (vector<Robot *>::const_iterator other = cell.robots.begin(); other != cell.robots.end(); other++) {
 			// we don't look at ourself
 			if (r == *other)
 				continue;
@@ -846,7 +848,7 @@ public:
 	void
 	TestPucksInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		// check which pucks in this cell we can see
-		for (set<Puck *>::iterator puck = cell.pucks.begin(); puck != cell.pucks.end(); puck++) {
+		for (vector<Puck *>::const_iterator puck = cell.pucks.begin(); puck != cell.pucks.end(); puck++) {
 			const double dx( antix::WrapDistance( (*puck)->x - r->x ) );
 			if ( fabs(dx) > Robot::vision_range )
 				continue;
