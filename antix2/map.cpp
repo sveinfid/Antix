@@ -318,7 +318,7 @@ public:
 	/*
 		Remove robot from our records, and any associated puck
 	*/
-	void
+	vector<Robot *>::iterator
 	remove_robot(vector<Robot *>::iterator & it) {
 		Robot *r = *it;
 
@@ -341,13 +341,13 @@ public:
 		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = NULL;
 
-		// from matrix
-		int size = Robot::matrix[r->index].robots.size();
-		antix::EraseAll( r, Robot::matrix[r->index].robots );
-		assert(Robot::matrix[r->index].robots.size() == size - 1);
+		int index = r->index;
 
 		// delete robot from memory
 		delete r;
+
+		// from matrix
+		return Robot::matrix[index].robots.erase( it );
 	}
 
 	/*
@@ -463,42 +463,32 @@ public:
 
 		vector<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
 		vector<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
-		vector<Robot *>::iterator current_it_robot;
 
 		// Robots
-		// while loop as iterator may be updated other due to deletion
-		while (it_robot != end_robot) {
-			// Increment and store next in it_robot due to possible removal from set
-			current_it_robot = it_robot;
-			it_robot++;
-			// dumb check that iterators work as i expect
-			if (it_robot != end_robot) {
-				assert( (*it_robot)->team != (*current_it_robot)->team || (*it_robot)->id != (*current_it_robot)->id );
-			}
-
-			//assert((*current_it_robot)->id < 1000 && (*current_it_robot)->id >= 0);
-
+		// while loop as iterator may be updated due to deletion
+		//while (it_robot != end_robot) {
+		while (it_robot != Robot::matrix[index].robots.end()) {
 			// First we look whether robot needs to move to another node
 
 			if (side == LEFT_CELLS) {
 				// If robot's x is less than ours and bigger than our left neighbours,
 				// send to our left neighbour
-				if ((*current_it_robot)->x < my_min_x && (*current_it_robot)->x > my_min_x - antix::offset_size) {
+				if ((*it_robot)->x < my_min_x && (*it_robot)->x > my_min_x - antix::offset_size) {
 #if DEBUG
-					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to left node (1)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (1)" << endl;
 #endif
-					add_robot_to_move_msg(*current_it_robot, move_left_msg);
-					remove_robot(current_it_robot);
+					add_robot_to_move_msg(*it_robot, move_left_msg);
+					it_robot = remove_robot(it_robot);
 					continue;
 
 				// Otherwise if it's less than ours and smaller than our left neighbour's,
 				// assume that we are the far right node: send it to our right neighbour
-				} else if ((*current_it_robot)->x < my_min_x) {
+				} else if ((*it_robot)->x < my_min_x) {
 #if DEBUG
-					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to right node (2)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (2)" << endl;
 #endif
-					add_robot_to_move_msg(*current_it_robot, move_right_msg);
-					remove_robot(current_it_robot);
+					add_robot_to_move_msg(*it_robot, move_right_msg);
+					it_robot = remove_robot(it_robot);
 					continue;
 				}
 
@@ -506,37 +496,39 @@ public:
 			} else {
 				// If robot's x is bigger than ours and smaller than our right neighbour's,
 				// we send it to our right neighbour
-				if ((*current_it_robot)->x >= my_max_x && (*current_it_robot)->x < my_max_x + antix::offset_size) {
+				if ((*it_robot)->x >= my_max_x && (*it_robot)->x < my_max_x + antix::offset_size) {
 #if DEBUG
-					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to right node (3)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (3)" << endl;
 #endif
-					add_robot_to_move_msg(*current_it_robot, move_right_msg);
-					remove_robot(current_it_robot);
+					add_robot_to_move_msg(*it_robot, move_right_msg);
+					it_robot = remove_robot(it_robot);
 					continue;
 
 				// Otherwise it's bigger than ours and bigger than our right neighbour's,
 				// assume we are the far left node: send it to our left neighbour
-				} else if ((*current_it_robot)->x >= my_max_x) {
+				} else if ((*it_robot)->x >= my_max_x) {
 #if DEBUG
-					cout << "Moving robot " << (*current_it_robot)->id << " on team " << (*current_it_robot)->team << " to left node (4)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (4)" << endl;
 #endif
-					add_robot_to_move_msg(*current_it_robot, move_left_msg);
-					remove_robot(current_it_robot);
+					add_robot_to_move_msg(*it_robot, move_left_msg);
+					it_robot = remove_robot(it_robot);
 					continue;
 				}
 			}
 
 			// Check whether on the border
 			if (side == LEFT_CELLS) {
-				if ((*current_it_robot)->x < my_min_x + Robot::vision_range)
-					add_border_robot(border_map_left, *current_it_robot);
+				if ((*it_robot)->x < my_min_x + Robot::vision_range)
+					add_border_robot(border_map_left, *it_robot);
 
 			// Right side
 			} else {
 				// Then if it doesn't move, check whether it's on the border
-				if ((*current_it_robot)->x > my_max_x - Robot::vision_range)
-					add_border_robot(border_map_right, *current_it_robot);
+				if ((*it_robot)->x > my_max_x - Robot::vision_range)
+					add_border_robot(border_map_right, *it_robot);
 			}
+
+			it_robot++;
 		}
 
 		vector<Puck *>::iterator it_puck = Robot::matrix[index].pucks.begin();
