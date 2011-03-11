@@ -263,14 +263,14 @@ public:
 		// XXX handle this better...
 		if (Robot::cmatrix[new_cindex] != NULL) {
 			//cerr << "Error: Moved to an already occupied collision cell!" << endl;
-			//r->cindex = -1;
+			r->cindex = -1;
 			r->collide(Robot::cmatrix[new_cindex]);
 		} else {
-			//r->cindex = new_cindex;
+			r->cindex = new_cindex;
 			Robot::cmatrix[new_cindex] = r;
 		}
 		// may not make sense since cell may be taken
-		r->cindex = new_cindex;
+		//r->cindex = new_cindex;
 #endif
 		
 		// bots[][] array
