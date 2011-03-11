@@ -16,10 +16,12 @@ using namespace std;
 /*
 	Simulation settings
 */
-const double world_size = 1.0;
+// set from command line
+double world_size;
+int initial_pucks_per_node;
+
 const int sleep_time = 1000;
 // pucks per node to initially create
-const int initial_pucks_per_node = 20;
 // range of robot sight
 const double vision_range = 0.1;
 // robot fov
@@ -281,12 +283,14 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 
-	if (argc != 2) {
-		cerr << "Usage: " << argv[0] << " <IP to listen on>" << endl;
+	if (argc != 4) {
+		cerr << "Usage: " << argv[0] << " <IP to listen on> <initial pucks per node> <world size>" << endl;
 		return -1;
 	}
 
 	host = string(argv[1]);
+	initial_pucks_per_node = atof(argv[2]);
+	world_size = atof(argv[3]);
 
 	// nodes/client socket are for nodes/clients connecting & giving their
 	// ip. in return they get assigned an id

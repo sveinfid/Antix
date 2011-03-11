@@ -169,6 +169,7 @@ public:
 		/*
 			Collision matrix stuff
 		*/
+#if COLLISIONS
 		unsigned int new_cindex = antix::CCell(new_x, new_y);
 		// we try to move to a new collision cell
 		if (new_cindex != cindex) {
@@ -183,6 +184,7 @@ public:
 			cindex = new_cindex;
 			cmatrix[cindex] = this;
 		}
+#endif
 
 		x = new_x;
 		y = new_y;

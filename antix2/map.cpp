@@ -61,6 +61,7 @@ public:
 		Robot::matrix.resize(antix::matrix_height * antix::matrix_height);
 		cout << "Vision matrix has " << Robot::matrix.size() << " cells" << endl;
 
+#if COLLISIONS
 		// size of cell in one dimension
 		double collision_cell_size = 2 * Robot::robot_radius;
 		antix::cmatrix_width = ceil(antix::world_size / collision_cell_size);
@@ -69,6 +70,7 @@ public:
 			*it = NULL;
 		}
 		cout << "Collision matrix has " << Robot::cmatrix.size() << " cells." << endl;
+#endif
 
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
 		populate_homes(node_list);
@@ -120,6 +122,7 @@ public:
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
 
+#if COLLISIONS
 					// collision matrix
 					// make sure we appear at an unused location
 					unsigned int cindex = antix::CCell(r->x, r->y);
@@ -129,6 +132,7 @@ public:
 					}
 					r->cindex = cindex;
 					Robot::cmatrix[cindex] = r;
+#endif
 
 					// bots[][] array
 					assert(r->team < BOTS_TEAM_SIZE);
@@ -253,6 +257,7 @@ public:
 		r->w = w;
 		r->has_puck = has_puck;
 
+#if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
 		if (Robot::cmatrix[new_cindex] != NULL) {
@@ -260,6 +265,7 @@ public:
 		}
 		r->cindex = new_cindex;
 		Robot::cmatrix[new_cindex] = r;
+#endif
 		
 		// bots[][] array
 		assert(r->team < BOTS_TEAM_SIZE);
@@ -360,9 +366,11 @@ public:
 		bots[r->team][r->id] = NULL;
 
 		// from collision matrix
+#if COLLISIONS
 		// XXX ENABLE THIS
 		//assert(Robot::cmatrix[r->cindex] == r);
 		Robot::cmatrix[r->cindex] = NULL;
+#endif
 
 		// delete robot from memory
 		int index = r->index;

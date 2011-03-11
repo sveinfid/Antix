@@ -28,6 +28,7 @@
 
 #define SLEEP 0
 #define GUI 1
+#define COLLISIONS 1
 
 // Debug everything
 #define DEBUG 0
