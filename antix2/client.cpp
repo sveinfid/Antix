@@ -51,14 +51,17 @@ synchronize_sub_sock() {
 	Decide what to do and send a response
 
   Decision logic from rtv's Antix
-
-	XXX Right now we can only do setspeed OR pickup OR drop
 */
 void
 controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 	// Message that gets sent as a request containing multiple robots
+	// XXX declare once
 	antixtransfer::control_message control_msg;
+	// XXX this incl in the decl once above
 	control_msg.set_team( my_id );
+	
+	// not necessary until we move the two lines above out
+	control_msg.clear_robot();
 
 	// For each robot in the sense data from this node, build a decision
 	for (int i = 0; i < sense_msg->robot_size(); i++) {
@@ -92,13 +95,11 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 			// if the robot is some random distance inside home, drop puck
 			if (dist < drand48() * my_home->r) {
-				r->set_type( antixtransfer::control_message::DROP );
-				continue;
+				r->set_puck_action( antixtransfer::control_message::DROP );
 			}
 
 		// not holding a puck
 		} else {
-			bool picking_up = false;
 			// if we're away from home and see puck(s)
 			if (dist > my_home->r && sense_msg->robot(i).seen_puck_size() > 0) {
 				double closest_range(1e9);
@@ -116,12 +117,10 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 						// remember this location
 						r->set_last_x(x);
 						r->set_last_y(y);
-						r->set_type( antixtransfer::control_message::PICKUP );
-						picking_up = true;
+						r->set_puck_action( antixtransfer::control_message::PICKUP );
 #if DEBUG
 						cout << "(PICKUP) Sending last x " << r->last_x() << " and last y " << r->last_y() << " on turn " << antix::turn << endl;
 #endif
-						break;
 					}
 
 					// Otherwise see if its the closest we've seen yet
@@ -130,10 +129,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 						closest_range = puck_range;
 					}
 				}
-
-				// if we're picking up, message is built. go on to next robot
-				if (picking_up)
-					continue;
 
 			// we don't see any pucks
 			} else {
@@ -160,9 +155,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 #if DEBUG
 		cout << "(SETSPEED) Sending last x " << r->last_x() << " and last y " << r->last_y() << " on turn " << antix::turn << endl;
 #endif
-
-		// If we got here, nothing left to try except setspeed
-		r->set_type(antixtransfer::control_message::SETSPEED);
 
 		// check if the robot is pointing in correct direction
 		if ( fabs(heading_error) < 0.1 ) {

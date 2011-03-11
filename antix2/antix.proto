@@ -179,18 +179,17 @@ message move_bot {
 }
 
 message control_message {
-	enum Type {
-		SENSE = 1;
-		SETSPEED = 2;
-		PICKUP = 3;
-		DROP = 4;
+	enum Puck_Action {
+		NONE = 1;
+		PICKUP = 2;
+		DROP = 3;
 	}
 
 	message Robot {
 		required int32 id = 1;
-		required Type type = 2;
-		optional double v = 3;
-		optional double w = 4;
+		required Puck_Action puck_action = 2 [default = NONE];
+		required double v = 3;
+		required double w = 4;
 		optional double last_x = 5;
 		optional double last_y = 6;
 	}

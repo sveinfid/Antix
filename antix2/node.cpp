@@ -336,33 +336,25 @@ parse_client_message(antixtransfer::control_message *msg) {
 		r = my_map->find_robot(msg->team(), msg->robot(i).id());
 		assert(r != NULL);
 
-		if (msg->robot(i).type() == antixtransfer::control_message::SETSPEED) {
-			r->setspeed(msg->robot(i).v(), msg->robot(i).w(), msg->robot(i).last_x(), msg->robot(i).last_y());
-#if DEBUG
-			cout << "(SETSPEED) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
-#endif
-
-		} else if (msg->robot(i).type() == antixtransfer::control_message::PICKUP) {
-			r->pickup(&my_map->pucks, msg->robot(i).last_x(), msg->robot(i).last_y());
+		if (msg->robot(i).puck_action() == antixtransfer::control_message::PICKUP) {
+			r->pickup(&my_map->pucks);
 #if DEBUG
 			cout << "(PICKUP) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
 #endif
-
-		} else if (msg->robot(i).type() == antixtransfer::control_message::DROP) {
+		} else if (msg->robot(i).puck_action() == antixtransfer::control_message::DROP) {
 			r->drop(&my_map->pucks);
-
-		} else {
-			cerr << "Error: Unknown message type from client (parse_client_message())" << endl;
-			exit(-1);
 		}
+
+		// Always set speed
+		r->setspeed(msg->robot(i).v(), msg->robot(i).w(), msg->robot(i).last_x(), msg->robot(i).last_y());
+#if DEBUG
+		cout << "(SETSPEED) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
+#endif
 	}
 }
 
 /*
 	Service control messages from clients
-
-	XXX Currently each robot on a team only gets one move per turn
-	Move = setspeed OR pickup OR drop
 */
 void
 service_control_messages() {

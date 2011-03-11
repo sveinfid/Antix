@@ -252,12 +252,10 @@ public:
 		Attempt to pick up a puck near the robot
 	*/
 	void
-	pickup(vector<Puck *> *pucks, double new_last_x, double new_last_y) {
+	pickup(vector<Puck *> *pucks) {
 #if DEBUG
 		cout << "Trying to pickup puck on robot " << id << " team " << team << endl;
 #endif
-		last_x = new_last_x;
-		last_y = new_last_y;
 
 		// check we aren't already holding a puck
 		if (has_puck)
