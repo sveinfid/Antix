@@ -18,7 +18,7 @@ using namespace std;
 */
 // set from command line
 double world_size;
-int initial_pucks_per_node;
+int num_pucks;
 
 const int sleep_time = 100;
 // pucks per node to initially create
@@ -144,7 +144,6 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	init_response.set_id(next_node_id++);
 	init_response.set_world_size(world_size);
 	init_response.set_sleep_time(sleep_time);
-	init_response.set_puck_amount(initial_pucks_per_node);
 	init_response.set_vision_range(vision_range);
 	init_response.set_home_radius(home_radius);
 	init_response.set_robot_radius(robot_radius);
@@ -284,12 +283,12 @@ main(int argc, char **argv) {
 	srand48( time(NULL) );
 
 	if (argc != 4) {
-		cerr << "Usage: " << argv[0] << " <IP to listen on> <initial pucks per node> <world size>" << endl;
+		cerr << "Usage: " << argv[0] << " <IP to listen on> <num pucks (approx)> <world size>" << endl;
 		return -1;
 	}
 
 	host = string(argv[1]);
-	initial_pucks_per_node = atof(argv[2]);
+	num_pucks = atof(argv[2]);
 	world_size = atof(argv[3]);
 
 	// nodes/client socket are for nodes/clients connecting & giving their
@@ -374,6 +373,10 @@ main(int argc, char **argv) {
 
 			// assign nodes to create robots for each team initially
 			assign_robots_to_node();
+
+			// set pucks per node
+			node_list.set_initial_pucks_per_node( ceil( (double) num_pucks / (double) node_list.node_size() ) );
+			cout << "Made " << node_list.initial_pucks_per_node() << " pucks per node." << endl;
 
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb_envelope(&publish_socket, &node_list, "start");

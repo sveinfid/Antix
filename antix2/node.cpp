@@ -568,7 +568,6 @@ main(int argc, char **argv) {
 	assert(rc == 1);
 	my_id = init_response.id();
 	sleep_time = init_response.sleep_time();
-	int initial_puck_amount = init_response.puck_amount();
 	antix::world_size = init_response.world_size();
 	antix::home_radius = init_response.home_radius();
 	Robot::vision_range = init_response.vision_range();
@@ -604,6 +603,9 @@ main(int argc, char **argv) {
 		cout << "Error: we need at least 3 nodes. Only received " << node_list.node_size() << " node(s)." << endl;
 		exit(-1);
 	}
+
+	// node list has number of pucks to create
+	int initial_puck_amount = node_list.initial_pucks_per_node();
 
 	// Now that we have simulation params & home locations, pass them on to our
 	// local clients
