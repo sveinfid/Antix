@@ -148,6 +148,22 @@ public:
 	}
 
 	/*
+		When this robot collides, this is called
+	*/
+	void
+	collide(Robot *other_robot) {
+		// other robot starts heading in direction we were going
+		other_robot->a = a;
+
+		// 180 our direction?
+		a = antix::AngleNormalize(a * M_PI/2);
+
+		// both speeds to 0
+		v = 0;
+		other_robot->v = 0;
+	}
+
+	/*
 		update the pose of a single robot
 		Taken from rtv's Antix
 	*/
@@ -175,13 +191,7 @@ public:
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
 			if ( cmatrix[new_cindex] != NULL ) {
-				// 180 from direction we are going
-				a = antix::AngleNormalize(a * M_PI/2);
-				// collided starts heading direction robot was heading
-				cmatrix[new_cindex]->a = antix::AngleNormalize( a );
-				// set speeds to 0
-				v = 0;
-				cmatrix[new_cindex]->v = 0;
+				collide( cmatrix[new_cindex] );
 				return;
 			}
 			// otherwise no robot in that cell. move to it and continue

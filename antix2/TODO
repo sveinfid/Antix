@@ -1,9 +1,8 @@
-- put back in sensing using foreign robots/pucks. Currently they are ignored
-	- foreign pucks have been ignored the whole time, but we used to deal with foreign robots prior to grid
-
 - scoring
 
-- collisions
+- bounding boxes from rtv/faster
+
+- able to disable viewing all nodes in gui with keypress
 
 - optimize:
 	- constructors
@@ -13,4 +12,9 @@
 		- seen / foreign messages can probably be pruned (team, id)
 	- Optimize remove_puck() in map? Goes through vector currently
 
+
+- put back in sensing using foreign robots/pucks. Currently they are ignored
+	- foreign pucks have been ignored the whole time, but we used to deal with foreign robots prior to grid
 - foreign puck pickup
+
+- improve collisions issue re: when robot moves into node, may move into occupied cell. currently just doesn't get in a cell

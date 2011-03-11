@@ -260,11 +260,17 @@ public:
 #if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
+		// XXX handle this better...
 		if (Robot::cmatrix[new_cindex] != NULL) {
-			cerr << "Error: Moved to an already occupied collision cell!" << endl;
+			//cerr << "Error: Moved to an already occupied collision cell!" << endl;
+			//r->cindex = -1;
+			r->collide(Robot::cmatrix[new_cindex]);
+		} else {
+			//r->cindex = new_cindex;
+			Robot::cmatrix[new_cindex] = r;
 		}
+		// may not make sense since cell may be taken
 		r->cindex = new_cindex;
-		Robot::cmatrix[new_cindex] = r;
 #endif
 		
 		// bots[][] array
@@ -367,9 +373,10 @@ public:
 
 		// from collision matrix
 #if COLLISIONS
-		// XXX ENABLE THIS
 		//assert(Robot::cmatrix[r->cindex] == r);
-		Robot::cmatrix[r->cindex] = NULL;
+		if (Robot::cmatrix[r->cindex] == r) {
+			Robot::cmatrix[r->cindex] = NULL;
+		}
 #endif
 
 		// delete robot from memory
