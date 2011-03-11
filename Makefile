@@ -1,30 +1,39 @@
-#   Makefile - antix project
-#   version 3
-#   Richard Vaughan  
 
-# this should work on Linux with MESA
-#GLUTLIBS = -L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
-#GLUTFLAGS = -I/usr/local/include/GL
+IPC_PREFIX=/tmp/$(USER)-node
 
-# this works on Mac OS X
-#GLUTFLAGS = -framework OpenGL -framework GLUT
+ZMQ_PATH=/home/$(USER)/zeromq
+PROTOBUF_PATH=/home/$(USER)/protobuf
 
-# this works on cygwin
-GLUTFLAGS = -I/usr/include/opengl
-EXTRALIBS = -lglut32 -lglu32 -lopengl32
-EXTRAFLAGS = -DCYGWIN
+build_dir=.
+targets=master operator node client
+gui_targets=gui
+objs=antix.pb.o
 
-CC = g++
-CXXFLAGS = -g -Wall -O3 $(GLUTFLAGS)
-LIBS =  -g -lm $(GLUTLIBS)
+CFLAGS=-O3
+GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
+GLUTFLAGS=-I/usr/include/GL
 
-SRC = antix.h antix.cc controller.cc gui.cc main.cc 
+includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include
+lib_paths=-L$(ZMQ_PATH)/lib -L$(PROTOBUF_PATH)/lib
+libraries=-lzmq -lprotobuf
 
-all: antix
+all: $(objs) $(targets) $(gui_targets)
 
-antix: $(SRC)
-	$(CC) $(CXXFLAGS) $(LIBS) $(EXTRAFLAGS) -o $@ $(SRC) $(EXTRALIBS)
+gui: gui.cpp zpr.o
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) zpr.o $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
+
+antix.pb.o: antix.proto
+	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
+	g++ $(CFLAGS) -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
+
+zpr.o:
+	gcc -c zpr.c $(GLUTFLAGS) $(GLUTLIBS)
+
+.cpp: master.cpp operator.cpp node.cpp client.cpp antix.pb.o antix.cpp entities.cpp map.cpp
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries) -DIPC_PREFIX=\"$(IPC_PREFIX)\"
 
 clean:
-	rm *.o antix antix.exe
+	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o
 
+clean2:
+	rm -f $(targets) $(gui_targets) zpr.o

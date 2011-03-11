@@ -3,7 +3,7 @@
 # Print readable output of processes for each workstation
 #
 
-set ANTIX_PATH /home/${::env(USER)}/Antix/antix2
+set ANTIX_PATH /home/${::env(USER)}/Antix
 
 if {$argc != 2} {
 	puts "Usage: $argv0 <workstations.txt> <show / count>"

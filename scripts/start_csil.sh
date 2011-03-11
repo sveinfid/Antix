@@ -5,7 +5,7 @@
 #
 
 WORKSTATIONS=workstations.txt_partial
-ANTIX_PATH=/home/wjs2/Antix/antix2
+ANTIX_PATH=/home/wjs2/Antix
 USER=wjs2
 
 if [ $# -ne 3 ]

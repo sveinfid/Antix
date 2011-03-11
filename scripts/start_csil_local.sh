@@ -3,7 +3,7 @@
 # This is run from start_csil.sh as it connects to each machine
 #
 
-ANTIX_PATH=/home/$USER/Antix/antix2
+ANTIX_PATH=/home/$USER/Antix
 export LD_LIBRARY_PATH=/home/$USER/protobuf/lib:/home/$USER/zeromq/lib
 
 if [ $# -ne 3 ]
