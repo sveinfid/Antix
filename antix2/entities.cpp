@@ -156,7 +156,7 @@ public:
 		other_robot->a = a;
 
 		// 180 our direction?
-		a = antix::AngleNormalize(a * M_PI/2);
+		a = antix::AngleNormalize(a + M_PI);
 
 		// both speeds to 0
 		v = 0;
