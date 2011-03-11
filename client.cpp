@@ -25,6 +25,8 @@ zmq::socket_t *node_sub_sock;
 
 // construct some protobuf messages here so we don't call constructor needlessly
 antixtransfer::control_message sense_req_msg;
+antixtransfer::control_message control_msg;
+antixtransfer::sense_data sense_msg;
 
 void
 shutdown() {
@@ -55,12 +57,6 @@ synchronize_sub_sock() {
 void
 controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 	// Message that gets sent as a request containing multiple robots
-	// XXX declare once
-	antixtransfer::control_message control_msg;
-	// XXX this incl in the decl once above
-	control_msg.set_team( my_id );
-	
-	// not necessary until we move the two lines above out
 	control_msg.clear_robot();
 
 	// For each robot in the sense data from this node, build a decision
@@ -141,8 +137,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 				// if the robot is at the location of last attempted puck, choose random
 				if ( hypot( lx, ly ) < 0.05 ) {
-					//robots[id].last_x += drand48() * 0.4 - 0.2;
-					//robots[id].last_y += drand48() * 0.4 - 0.2;
 					last_x += drand48() * 1.0 - 0.5;
 					last_y += drand48() * 1.0 - 0.5;
 					r->set_last_x( antix::DistanceNormalize( last_x ) );
@@ -186,9 +180,6 @@ sense_and_controller() {
 	cout << "Sync: Awaiting sense data response..." << endl;
 #endif
 	// Get the sense data back from the node
-	// XXX declare once
-	antixtransfer::sense_data sense_msg;
-	// Get the sense data from every node
 	int rc = antix::recv_pb(node_req_sock, &sense_msg, 0);
 	assert(rc == 1);
 
@@ -241,6 +232,7 @@ main(int argc, char **argv) {
 
 	// initialize some protobufs that do not change
 	sense_req_msg.set_team(my_id);
+	control_msg.set_team(my_id);
 
 	cout << "Connecting to local node..." << endl;
 
