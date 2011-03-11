@@ -73,6 +73,7 @@ shutdown() {
 	cout << "Received shutdown message from master. Shutting down..." << endl;
 	cout << "Sending shutdown message to our clients..." << endl;
 	antix::send_str(sync_pub_sock, "s");
+	antix::sleep(5000);
 	exit(0);
 }
 

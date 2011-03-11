@@ -163,8 +163,8 @@ public:
 		// always update angle even if we don't move
 		a = antix::AngleNormalize(a + da);
 
-		const double new_x = antix::DistanceNormalize(x + dx);
-		const double new_y = antix::DistanceNormalize(y + dy);
+		double new_x = antix::DistanceNormalize(x + dx);
+		double new_y = antix::DistanceNormalize(y + dy);
 
 		/*
 			Collision matrix stuff
@@ -175,8 +175,12 @@ public:
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
 			if ( cmatrix[new_cindex] != NULL ) {
-				// XXX does this make sense?
-				a = -a;
+				// 180 both robots
+				a = antix::AngleNormalize(a * M_PI/2);
+				cmatrix[new_cindex]->a = antix::AngleNormalize( cmatrix[new_cindex]->a * M_PI/2);
+				// set speeds to 0
+				v = 0;
+				cmatrix[new_cindex]->v = 0;
 				return;
 			}
 			// otherwise no robot in that cell. move to it and continue

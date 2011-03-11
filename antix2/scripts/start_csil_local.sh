@@ -20,10 +20,10 @@ MY_IP=`$ANTIX_PATH/scripts/get_ip.tcl`
 
 # Before running simulation, remove old sockets. This can fail if node sockets
 # exist from other users...
-rm -rf /tmp/node*
+rm -rf /tmp/$USER-node*
 if [ $? -ne 0 ]
 then
-	echo "Error: couldn't rm /tmp/node*" > /home/$USER/node.$HOST.log
+	echo "Error: couldn't rm /tmp/$USER-node*" > /home/$USER/node.$HOST.log
 	exit -1
 fi
 
