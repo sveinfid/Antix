@@ -175,9 +175,10 @@ public:
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
 			if ( cmatrix[new_cindex] != NULL ) {
-				// 180 both robots
+				// 180 from direction we are going
 				a = antix::AngleNormalize(a * M_PI/2);
-				cmatrix[new_cindex]->a = antix::AngleNormalize( cmatrix[new_cindex]->a * M_PI/2);
+				// collided starts heading direction robot was heading
+				cmatrix[new_cindex]->a = antix::AngleNormalize( a );
 				// set speeds to 0
 				v = 0;
 				cmatrix[new_cindex]->v = 0;
