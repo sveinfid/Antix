@@ -72,6 +72,19 @@ public:
 };
 
 /*
+	Used to tell Controller what pucks it can see
+*/
+class CSeePuck {
+public:
+	bool held;
+	double range,
+		bearing;
+
+	CSeePuck(const bool held, const double range, const double bearing)
+		: held(held), range(range), bearing(bearing) { }
+};
+
+/*
 	from rtv's Antix
 */
 class MatrixCell {

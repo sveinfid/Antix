@@ -4,7 +4,7 @@
 */
 
 #include <map>
-#include "entities.cpp"
+#include "controller.cpp"
 
 using namespace std;
 
@@ -61,103 +61,43 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 
 	// For each robot in the sense data from this node, build a decision
 	for (int i = 0; i < sense_msg->robot_size(); i++) {
-		const double x = sense_msg->robot(i).x();
-		const double y = sense_msg->robot(i).y();
-		const double a = sense_msg->robot(i).a();
-		const double id = sense_msg->robot(i).id();
-		double last_x = sense_msg->robot(i).last_x();
-		double last_y = sense_msg->robot(i).last_y();
+		// First we create a Controller with this robot's state
+
+		// XXX
+		// we copy seen_pucks to a vector to give a nicer interface
+		// this costs cpu... perhaps undesirable. but otherwise controller
+		// must look at protobuf...
+		vector<CSeePuck> seen_pucks;
+		for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
+			seen_pucks.push_back( CSeePuck(sense_msg->robot(i).seen_puck(j).held(),
+				sense_msg->robot(i).seen_puck(j).range(),
+				sense_msg->robot(i).seen_puck(j).bearing())
+			);
+		}
+
+		Controller ctlr(sense_msg->robot(i).x(), sense_msg->robot(i).y(),
+			sense_msg->robot(i).a(), sense_msg->robot(i).id(),
+			sense_msg->robot(i).last_x(), sense_msg->robot(i).last_y(),
+			my_home, &seen_pucks, sense_msg->robot(i).has_puck()
+		);
+
 #if DEBUG
-		cout << "Got last x " << last_x << " and last y " << last_y << " on turn " << antix::turn << endl;
+		cout << "Got last x " << sense_msg->robot(i).last_x();
+		cout << " and last y " << sense_msg->robot(i).last_y();
+		cout << " on turn " << antix::turn << endl;
 #endif
 
-		// Add the robot to response we will send
+		// then run the controller
+		ctlr.controller();
+
+		// then add robot's new data to response protobuf
 		antixtransfer::control_message::Robot *r = control_msg.add_robot();
-		r->set_id( id );
-		r->set_last_x( last_x );
-		r->set_last_y( last_y );
-
-		double heading_error(0.0);
-		// distance and angle to home
-		const double dx( antix::WrapDistance( my_home->x - x ) );
-		const double dy( antix::WrapDistance( my_home->y - y ) );
-		const double da( antix::fast_atan2( dy, dx ) );
-		const double dist( hypot( dx, dy ) );
-
-		// if this robot is holding a puck
-		if (sense_msg->robot(i).has_puck()) {
-			// turn towards home
-			heading_error = antix::AngleNormalize(da - a);
-
-			// if the robot is some random distance inside home, drop puck
-			if (dist < drand48() * my_home->r) {
-				r->set_puck_action( antixtransfer::control_message::DROP );
-			}
-
-		// not holding a puck
-		} else {
-			// if we're away from home and see puck(s)
-			if (dist > my_home->r && sense_msg->robot(i).seen_puck_size() > 0) {
-				double closest_range(1e9);
-				// Look at all the pucks we can see
-				for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
-					const double puck_range = sense_msg->robot(i).seen_puck(j).range();
-					const bool puck_held = sense_msg->robot(i).seen_puck(j).held();
-					const double puck_bearing = sense_msg->robot(i).seen_puck(j).bearing();
-
-					// If one is within pickup distance, try to pick it up
-					if (puck_range < Robot::pickup_range && !puck_held) {
-#if DEBUG
-						cout << "Trying to pick up a puck" << endl;
-#endif
-						// remember this location
-						r->set_last_x(x);
-						r->set_last_y(y);
-						r->set_puck_action( antixtransfer::control_message::PICKUP );
-#if DEBUG
-						cout << "(PICKUP) Sending last x " << r->last_x() << " and last y " << r->last_y() << " on turn " << antix::turn << endl;
-#endif
-					}
-
-					// Otherwise see if its the closest we've seen yet
-					if (puck_range < closest_range && !puck_held) {
-						heading_error = puck_bearing;
-						closest_range = puck_range;
-					}
-				}
-
-			// we don't see any pucks
-			} else {
-				const double lx( antix::WrapDistance( last_x - x ) );
-				const double ly( antix::WrapDistance( last_y - y ) );
-
-				// go towards last place a puck was picked up (or attempted pick up in
-				// the case of this version
-				heading_error = antix::AngleNormalize( antix::fast_atan2(ly, lx) - a );
-
-				// if the robot is at the location of last attempted puck, choose random
-				if ( hypot( lx, ly ) < 0.05 ) {
-					last_x += drand48() * 1.0 - 0.5;
-					last_y += drand48() * 1.0 - 0.5;
-					r->set_last_x( antix::DistanceNormalize( last_x ) );
-					r->set_last_y( antix::DistanceNormalize( last_y ) );
-				}
-			}
-		// done not holding puck case
-		}
-
-#if DEBUG
-		cout << "(SETSPEED) Sending last x " << r->last_x() << " and last y " << r->last_y() << " on turn " << antix::turn << endl;
-#endif
-
-		// check if the robot is pointing in correct direction
-		if ( fabs(heading_error) < 0.1 ) {
-			r->set_v( 0.005 );
-			r->set_w( 0.0 );
-		} else {
-			r->set_v( 0.001 );
-			r->set_w( 0.2 * heading_error );
-		}
+		r->set_id( ctlr.id );
+		r->set_last_x( ctlr.last_x );
+		r->set_last_y( ctlr.last_y );
+		r->set_puck_action( ctlr.puck_action );
+		r->set_v( ctlr.v );
+		r->set_w( ctlr.w );
 	}
 
 	// send the decision for all of our robots to this node
