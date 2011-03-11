@@ -173,8 +173,11 @@ public:
 		// we try to move to a new collision cell
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
-			if ( cmatrix[new_cindex] != NULL )
+			if ( cmatrix[new_cindex] != NULL ) {
+				// XXX does this make sense?
+				a = -a;
 				return;
+			}
 			// otherwise no robot in that cell. move to it and continue
 			cmatrix[cindex] = NULL;
 			cindex = new_cindex;
