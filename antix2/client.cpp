@@ -8,7 +8,6 @@
 
 using namespace std;
 
-string node_ipc_prefix = "/tmp/node";
 string node_ipc_id;
 
 int my_id;
@@ -252,6 +251,8 @@ main(int argc, char **argv) {
 	sense_req_msg.set_team(my_id);
 
 	cout << "Connecting to local node..." << endl;
+
+	string node_ipc_prefix = IPC_PREFIX;
 
 	// node sync req sock
 	while (1) {

@@ -16,7 +16,6 @@ string master_host;
 string master_node_port = "7770";
 string master_publish_port = "7773";
 
-string ipc_fname_prefix = "/tmp/node";
 string ipc_id;
 
 string my_ip;
@@ -525,6 +524,8 @@ main(int argc, char **argv) {
 	// subscribe to all messages on this socket
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+
+	string ipc_fname_prefix = IPC_PREFIX;
 
 	// sync rep sock which receives done messages from clients
 	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);

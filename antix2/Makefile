@@ -1,4 +1,6 @@
 
+IPC_PREFIX=/tmp/$(USER)-node
+
 ZMQ_PATH=/home/$(USER)/zeromq
 PROTOBUF_PATH=/home/$(USER)/protobuf
 
@@ -28,7 +30,7 @@ zpr.o:
 	gcc -c zpr.c $(GLUTFLAGS) $(GLUTLIBS)
 
 .cpp: master.cpp operator.cpp node.cpp client.cpp antix.pb.o antix.cpp entities.cpp map.cpp
-	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries)
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries) -DIPC_PREFIX=\"$(IPC_PREFIX)\"
 
 clean:
 	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o
