@@ -161,6 +161,9 @@ public:
 		// both speeds to 0
 		v = 0;
 		other_robot->v = 0;
+
+		w = 0;
+		other_robot->w = 0;
 	}
 
 	/*
