@@ -59,7 +59,16 @@ public:
 		// + 1000 as our calculations not exact in some places. Rounding error or?
 		//Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
 		Robot::matrix.resize(antix::matrix_height * antix::matrix_height);
-		cout << "Matrix has " << Robot::matrix.size() << " cells" << endl;
+		cout << "Vision matrix has " << Robot::matrix.size() << " cells" << endl;
+
+		// size of cell in one dimension
+		double collision_cell_size = 2 * Robot::robot_radius;
+		antix::cmatrix_width = ceil(antix::world_size / collision_cell_size);
+		Robot::cmatrix.resize(antix::cmatrix_width * antix::cmatrix_width);
+		for (vector<Robot *>::iterator it = Robot::cmatrix.begin(); it != Robot::cmatrix.end(); it++) {
+			*it = NULL;
+		}
+		cout << "Collision matrix has " << Robot::cmatrix.size() << " cells." << endl;
 
 		cout << "Set dimensions of this map. Min x: " << my_min_x << " Max x: " << my_max_x << endl;
 		populate_homes(node_list);
@@ -111,15 +120,29 @@ public:
 
 					Robot *r = new Robot(antix::rand_between(my_min_x, my_max_x), antix::rand_between(0, antix::world_size), j, rn->team(), h->x, h->y);
 
+					// collision matrix
+					// make sure we appear at an unused location
+					unsigned int cindex = antix::CCell(r->x, r->y);
+					while ( Robot::cmatrix[cindex] != NULL ) {
+						r->random_warp(my_min_x, my_max_x);
+						cindex = antix::CCell(r->x, r->y);
+					}
+					r->cindex = cindex;
+					Robot::cmatrix[cindex] = r;
+
 					// bots[][] array
 					assert(r->team < BOTS_TEAM_SIZE);
 					assert(r->id < BOTS_ROBOT_SIZE);
 					bots[r -> team][r -> id] = r; //XXX Gordon's Test
 
+					// vector of all robots
 					robots.push_back(r); //TODO, remove robots
+					
+					// sensor matrix
 					unsigned int index = antix::Cell(r->x, r->y);
 					r->index = index;
 					Robot::matrix[index].robots.push_back( r );
+
 #if DEBUG
 					cout << "Created a bot: Team: " << r->team << " id: " << r->id << " at (" << r->x << ", " << r->y << ")" << endl;
 #endif
@@ -229,11 +252,24 @@ public:
 		r->v = v;
 		r->w = w;
 		r->has_puck = has_puck;
+
+		// collision matrix
+		unsigned int new_cindex = antix::CCell( x, y );
+		if (Robot::cmatrix[new_cindex] != NULL) {
+			cerr << "Error: Moved to an already occupied collision cell!" << endl;
+		}
+		r->cindex = new_cindex;
+		Robot::cmatrix[new_cindex] = r;
+		
+		// bots[][] array
 		assert(r->team < BOTS_TEAM_SIZE);
 		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = r;
+
+		// vector of all robots
 		robots.push_back(r);
 
+		// sensor matrix
 		unsigned int new_index = antix::Cell( x, y );
 		r->index = new_index;
 		Robot::matrix[new_index].robots.push_back( r );
@@ -322,6 +358,11 @@ public:
 		assert(r->team < BOTS_TEAM_SIZE);
 		assert(r->id < BOTS_ROBOT_SIZE);
 		bots[r->team][r->id] = NULL;
+
+		// from collision matrix
+		// XXX ENABLE THIS
+		//assert(Robot::cmatrix[r->cindex] == r);
+		Robot::cmatrix[r->cindex] = NULL;
 
 		// delete robot from memory
 		int index = r->index;

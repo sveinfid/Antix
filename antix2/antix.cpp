@@ -55,6 +55,8 @@ public:
 	static unsigned int matrix_right_x_col;
 	static unsigned int matrix_right_world_col;
 
+	static unsigned int cmatrix_width;
+
 	/*
 		Take a host and a port, return c_str
 	*/
@@ -461,6 +463,45 @@ public:
 	}
 
 	/*
+		Collision cell functions
+	*/
+	static inline unsigned int
+	CCell_x(double x) {
+		const double d = antix::world_size / (double) cmatrix_width;
+
+		// wraparound
+		while (x > world_size)
+			x -= world_size;
+
+		while (x < 0)
+			x += world_size;
+		
+		return floor(x / d);
+	}
+
+	static inline unsigned int
+	CCell_y(double x) {
+		const double d = antix::world_size / (double) cmatrix_width;
+
+		// wraparound
+		while (x > world_size)
+			x -= world_size;
+		while (x < 0)
+			x += world_size;
+
+		return floor(x / d);
+	}
+
+	static inline unsigned int
+	CCell(double x, double y) {
+		unsigned int cx = CCell_x(x);
+		unsigned int cy = CCell_y(y);
+		unsigned int i = cx + cy * cmatrix_width;
+		assert( i < cmatrix_width * cmatrix_width );
+		return i;
+	}
+
+	/*
 		fast_ trig functions from rtv's antix
 	*/
 	static inline double
@@ -540,6 +581,7 @@ unsigned int antix::matrix_width;
 unsigned int antix::matrix_height;
 unsigned int antix::matrix_right_x_col;
 unsigned int antix::matrix_right_world_col;
+unsigned int antix::cmatrix_width;
 int antix::turn = 0;
 
 #endif

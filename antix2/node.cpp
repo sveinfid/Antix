@@ -571,6 +571,7 @@ main(int argc, char **argv) {
 	antix::home_radius = init_response.home_radius();
 	Robot::vision_range = init_response.vision_range();
 	Robot::vision_range_squared = Robot::vision_range * Robot::vision_range;
+	Robot::robot_radius = init_response.robot_radius();
 	Robot::fov = init_response.fov();
 	Robot::pickup_range = init_response.pickup_range();
 

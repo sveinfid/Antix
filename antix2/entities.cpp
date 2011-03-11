@@ -86,10 +86,14 @@ public:
 	static double fov;
 	static double vision_range;
 	static double vision_range_squared;
+	static double robot_radius;
 	static vector<MatrixCell> matrix;
+	static vector<Robot *> cmatrix;
 
-	// index into matrix
+	// index into sensor matrix
 	unsigned int index;
+	// index into collision matrix
+	unsigned int cindex;
 
 	double x, y;
 	// orientation
@@ -123,6 +127,7 @@ public:
 		puck = NULL;
 		has_puck = false;
 		index = 0;
+		cindex = 0;
 	}
 
 	// Used in GUI & foreign robots
@@ -133,6 +138,13 @@ public:
 		puck = NULL;
 		has_puck = false;
 		index = 0;
+		cindex = 0;
+	}
+
+	void
+	random_warp(double min_x, double max_x) {
+		x = antix::rand_between(min_x, max_x);
+		y = antix::rand_between(0, antix::world_size);
 	}
 
 	/*
@@ -148,17 +160,34 @@ public:
 		const double dy = v * antix::fast_sin(a);
 		const double da = w;
 
-		x = antix::DistanceNormalize(x + dx);
-		y = antix::DistanceNormalize(y + dy);
-
-		const unsigned int new_index = antix::Cell( x, y );
-#if DEBUG
-		cout << "Moving: before AngleNormalize: a " << a << " da " << da << endl;
-#endif
+		// always update angle even if we don't move
 		a = antix::AngleNormalize(a + da);
-#if DEBUG
-		cout << "Moving: after AngleNormalize: " << a << endl;
-#endif
+
+		const double new_x = antix::DistanceNormalize(x + dx);
+		const double new_y = antix::DistanceNormalize(y + dy);
+
+		/*
+			Collision matrix stuff
+		*/
+		unsigned int new_cindex = antix::CCell(new_x, new_y);
+		// we try to move to a new collision cell
+		if (new_cindex != cindex) {
+			// if it's occupied, we can't move there. Disallow move
+			if ( cmatrix[new_cindex] != NULL )
+				return;
+			// otherwise no robot in that cell. move to it and continue
+			cmatrix[cindex] = NULL;
+			cindex = new_cindex;
+			cmatrix[cindex] = this;
+		}
+
+		x = new_x;
+		y = new_y;
+
+		/*
+			Sensor matrix stuff	
+		*/
+		const unsigned int new_index = antix::Cell( x, y );
 
 		// If we're holding a puck, it must move also
 		if (has_puck) {
@@ -293,6 +322,8 @@ double Robot::pickup_range;
 double Robot::fov;
 double Robot::vision_range;
 double Robot::vision_range_squared;
+double Robot::robot_radius;
 vector<MatrixCell> Robot::matrix;
+vector<Robot *> Robot::cmatrix;
 
 #endif
