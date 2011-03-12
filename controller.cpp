@@ -49,7 +49,6 @@ public:
 		} else {
 			// if we're away from home and see puck(s)
 			if (dist > home->r && seen_pucks->size() > 0) {
-				cout << "Yes" << endl;
 				double closest_range(1e9);
 				// Look at all the pucks we can see
 				vector<CSeePuck>::iterator end = seen_pucks->end();
