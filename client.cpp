@@ -27,6 +27,8 @@ zmq::socket_t *node_sub_sock;
 antixtransfer::control_message sense_req_msg;
 antixtransfer::control_message control_msg;
 antixtransfer::sense_data sense_msg;
+// used for wait_for_next_turn()
+antixtransfer::done node_done_msg;
 
 void
 synchronize_sub_sock() {
@@ -54,7 +56,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 	control_msg.clear_robot();
 
 	// For each robot in the sense data from this node, build a decision
-	for (int i = 0; i < sense_msg->robot_size(); i++) {
+	int robot_size = sense_msg->robot_size();
+	for (int i = 0; i < robot_size; i++) {
 		// First we create a Controller with this robot's state
 
 		// XXX
@@ -62,7 +65,8 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		// this costs cpu... perhaps undesirable. but otherwise controller
 		// must look at protobuf...
 		vector<CSeePuck> seen_pucks;
-		for (int j = 0; j < sense_msg->robot(i).seen_puck_size(); j++) {
+		int seen_puck_size = sense_msg->robot(i).seen_puck_size();
+		for (int j = 0; j < seen_puck_size; j++) {
 			seen_pucks.push_back( CSeePuck(sense_msg->robot(i).seen_puck(j).held(),
 				sense_msg->robot(i).seen_puck(j).range(),
 				sense_msg->robot(i).seen_puck(j).bearing())
@@ -167,6 +171,8 @@ main(int argc, char **argv) {
 	// initialize some protobufs that do not change
 	sense_req_msg.set_team(my_id);
 	control_msg.set_team(my_id);
+	node_done_msg.set_my_id(my_id);
+	node_done_msg.set_type( antixtransfer::done::CLIENT );
 
 	cout << "Connecting to local node..." << endl;
 
@@ -287,7 +293,7 @@ main(int argc, char **argv) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
 
-		response = antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
+		response = antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, &node_done_msg);
 		if (response == "s")
 			// leave loop
 			break;

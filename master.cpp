@@ -54,6 +54,9 @@ int next_node_id = 0;
 map<int, int> client_robot_map;
 antixtransfer::Node_list node_list;
 
+// in handle_done()
+antixtransfer::done done_msg;
+
 // used for synchronous turns
 set<int> nodes_done;
 
@@ -224,11 +227,7 @@ void
 handle_done(zmq::socket_t *rep_sock,
 	zmq::socket_t *publish_sock,
 	set<int> *nodes_done) {
-	/*
-	set<int> *clients_done) {
-	*/
 
-	antixtransfer::done done_msg;
 	int rc = antix::recv_pb(rep_sock, &done_msg, 0);
 	assert(rc == 1);
 
@@ -238,17 +237,9 @@ handle_done(zmq::socket_t *rep_sock,
 	// May be from either a client or a node
 	if (done_msg.type() == antixtransfer::done::NODE) {
 		// Record node if we haven't heard from it before
-		if (nodes_done->count(done_msg.my_id()) == 0) {
+		//if (nodes_done->count(done_msg.my_id()) == 0) {
 			nodes_done->insert(done_msg.my_id());
-		}
-
-/*
-	} else if (done_msg.type() == antixtransfer::done::CLIENT) {
-		// Record client if we haven't heard from it before
-		if (clients_done->count(done_msg.my_id()) == 0) {
-			clients_done->insert(done_msg.my_id());
-		}
-		*/
+		//}
 	}
 	
 	// If we've heard from all nodes, start next turn

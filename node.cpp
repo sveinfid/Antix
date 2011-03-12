@@ -56,6 +56,8 @@ antixtransfer::GUI_Request gui_req;
 // used in wait_for_clients
 antixtransfer::done done_msg;
 set<int> clients_done;
+// used for wait_for_next_turn()
+antixtransfer::done master_done_msg;
 
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
@@ -508,6 +510,8 @@ main(int argc, char **argv) {
 	total_teams = atoi(argv[6]);
 	assert(total_teams > 0);
 
+	// some protobuf stuff that need only be set once
+
 	// initialize move messages: only needs to be done once, so may as well do it here
 	move_left_msg.set_from_right(true);
 	move_right_msg.set_from_right(false);
@@ -573,6 +577,10 @@ main(int argc, char **argv) {
 	Robot::pickup_range = init_response.pickup_range();
 
 	cout << "We are now node ID " << my_id << endl;
+
+	// need only be set once, may as well do here
+	master_done_msg.set_my_id( my_id );
+	master_done_msg.set_type( antixtransfer::done::NODE );
 
 	// ZMQ pub/sub can lose initial messages: synchronize them
 	cout << "Synchronizing PUB/SUB with master..." << endl;
@@ -676,7 +684,7 @@ main(int argc, char **argv) {
 		cout << "Sync: Sending done to master & awaiting response..." << endl;
 #endif
 		// tell master we're done the work for this turn & wait for signal
-		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
+		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, &master_done_msg);
 		if (response == "s")
 			// leave loop
 			break;

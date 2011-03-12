@@ -7,8 +7,6 @@
 - able to serialize data in controllers to pass to other nodes
 
 - optimize:
-	- constructors
-	- loops (.end())
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:
 		- seen / foreign messages can probably be pruned (team, id)

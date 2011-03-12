@@ -36,6 +36,8 @@ vector<Puck> pucks;
 vector<Robot> robots;
 
 antixtransfer::Node_list node_list;
+antixtransfer::GUI_Request req;
+antixtransfer::SendMap_GUI gui_map;
 
 //keep track of which node to listen to
 int current_node = 0;
@@ -44,15 +46,18 @@ bool all_node = false;
 
 void
 associate_robot_with_home(Robot *r) {
-	for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
+	vector<Home>::const_iterator homes_end = homes.end();
+	for (vector<Home>::iterator it = homes.begin(); it != homes_end; it++) {
 		if (it->team == r->team) {
 			r->home = &*it;
 			return;
 		}
 	}
+
 	cerr << "Error: failed to associate robot with home" << endl;
 	cerr << "\tRobot has team id " << r->team << endl;
 	cerr << "Homes:" << endl;
+
 	for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
 		cerr << "\tHome with team id " << it->team << endl;
 	}
@@ -89,31 +94,36 @@ rebuild_entity_db() {
 
 	int node_iterator = 0;
 	
-	// XXX declare once
-	antixtransfer::GUI_Request req;
-
 	// wait on response from each node
-	for (vector<zmq::socket_t *>::iterator it = req_sockets.begin(); it != req_sockets.end(); it++) {
+	vector<zmq::socket_t *>::const_iterator socks_end = req_sockets.end();
+#ifndef NDEBUG
+	int sockets_count = 0;
+#endif
+	for (vector<zmq::socket_t *>::const_iterator it = req_sockets.begin(); it != socks_end; it++) {
+#ifndef NDEBUG
+		sockets_count++;
+#endif
 		
 		//do not wait for every node, just current node
 		if(all_node || (node_iterator == abs(current_node%node_list.node_size())))
 		{
 			req.set_r(true);
 			antix::send_pb(*it, &req);
-			
-			// XXX declare once
-			antixtransfer::SendMap_GUI map;
-			antix::recv_pb(*it, &map, 0);
+			antix::recv_pb(*it, &gui_map, 0);
 			
 			// add received pucks
-			for (int l = 0; l < map.puck_size(); l++) {
-				pucks.push_back( Puck(map.puck(l).x(), map.puck(l).y(), false ) );
+			int puck_size = gui_map.puck_size();
+			for (int l = 0; l < puck_size; l++) {
+				pucks.push_back( Puck(gui_map.puck(l).x(), gui_map.puck(l).y(), false ) );
 			}
 
 			// and robots
-			for (int l = 0; l < map.robot_size(); l++) {
-				Robot r(map.robot(l).x(), map.robot(l).y(), map.robot(l).team(), map.robot(l).a());
+			int robot_size = gui_map.robot_size();
+			for (int l = 0; l < robot_size; l++) {
+				Robot r(gui_map.robot(l).x(), gui_map.robot(l).y(),
+					gui_map.robot(l).team(), gui_map.robot(l).a());
 				associate_robot_with_home(&r);
+				assert(r.home != NULL);
 				robots.push_back(r);
 			}
 		}
@@ -124,6 +134,7 @@ rebuild_entity_db() {
 		}
 		node_iterator++;
 	}
+	assert(sockets_count == req_sockets.size());
 #ifndef NDEBUG
 	cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
 #endif
@@ -150,7 +161,7 @@ timer_func( int dummy ) {
 
 // draw a robot
 void
-Draw(Robot *r) {
+Draw(const Robot *r) {
 	glPushMatrix();
 
 	// shift into this robot's local coordinate frame
@@ -244,11 +255,26 @@ GlDrawCircle( double x, double y, double r, double count ) {
 // render all robots in OpenGL
 void
 DrawAll() {
-	for (vector<Robot>::iterator it = robots.begin(); it != robots.end(); it++) {
+	vector<Robot>::const_iterator robots_end = robots.end();
+#ifndef NDEBUG
+	int robots_count = 0;
+#endif
+	for (vector<Robot>::const_iterator it = robots.begin(); it != robots_end; it++) {
+#ifndef NDEBUG
+		robots_count++;
+#endif
 		Draw(&*it);
 	}
+	assert(robots_count == robots.size());
 	
-	for (vector<Home>::iterator it = homes.begin(); it != homes.end(); it++) {
+	vector<Home>::const_iterator homes_end = homes.end();
+#ifndef NDEBUG
+	int homes_count = 0;
+#endif
+	for (vector<Home>::const_iterator it = homes.begin(); it != homes_end; it++) {
+#ifndef NDEBUG
+		homes_count++;
+#endif
 		glColor3f( it->colour.r, it->colour.g, it->colour.b );
 
 		GlDrawCircle( it->x, it->y, home_radius, 16 );
@@ -257,13 +283,22 @@ DrawAll() {
 		GlDrawCircle( it->x, it->y+world_size, home_radius, 16 );
 		GlDrawCircle( it->x, it->y-world_size, home_radius, 16 );
 	}
+	assert(homes_count == homes.size());
 	
 	glColor3f( 1,1,1 ); // green
 	glBegin( GL_POINTS );
 
-	for (vector<Puck>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+	vector<Puck>::const_iterator pucks_end = pucks.end();
+#ifndef NDEBUG
+	int pucks_count = 0;
+#endif
+	for (vector<Puck>::const_iterator it = pucks.begin(); it != pucks_end; it++) {
+#ifndef NDEBUG
+		pucks_count++;
+#endif
 		glVertex2f( it->x, it->y );
 	}
+	assert(pucks_count == pucks.size());
 	glEnd();
 }
 

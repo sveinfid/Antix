@@ -52,7 +52,7 @@ public:
 				double closest_range(1e9);
 				// Look at all the pucks we can see
 				vector<CSeePuck>::iterator end = seen_pucks->end();
-				for (vector<CSeePuck>::iterator it = seen_pucks->begin(); it != end; it++) {
+				for (vector<CSeePuck>::const_iterator it = seen_pucks->begin(); it != end; it++) {
 					// If one is within pickup distance, try to pick it up
 					if (it->range < Robot::pickup_range && !has_puck) {
 #if DEBUG

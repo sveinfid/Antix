@@ -233,14 +233,9 @@ public:
 	static string
 	wait_for_next_turn(zmq::socket_t *req_sock,
 		zmq::socket_t *sub_sock,
-		int id,
-		antixtransfer::done::Type type) {
+		antixtransfer::done *done_msg) {
 
-		// XXX declare once
-		antixtransfer::done done_msg;
-		done_msg.set_my_id( id );
-		done_msg.set_type( type );
-		int ret = send_pb_envelope(req_sock, &done_msg, "done");
+		int ret = send_pb_envelope(req_sock, done_msg, "done");
 		assert(ret == 1);
 #if DEBUG
 		cout << "Sync: Sent done signal" << endl;

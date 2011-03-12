@@ -146,6 +146,7 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
+		home = NULL;
 	}
 
 	// Used in GUI & foreign robots
@@ -157,6 +158,7 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
+		home = NULL;
 	}
 
 	void
@@ -281,7 +283,8 @@ public:
 		assert(puck == NULL);
 		
 		// see if we can find an available puck to pick up
-		for (vector<SeePuck>::iterator it = see_pucks.begin(); it != see_pucks.end(); it++) {
+		vector<SeePuck>::const_iterator see_pucks_end = see_pucks.end();
+		for (vector<SeePuck>::const_iterator it = see_pucks.begin(); it != see_pucks_end; it++) {
 			// Check if the puck we see hasn't already moved out of the node
 #ifndef NDEBUG
 			bool found = false;
