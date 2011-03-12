@@ -37,7 +37,8 @@ antixtransfer::Node_list::Node left_node;
 antixtransfer::Node_list::Node right_node;
 
 /*
-	Repeated protobuf messages: Declare them once as constructors are expensive
+	Repeated protobuf message objects / other objects
+	Declare them once as constructors are expensive
 */
 // messages that are sent repeatedly when bots move left or right
 antixtransfer::move_bot move_left_msg;
@@ -46,6 +47,15 @@ antixtransfer::move_bot move_right_msg;
 antixtransfer::SendMap sendmap_recv;
 // used in exchange_foreign_entities
 antixtransfer::move_bot move_bot_msg;
+// used in service_control_messages
+antixtransfer::control_message control_msg;
+antixtransfer::sense_data blank_sense_msg;
+// used in service_gui_requests
+antixtransfer::SendMap_GUI gui_map;
+antixtransfer::GUI_Request gui_req;
+// used in wait_for_clients
+antixtransfer::done done_msg;
+set<int> clients_done;
 
 // Connect to master & identify ourselves. Get state
 zmq::socket_t *master_req_sock;
@@ -185,11 +195,13 @@ update_foreign_entities(zmq::socket_t *sock) {
 	assert(rc == 1);
 
 	// foreign robots
-	for (int i = 0; i < sendmap_recv.robot_size(); i++) {
+	int robot_size = sendmap_recv.robot_size();
+	for (int i = 0; i < robot_size; i++) {
 		my_map->add_foreign_robot(sendmap_recv.robot(i).x(), sendmap_recv.robot(i).y(), sendmap_recv.robot(i).id(), sendmap_recv.robot(i).team());
 	}
 	// foreign pucks
-	for (int i = 0; i < sendmap_recv.puck_size(); i++) {
+	int puck_size = sendmap_recv.puck_size();
+	for (int i = 0; i < puck_size; i++) {
 		my_map->add_foreign_puck(sendmap_recv.puck(i).x(), sendmap_recv.puck(i).y(), sendmap_recv.puck(i).held() );
 	}
 }
@@ -202,7 +214,8 @@ void
 handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 	// for each robot in the message, add it to our list
 	int i;
-	for(i = 0; i < move_bot_msg->robot_size(); i++) {
+	int robot_size = move_bot_msg->robot_size();
+	for(i = 0; i < robot_size; i++) {
 		my_map->add_robot(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(),
 			move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team(),
 			move_bot_msg->robot(i).a(), move_bot_msg->robot(i).v(),
@@ -270,6 +283,7 @@ exchange_foreign_entities() {
 	cout << " (turn " << antix::turn << ")" << endl;
 #endif
 	// Keep waiting for messages until we've received the number we expect
+	int rc;
 	while (responses < 2 || requests < 2) {
 		zmq::poll(&items [0], 3, -1);
 
@@ -293,7 +307,7 @@ exchange_foreign_entities() {
 
 		// neighbour request
 		if (items[2].revents & ZMQ_POLLIN) {
-			int rc = antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
+			rc = antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
 			assert(rc == 1);
 			// we have received a move request: first update our local records with
 			// the sent bots
@@ -323,7 +337,8 @@ exchange_foreign_entities() {
 void
 parse_client_message(antixtransfer::control_message *msg) {
 	Robot *r;
-	for (int i = 0; i < msg->robot_size(); i++) {
+	int robot_size = msg->robot_size();
+	for (int i = 0; i < robot_size; i++) {
 		r = my_map->find_robot(msg->team(), msg->robot(i).id());
 		assert(r != NULL);
 
@@ -361,37 +376,38 @@ service_control_messages() {
 	// - sense_messages: N = # of clients in the world
 	// - control messages: M = # of teams we are currently holding robots for
 	//   - we know this through sense_map.size()
-	for (int i = 0; i < total_teams + my_map->sense_map.size(); i++) {
-		// XXX declare this once?
-		antixtransfer::control_message msg;
-		int rc = antix::recv_pb(control_rep_sock, &msg, 0);
+	int rc;
+	int expected_messages = total_teams + my_map->sense_map.size();
+	for (int i = 0; i < expected_messages; i++) {
+		rc = antix::recv_pb(control_rep_sock, &control_msg, 0);
 		assert(rc == 1);
 
-		// If more than 0 robots given, this is a message indicating commands for robots
-		if (msg.robot_size() > 0) {
+		// If > 0 robots given, this is a message indicating commands for robots
+		if (control_msg.robot_size() > 0) {
 #if DEBUG
-			cout << "Got a command message for team " << msg.team() << " with commands for " << msg.robot_size() << " robots." << endl;
+			cout << "Got a command message for team " << control_msg.team() << " with commands for " << control_msg.robot_size() << " robots." << endl;
 #endif
-			parse_client_message(&msg);
+			parse_client_message(&control_msg);
 			// no confirmation or anything (for now)
 			antix::send_blank(control_rep_sock);
 
 		// Otherwise it's a sense request message
 		} else {
 			// if we have sense data for that team, send it on
-			if (my_map->sense_map.count( msg.team() ) > 0) {
+			if (my_map->sense_map.count( control_msg.team() ) > 0) {
 #if DEBUG
-				cout << "Sending sense data for team " << msg.team() << " with " << my_map->sense_map[msg.team()]->robot_size() << " robots " << endl;
+				cout << "Sending sense data for team " << control_msg.team();
+				cout << " with " << my_map->sense_map[control_msg.team()]->robot_size();
+				cout << " robots " << endl;
 #endif
-				antix::send_pb(control_rep_sock, my_map->sense_map[msg.team()]);
+				antix::send_pb(control_rep_sock, my_map->sense_map[control_msg.team()]);
 
 			// otherwise give a blank (no robots) sense message
 			} else {
-				// XXX declare once
-				antixtransfer::sense_data blank_sense_msg;
 				antix::send_pb(control_rep_sock, &blank_sense_msg);
 #if DEBUG
-				cout << "Sending sense data for team " << msg.team() << " with 0 robots (BLANK)" << endl;
+				cout << "Sending sense data for team " << control_msg.team();
+				cout << " with 0 robots (BLANK)" << endl;
 #endif
 			}
 		}
@@ -410,15 +426,12 @@ service_gui_requests() {
 #if DEBUG_SYNC
 	cout << "Sync: Checking GUI requests..." << endl;
 #endif
-	antixtransfer::GUI_Request req;
-	int rc = antix::recv_pb(gui_rep_sock, &req, 0);
+	int rc = antix::recv_pb(gui_rep_sock, &gui_req, 0);
 	assert(rc == 1);
 	
 	//only sent map if GUI request for it
-	if(req.r()){
+	if(gui_req.r()){
 		// Respond by sending a list of our entities
-		// XXX declare only once
-		antixtransfer::SendMap_GUI gui_map;
 		my_map->build_gui_map(&gui_map);
 		antix::send_pb(gui_rep_sock, &gui_map);
 	}else {
@@ -436,18 +449,17 @@ service_gui_requests() {
 void
 wait_for_clients() {
 	// Every client process on the machine must contact us before beginning next turn
-	// XXX declare only once
-	set<int> clients_done;
+	clients_done.clear();
+
 #if DEBUG_SYNC
 	cout << "Sync: Waiting for clients..." << endl;
 #endif
 	string type;
+	int rc;
 	while (clients_done.size() < total_teams) {
 		type = antix::recv_str(sync_rep_sock);
 
-		// XXX declare only once
-		antixtransfer::done done_msg;
-		int rc = antix::recv_pb(sync_rep_sock, &done_msg, 0);
+		rc = antix::recv_pb(sync_rep_sock, &done_msg, 0);
 		assert(rc == 1);
 
 		// respond since rep sock
@@ -459,7 +471,8 @@ wait_for_clients() {
 		//}
 #if DEBUG_SYNC
 		cout << "Sync: Just received done from client " << done_msg.my_id() << endl;
-		cout << "Sync: Heard done from " << clients_done.size() << " clients. There are " << total_teams << " teams." << endl;
+		cout << "Sync: Heard done from " << clients_done.size();
+		cout << " clients. There are " << total_teams << " teams." << endl;
 #endif
 	}
 #if DEBUG_SYNC

@@ -55,7 +55,9 @@ public:
 		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
 			delete it->second;
 		}
+#if DEBUG
 		cout << "Map deleted." << endl;
+#endif
 	}
 
 	Map(double my_min_x,
@@ -693,7 +695,6 @@ public:
 	void
 	build_sense_messages() {
 		// clear old sense data
-		// XXX check this deletes as expected
 		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
 			delete it->second;
 		}
@@ -827,6 +828,9 @@ public:
 	*/
 	void
 	build_gui_map(antixtransfer::SendMap_GUI *gui_map) {
+		gui_map->clear_puck();
+		gui_map->clear_robot();
+
 		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
 			antixtransfer::SendMap_GUI::Puck *puck = gui_map->add_puck();
 			puck->set_x( (*it)->x );
