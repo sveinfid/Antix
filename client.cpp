@@ -27,12 +27,6 @@ zmq::socket_t *node_sub_sock;
 antixtransfer::control_message sense_req_msg;
 
 void
-shutdown() {
-	cout << "Received shutdown message from node. Shutting down..." << endl;
-	exit(0);
-}
-
-void
 synchronize_sub_sock() {
 	antixtransfer::node_master_sync sync_msg;
 	sync_msg.set_my_id( my_id );
@@ -363,7 +357,8 @@ main(int argc, char **argv) {
 
 		response = antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, my_id, antixtransfer::done::CLIENT);
 		if (response == "s")
-			shutdown();
+			// leave loop
+			break;
 
 #if DEBUG
 		antix::turn++;
@@ -373,6 +368,13 @@ main(int argc, char **argv) {
 		antix::sleep(sleep_time);
 #endif
 	}
+
+	cout << "Received shutdown message from node. Shutting down..." << endl;
+
+	delete my_home;
+	delete node_sync_req_sock;
+	delete node_sub_sock;
+	delete node_req_sock;
 
 	google::protobuf::ShutdownProtobufLibrary();
 	return 0;

@@ -42,6 +42,22 @@ public:
 	// what each robot can see by team
 	map<int, antixtransfer::sense_data *> sense_map;
 
+	~Map() {
+		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+			delete *it;
+		}
+		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+			delete *it;
+		}
+		for (vector<Home *>::iterator it = homes.begin(); it != homes.end(); it++) {
+			delete *it;
+		}
+		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
+			delete it->second;
+		}
+		cout << "Map deleted." << endl;
+	}
+
 	Map(double my_min_x,
 		antixtransfer::Node_list *node_list,
 		int initial_puck_amount,

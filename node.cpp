@@ -68,15 +68,6 @@ zmq::socket_t *sync_pub_sock;
 // gui requests entities on this sock
 zmq::socket_t *gui_rep_sock;
 
-void
-shutdown() {
-	cout << "Received shutdown message from master. Shutting down..." << endl;
-	cout << "Sending shutdown message to our clients..." << endl;
-	antix::send_str(sync_pub_sock, "s");
-	antix::sleep(5000);
-	exit(0);
-}
-
 /*
 	Wait until we hear from total_teams unique client connections
 	Add their data to pb_init_msg
@@ -674,7 +665,8 @@ main(int argc, char **argv) {
 		// tell master we're done the work for this turn & wait for signal
 		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, my_id, antixtransfer::done::NODE);
 		if (response == "s")
-			shutdown();
+			// leave loop
+			break;
 #ifndef NDEBUG
 		else if (response == "sync") {
 			cout << "Error: Got PUB/SUB sync in main loop" << endl;
@@ -699,6 +691,22 @@ main(int argc, char **argv) {
 		antix::sleep(sleep_time);
 #endif
 	}
+
+	cout << "Received shutdown message from master. Shutting down..." << endl;
+	cout << "Sending shutdown message to our clients..." << endl;
+	antix::send_str(sync_pub_sock, "s");
+
+	delete my_map;
+
+	delete master_req_sock;
+	delete master_sub_sock;
+	delete right_req_sock;
+	delete left_req_sock;
+	delete neighbour_rep_sock;
+	delete control_rep_sock;
+	delete sync_rep_sock;
+	delete sync_pub_sock;
+	delete gui_rep_sock;
 
 	google::protobuf::ShutdownProtobufLibrary();
 	return 0;
