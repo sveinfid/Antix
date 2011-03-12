@@ -363,6 +363,7 @@ public:
 		antix::EraseAll( r->puck, Robot::matrix[ r->puck->index ].pucks );
 
 		// remove puck from vector
+		// XXX expensive
 		antix::EraseAll( r->puck, pucks );
 		
 		// remove record on robot to deleted puck
@@ -382,6 +383,7 @@ public:
 		remove_puck(r);
 
 		// remove from vector of all robots
+		// XXX expensive
 		antix::EraseAll( r, robots );
 
 		// from bots[][]
@@ -523,12 +525,11 @@ public:
 		antixtransfer::SendMap *border_map_right,
 		int side) {
 
-		vector<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
-		vector<Robot *>::const_iterator end_robot = Robot::matrix[index].robots.end();
-
 		// Robots
 		// while loop as iterator may be updated due to deletion
-		//while (it_robot != end_robot) {
+		// NOTE: Can't remove function call to end it seems or fails asserts when
+		// removing robots. Possibly due to removal of final robot sometimes?
+		vector<Robot *>::iterator it_robot = Robot::matrix[index].robots.begin();
 		while (it_robot != Robot::matrix[index].robots.end()) {
 			// First we look whether robot needs to move to another node
 
@@ -695,14 +696,29 @@ public:
 	void
 	build_sense_messages() {
 		// clear old sense data
-		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
+		map<int, antixtransfer::sense_data *>::iterator sense_map_end = sense_map.end();
+#ifndef NDEBUG
+		int sense_map_count = 0;
+#endif
+		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map_end; it++) {
 			delete it->second;
+#ifndef NDEBUG
+			sense_map_count++;
+#endif
 		}
+		assert(sense_map_count == sense_map.size());
 		sense_map.clear();
 
 		// for every robot we have, build a message for it containing what it sees
-		for (vector<Robot *>::iterator r = robots.begin(); r != robots.end(); r++) {
-			antixtransfer::sense_data *team_msg;
+		vector<Robot *>::const_iterator robots_end = robots.end();
+#ifndef NDEBUG
+		int robot_count = 0;
+#endif
+		antixtransfer::sense_data *team_msg;
+		for (vector<Robot *>::const_iterator r = robots.begin(); r != robots_end; r++) {
+#ifndef NDEBUG
+			robot_count++;
+#endif
 
 			// if we already have an in progress sense msg for this team, use that
 			if (sense_map.count( (*r)->team ) > 0) {
@@ -802,6 +818,7 @@ public:
 			}
 			*/
 		}
+		assert(robot_count == robots.size());
 #if DEBUG
 		cout << "Sensors re-calculated." << endl;
 #endif
@@ -815,9 +832,17 @@ public:
 #if DEBUG
 		cout << "Updating poses for all robots..." << endl;
 #endif
-		for(vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		vector<Robot *>::const_iterator robots_end = robots.end();
+#ifndef NDEBUG
+		int robot_count = 0;
+#endif
+		for(vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
 			(*it)->update_pose();
+#ifndef NDEBUG
+			robot_count++;
+#endif
 		}
+		assert(robot_count == robots.size());
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
 #endif
@@ -831,13 +856,29 @@ public:
 		gui_map->clear_puck();
 		gui_map->clear_robot();
 
-		for (vector<Puck *>::iterator it = pucks.begin(); it != pucks.end(); it++) {
+		vector<Puck *>::const_iterator pucks_end = pucks.end();
+#ifndef NDEBUG
+		int pucks_count = 0;
+#endif
+		for (vector<Puck *>::const_iterator it = pucks.begin(); it != pucks_end; it++) {
+#ifndef NDEBUG
+			pucks_count++;
+#endif
 			antixtransfer::SendMap_GUI::Puck *puck = gui_map->add_puck();
 			puck->set_x( (*it)->x );
 			puck->set_y( (*it)->y );
 			puck->set_held( (*it)->held );
 		}
-		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
+		assert(pucks_count == pucks.size());
+
+		vector<Robot *>::const_iterator robots_end = robots.end();
+#ifndef NDEBUG
+		int robots_count = 0;
+#endif
+		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
+#ifndef NDEBUG
+			robots_count++;
+#endif
 			antixtransfer::SendMap_GUI::Robot *robot = gui_map->add_robot();
 			robot->set_team( (*it)->team );
 			robot->set_id( (*it)->id );
@@ -845,6 +886,7 @@ public:
 			robot->set_y( (*it)->y );
 			robot->set_a( (*it)->a );
 		}
+		assert(robots_count == robots.size());
 	}
 
 	/*
@@ -869,7 +911,14 @@ public:
 	void
 	TestRobotsInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		// look at robots in this cell and see if we can see them
-		for (vector<Robot *>::const_iterator other = cell.robots.begin(); other != cell.robots.end(); other++) {
+		vector<Robot *>::const_iterator robots_end = cell.robots.end();
+#ifndef NDEBUG
+		int robots_count = 0;
+#endif
+		for (vector<Robot *>::const_iterator other = cell.robots.begin(); other != robots_end; other++) {
+#ifndef NDEBUG
+			robots_count++;
+#endif
 			// we don't look at ourself
 			if (r == *other)
 				continue;
@@ -900,12 +949,20 @@ public:
 			seen_robot->set_range( sqrt(dsq) );
 			seen_robot->set_bearing( relative_heading );
 		}
+		assert(robots_count == cell.robots.size());
 	}
 
 	void
 	TestPucksInCell(const MatrixCell& cell, Robot *r, antixtransfer::sense_data::Robot *robot_pb) {
 		// check which pucks in this cell we can see
-		for (vector<Puck *>::const_iterator puck = cell.pucks.begin(); puck != cell.pucks.end(); puck++) {
+		vector<Puck *>::const_iterator pucks_end = cell.pucks.end();
+#ifndef NDEBUG
+		int pucks_count = 0;
+#endif
+		for (vector<Puck *>::const_iterator puck = cell.pucks.begin(); puck != pucks_end; puck++) {
+#ifndef NDEBUG
+			pucks_count++;
+#endif
 			const double dx( antix::WrapDistance( (*puck)->x - r->x ) );
 			if ( fabs(dx) > Robot::vision_range )
 				continue;
@@ -949,6 +1006,7 @@ public:
 			assert(found == true);
 #endif
 		}
+		assert(pucks_count == cell.pucks.size());
 	}
 };
 #endif
