@@ -2,23 +2,24 @@
 
 class Controller {
 public:
-	const double x,
+	double x,
 		y,
 		a;
-	const int id;
+	int id;
 	double last_x,
 		last_y;
-	const Home *home;
-	const bool has_puck;
-	const vector<CSeePuck> *seen_pucks;
+	Home *home;
+	bool has_puck;
+	vector<CSeePuck> *seen_pucks;
 
 	antixtransfer::control_message::Puck_Action puck_action;
 	double v,
 		w;
 
-	Controller(const double x, const double y, const double a,
-		int id, double last_x, double last_y, const Home *home,
-		const vector<CSeePuck> *see_pucks, const bool has_puck)
+	Controller(double x, double y,
+		double a, int id,
+		double last_x, double last_y,
+		Home *home, vector<CSeePuck> *seen_pucks, bool has_puck)
 			: x(x), y(y), a(a), id(id), last_x(last_x), last_y(last_y), home(home),
 				seen_pucks(seen_pucks), has_puck(has_puck)
 	{
@@ -48,10 +49,11 @@ public:
 		} else {
 			// if we're away from home and see puck(s)
 			if (dist > home->r && seen_pucks->size() > 0) {
+				cout << "Yes" << endl;
 				double closest_range(1e9);
 				// Look at all the pucks we can see
-				vector<CSeePuck>::const_iterator end = seen_pucks->end();
-				for (vector<CSeePuck>::const_iterator it = seen_pucks->begin(); it != end; it++) {
+				vector<CSeePuck>::iterator end = seen_pucks->end();
+				for (vector<CSeePuck>::iterator it = seen_pucks->begin(); it != end; it++) {
 					// If one is within pickup distance, try to pick it up
 					if (it->range < Robot::pickup_range && !has_puck) {
 #if DEBUG

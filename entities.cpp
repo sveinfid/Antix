@@ -1,3 +1,8 @@
+/*
+	Some object definitions
+
+	Most of the objects are essentially copied from rtv's Antix
+*/
 
 #ifndef ENTITIES_H
 #define ENTITIES_H

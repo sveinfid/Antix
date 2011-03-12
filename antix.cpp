@@ -1,7 +1,5 @@
 /*
-	Some library functions & object defs
-
-	Most of the objects are essentially copied from rtv's Antix
+	Some library functions
 
 	send_pb/recv_pb motivated by s_send/s_recv from
 	https://github.com/imatix/zguide/blob/master/examples/C%2B%2B/zhelpers.hpp
