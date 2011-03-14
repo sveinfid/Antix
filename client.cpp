@@ -308,6 +308,9 @@ main(int argc, char **argv) {
 		// sense, then decide & send what commands for each robot
 		sense_and_controller();
 
+		// XXX it's possible we should use a different function than this
+		// as this includes score data definition (done msg) for node which
+		// may waste cpu depending on protobuf impl.
 		response = antix::wait_for_next_turn(node_sync_req_sock, node_sub_sock, &node_done_msg);
 		if (response == "s")
 			// leave loop

@@ -36,8 +36,6 @@ bool shutting_down = false;
 // track whether simulation has begun
 bool begun = false;
 
-int turns = 0;
-
 time_t start_time;
 
 /*
@@ -59,6 +57,9 @@ antixtransfer::done done_msg;
 
 // used for synchronous turns
 set<int> nodes_done;
+
+// global scores - not updated every turn, but in general
+map<int, int> scores;
 
 /*
 	Go through our list of nodes & assign an x offset to the node for which
@@ -234,16 +235,38 @@ handle_done(zmq::socket_t *rep_sock,
 	// we must respond since this is a REP socket
 	antix::send_blank(rep_sock);
 
-	// May be from either a client or a node
 	if (done_msg.type() == antixtransfer::done::NODE) {
 		// Record node if we haven't heard from it before
-		//if (nodes_done->count(done_msg.my_id()) == 0) {
-			nodes_done->insert(done_msg.my_id());
-		//}
+		nodes_done->insert(done_msg.my_id());
+
+		// Update global scores (though they are not sent every turn)
+		int scores_size = done_msg.scores_size();
+		for (int i = 0; i < scores_size; i++) {
+			// if no score record in map, create one (not really necessary,
+			// we could populate this at start, but doesn't matter too much
+			if (scores.count( done_msg.scores(i).team_id() ) == 0 ) {
+				scores.insert(
+					pair<int, int>( done_msg.scores(i).team_id(), done_msg.scores(i).score() )
+				);
+			} else {
+				scores[done_msg.scores(i).team_id()] = scores[done_msg.scores(i).team_id()] + done_msg.scores(i).score();
+			}
+		}
+
+	} else {
+		cerr << "Error: Bad type in done message." << endl;
+		exit(-1);
 	}
 	
 	// If we've heard from all nodes, start next turn
 	if (nodes_done->size() == node_list.node_size()) {
+		// Output scores to stdout
+		if (antix::turn % TURNS_SEND_SCORE == 0) {
+			for (map<int, int>::const_iterator it = scores.begin(); it != scores.end(); it++) {
+				cout << "Team " << it->first << " has score " << it->second << "." << endl;
+			}
+		}
+
 		if (shutting_down) {
 			cout << "Sending shutdown message to nodes..." << endl;
 			antix::send_str(publish_sock, "s");
@@ -252,12 +275,12 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG_SYNC
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-			if (turns % 20 == 0) {
+			if (antix::turn % 20 == 0) {
 				const double seconds = time(NULL) - start_time;
 				if (seconds != 0)
-					cout << turns / seconds << " turns/second (" << turns << " turns)" << endl;
+					cout << antix::turn / seconds << " turns/second (" << antix::turn << " turns)" << endl;
 			}
-			turns++;
+			antix::turn++;
 			//cout << "Turn " << turns << " done." << endl;
 			antix::send_str(publish_sock, "b");
 		}

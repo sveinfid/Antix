@@ -27,8 +27,11 @@
 #define SLEEP 0
 #define GUI 1
 #define COLLISIONS 1
+
 // # of turns until a puck respawns from a home
 #define PUCK_LIFETIME 10
+// # of turns to wait before updating master with per node scores
+#define TURNS_SEND_SCORE 100
 
 // Debug everything
 #define DEBUG 0
@@ -252,19 +255,19 @@ public:
 
 		int ret = send_pb_envelope(req_sock, done_msg, "done");
 		assert(ret == 1);
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Sent done signal" << endl;
 #endif
 		// necessary response due to REQ socket
 		recv_blank(req_sock);
 
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Got rep from done send. Waiting for begin signal..." << endl;
 #endif
 
 		// now we block on PUB sock awaiting begin
 		string s = recv_str(sub_sock);
-#if DEBUG
+#if DEBUG_SYNC
 		cout << "Sync: Received awaited signal" << endl;
 #endif
 		return s;

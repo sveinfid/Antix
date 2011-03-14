@@ -509,6 +509,31 @@ wait_for_clients() {
 }
 
 /*
+	Every TURNS_SEND_SCORE turns, add all of our recorded scores for teams to
+	our done message before we send it
+	Then clear our scores
+*/
+void
+update_scores_to_send(antixtransfer::done *done_msg) {
+	const int rem = antix::turn % TURNS_SEND_SCORE;
+
+	// send them on every TURNS_SEND_SCORE turns
+	if (rem == 0) {
+		const vector<Home *>::const_iterator homes_end = my_map->homes.end();
+		for (vector<Home *>::const_iterator it = my_map->homes.begin(); it != homes_end; it++) {
+			antixtransfer::done::Score *score = done_msg->add_scores();
+			score->set_team_id( (*it)->team );
+			score->set_score( (*it)->score );
+			(*it)->score = 0;
+		}
+
+	// clear on TURNS_SEND_SCORE + 1
+	} else if (rem == 1) {
+		done_msg->clear_scores();
+	}
+}
+
+/*
 	Send message to clients to begin next turn
 */
 void
@@ -713,6 +738,7 @@ main(int argc, char **argv) {
 		cout << "Sync: Sending done to master & awaiting response..." << endl;
 #endif
 		// tell master we're done the work for this turn & wait for signal
+		update_scores_to_send(&master_done_msg);
 		string response = antix::wait_for_next_turn(master_req_sock, master_sub_sock, &master_done_msg);
 		if (response == "s")
 			// leave loop
@@ -730,9 +756,8 @@ main(int argc, char **argv) {
 
 		// tell clients to begin
 		begin_clients();
-#if DEBUG_SYNC
+
 		antix::turn++;
-#endif
 #if DEBUG
 		cout << "Turn " << antix::turn << " done." << endl;
 #endif

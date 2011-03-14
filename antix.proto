@@ -55,8 +55,13 @@ message done {
 		CLIENT = 0;
 		NODE = 1;
 	}
+	message Score {
+		required int32 team_id = 1;
+		required int32 score = 2;
+	}
 	required int32 my_id = 1;
 	required Type type = 2;
+	repeated Score scores = 3;
 }
 
 // master -> node/client list of nodes
