@@ -53,7 +53,13 @@
 #include <windows.h>
 #endif
 
+#if defined(__APPLE__)&& defined(__MACH__)
+#include <OpenGL/glu.h>
+#include <GLUT/glut.h> 
+#else
 #include <GL/glut.h>
+#endif
+
 
 #ifdef __cplusplus
 extern "C"

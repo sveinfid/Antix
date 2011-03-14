@@ -1,29 +1,41 @@
-# You must set the environment variables
-#
-# export ZMQ_PATH=/pathto/zeromq
-# export PROTOBUF_PATH=/path/to/protobuf
-#
-# e.g.
-# export ZMQ_PATH=/home/wjs2/zeromq
-export PROTOBUF_PATH=/usr/local
-#
+
+IPC_PREFIX=/tmp/$(USER)-node
+
+#ZMQ_PATH=/home/$(USER)/zeromq
+PROTOBUF_PATH=/usr/local
 
 build_dir=.
 targets=master operator node client
+gui_targets=gui
 objs=antix.pb.o
+
+GLUTFLAGS = -framework OpenGL -framework GLUT
+
+CFLAGS=-O3
+#GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
+#GLUTFLAGS=-I/usr/include/GL
 
 includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include
 lib_paths=-L$(ZMQ_PATH)/lib -L$(PROTOBUF_PATH)/lib
 libraries=-lzmq -lprotobuf
 
-all: $(objs) $(targets)
+all: $(objs) $(targets) $(gui_targets)
 
-.cpp: $(objs)
-	g++ -o $(build_dir)/$@ $< $(objs) $(libraries)
+gui: gui.cpp zpr.o
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) zpr.o $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
 
 antix.pb.o: antix.proto
 	$(PROTOBUF_PATH)/bin/protoc -I. --cpp_out=$(build_dir) antix.proto
-	g++ -c antix.pb.cc $(libraries)
+	g++ $(CFLAGS) -c antix.pb.cc $(includes) $(lib_paths) $(libraries)
+
+zpr.o:
+	gcc -c zpr.c $(GLUTFLAGS) $(GLUTLIBS)
+
+.cpp: master.cpp operator.cpp node.cpp client.cpp antix.pb.o antix.cpp entities.cpp map.cpp
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries) -DIPC_PREFIX=\"$(IPC_PREFIX)\"
 
 clean:
-	rm -f $(targets) antix.pb.*
+	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o
+
+clean2:
+	rm -f $(targets) $(gui_targets) zpr.o

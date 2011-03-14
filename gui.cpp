@@ -5,7 +5,11 @@
 #include "entities.cpp"
 
 // OS X users need <glut/glut.h> instead
+#if defined(__APPLE__)&& defined(__MACH__)
+#include <glut/glut.h>
+#else
 #include <GL/glut.h>
+#endif
 #include "zpr.h"
 
 using namespace std;
