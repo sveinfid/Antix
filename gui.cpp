@@ -45,8 +45,11 @@ antixtransfer::SendMap_GUI gui_map;
 
 //keep track of which node to listen to
 int current_node = 0;
-//listen to all nodes
-bool all_node = false;
+// how we are viewing the world
+#define VIEW_NO_NODE 0
+#define VIEW_SINGLE_NODE 1
+#define VIEW_ALL_NODE 2
+int view_mode = VIEW_SINGLE_NODE;
 
 void
 associate_robot_with_home(Robot *r) {
@@ -108,8 +111,9 @@ rebuild_entity_db() {
 		sockets_count++;
 #endif
 		
-		//do not wait for every node, just current node
-		if(all_node || (node_iterator == abs(current_node%node_list.node_size())))
+		// do not wait for every node, just current node
+		if(view_mode != VIEW_NO_NODE &&
+			(view_mode == VIEW_ALL_NODE || (node_iterator == abs(current_node%node_list.node_size()))))
 		{
 			req.set_r(true);
 			antix::send_pb(*it, &req);
@@ -338,11 +342,17 @@ processSpecialKeys(int key, int x, int y) {
 			//cout << "PRESSED RIGHT KEY" << abs(current_node%node_list.node_size()) << endl;
 			break;
 		case GLUT_KEY_UP : 
-			all_node = true;
+			if (view_mode == VIEW_NO_NODE)
+				view_mode = VIEW_SINGLE_NODE;
+			else if (view_mode == VIEW_SINGLE_NODE)
+				view_mode = VIEW_ALL_NODE;
 			//cout << "PRESSED UP KEY" << all_node << endl;
 			break;
 		case GLUT_KEY_DOWN : 
-			all_node = false;
+			if (view_mode == VIEW_ALL_NODE)
+				view_mode = VIEW_SINGLE_NODE;
+			else if (view_mode == VIEW_SINGLE_NODE)
+				view_mode = VIEW_NO_NODE;
 			//cout << "PRESSED DOWN KEY" << all_node << endl;
 			break;
 			
