@@ -41,6 +41,18 @@
 
 using namespace std;
 
+// bounding box stuff from rtv's Antix
+
+// bounds type - specifies a range of values
+typedef struct {
+	double min, max;
+} bounds_t;
+
+// bounding box type - specifies a 2d range of values
+typedef struct {
+	bounds_t x, y;
+} bbox_t;
+
 class antix {
 public:
 	static double offset_size;
@@ -49,6 +61,7 @@ public:
 	static int turn;
 	static double home_radius;
 	
+	// NOTE: Width is the width of only our section of the matrix
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
 	static unsigned int matrix_right_x_col;
@@ -389,11 +402,19 @@ public:
 
 	/*
 		these cell methods similar/same to those from rtv's antix
+
+		NOTE: We have Cell_x/y and NoCellWrap_x/y as we start counting from
+		x = 0 always, even if our offset is not that in the larger world.
+		This was in an attempt to only store a portion of the matrix on each
+		node, though we now again store the whole matrix everywhere.
+
+		It could be reverted either way, but at the moment the border and
+		move messages assume cells are populated in this way.
 	*/
 
 	static inline unsigned int
 	Cell_x(double x) {
-		const double d = antix::offset_size / (double) matrix_width;
+		const double d = offset_size / (double) matrix_width;
 
 		// this can be < 0 and cause invalid value due to unsigned
 		const double new_x = x - my_min_x;
@@ -407,30 +428,23 @@ public:
 		/*
 		while (x > world_size)
 			x -= world_size;
-
 		while (x < 0)
 			x += world_size;
 		*/
 		
-		//unsigned int i = floor(x/d);
-		//assert(i < matrix_width * matrix_height + 1000);
-
 		return floor(x / d);
 	}
 
 	static inline unsigned int
 	Cell_y(double x) {
-		const double d = antix::world_size / (double) matrix_height;
+		const double d = world_size / (double) matrix_height;
 
 		// wraparound
 		while (x > world_size)
 			x -= world_size;
 		while (x < 0)
 			x += world_size;
-
-		//unsigned int i = floor(x/d);
-		//assert(i < matrix_width * matrix_height + 1000);
-
+		
 		return floor(x / d);
 	}
 
@@ -456,6 +470,28 @@ public:
 		//return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
 
+	// used for bounding boxes
+	static inline unsigned int
+	CellNoWrap_x (double x) {
+		const double d = offset_size / (double) matrix_width;
+
+		// this can be < 0 and cause invalid value due to unsigned
+		const double new_x = x - my_min_x;
+		if (new_x < 0)
+			x = 0;
+		else
+			x = new_x;
+
+		return floor( x / d );
+	}
+
+	static inline unsigned int
+	CellNoWrap_y (double x) {
+		const double d = world_size / (double) matrix_height;
+		
+		return floor(x / d);
+	}
+
 	/*
 		Collision cell functions
 	*/
@@ -464,11 +500,14 @@ public:
 		const double d = antix::world_size / (double) cmatrix_width;
 
 		// wraparound
+		/*
+		don't wrap around x
 		while (x > world_size)
 			x -= world_size;
 
 		while (x < 0)
 			x += world_size;
+		*/
 		
 		return floor(x / d);
 	}
@@ -564,6 +603,15 @@ public:
 			std::remove( container.begin(), container.end(), thing ), container.end()
 		);
 		assert(container.size() == size - 1);
+	}
+
+	// from rtv's Antix
+	static inline void
+	grow_bounds( bounds_t &b, double val ) {
+		if ( val < b.min )
+			b.min = val;
+		if ( val > b.max )
+			b.max = val;
 	}
 };
 

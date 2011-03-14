@@ -226,6 +226,11 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
 
+		r->sensor_bbox.x.min = move_bot_msg->robot(i).bbox_x_min();
+		r->sensor_bbox.x.max = move_bot_msg->robot(i).bbox_x_max();
+		r->sensor_bbox.y.min = move_bot_msg->robot(i).bbox_y_min();
+		r->sensor_bbox.y.max = move_bot_msg->robot(i).bbox_y_max();
+
 		int ints_size = move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)
 			r->ints.push_back( move_bot_msg->robot(i).ints(j) );

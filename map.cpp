@@ -341,6 +341,10 @@ public:
 		r_move->set_has_puck(r->has_puck);
 		r_move->set_last_x(r->last_x);
 		r_move->set_last_y(r->last_y);
+		r_move->set_bbox_x_min(r->sensor_bbox.x.min);
+		r_move->set_bbox_x_max(r->sensor_bbox.x.max);
+		r_move->set_bbox_y_min(r->sensor_bbox.y.min);
+		r_move->set_bbox_y_max(r->sensor_bbox.y.max);
 
 		vector<int>::const_iterator ints_end = r->ints.end();
 		for (vector<int>::const_iterator it = r->ints.begin(); it != ints_end; it++)
@@ -755,23 +759,16 @@ public:
 			for (vector<double>::const_iterator it = (*r)->doubles.begin(); it != doubles_end; it++)
 				robot_pb->add_doubles( *it );
 
-			int x( antix::Cell_x( (*r)->x ) );
-			int y( antix::Cell_y( (*r)->y ) );
-
 			// we will now find what robots & pucks we can see, but before that,
 			// clear our see_pucks (and see_robots when we care...)
 			(*r)->see_pucks.clear();
 
-			// check 3x3 cells around robot's position
-			UpdateSensorsCell(x-1, y-1, *r, robot_pb);
-			UpdateSensorsCell(x+0, y-1, *r, robot_pb);
-			UpdateSensorsCell(x+1, y-1, *r, robot_pb);
-			UpdateSensorsCell(x-1, y+0, *r, robot_pb);
-			UpdateSensorsCell(x+0, y+0, *r, robot_pb);
-			UpdateSensorsCell(x+1, y+0, *r, robot_pb);
-			UpdateSensorsCell(x-1, y+1, *r, robot_pb);
-			UpdateSensorsCell(x+0, y+1, *r, robot_pb);
-			UpdateSensorsCell(x+1, y+1, *r, robot_pb);
+			const int lastx( antix::CellNoWrap_x( (*r)->sensor_bbox.x.max) );
+			const int lasty( antix::CellNoWrap_y( (*r)->sensor_bbox.y.max) );
+
+			for (int x = antix::CellNoWrap_x( (*r)->sensor_bbox.x.min); x <= lastx; x++)
+				for (int y = antix::CellNoWrap_y( (*r)->sensor_bbox.y.min); y <= lasty; y++)
+					UpdateSensorsCell(x, y, *r, robot_pb);
 
 			// now look at foreign robots
 			/* XXX right now we don't care about foreign robots

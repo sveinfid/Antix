@@ -141,6 +141,8 @@ public:
 	vector<int> ints;
 	vector<double> doubles;
 
+	bbox_t sensor_bbox;
+
 	// Used in Map
 	Robot(double x, double y, int id, int team, double last_x, double last_y) : x(x), y(y), id(id), team(team), last_x(last_x), last_y(last_y) {
 		a = 0;
@@ -256,6 +258,41 @@ public:
 			}
 			index = new_index;
 		}
+
+		FovBBox( sensor_bbox );
+	}
+
+	// from rtv's Antix
+	// find the axis-aligned bounding box of our field of view
+	void
+	FovBBox( bbox_t &box ) {
+		box.x.min = x;
+		box.x.max = x;
+		box.y.min = y;
+		box.y.max = y;
+		const double halffov = fov/2.0;
+		const double lefta = a + halffov;
+		const double righta = a - halffov;
+
+		// extreme left of fov
+		antix::grow_bounds( box.x, x + vision_range * antix::fast_cos( lefta ) );
+		antix::grow_bounds( box.y, y + vision_range * antix::fast_sin( lefta ) );
+
+		// extreme right of fov
+		antix::grow_bounds( box.x, x + vision_range * antix::fast_cos( righta ) );
+		antix::grow_bounds( box.y, y + vision_range * antix::fast_sin( righta ) );
+
+		// points where the fov crosses an axis
+		if (lefta > 0 && righta < 0)
+			antix::grow_bounds( box.x, x + vision_range );
+		if (lefta > M_PI/2.0 && righta < M_PI/2.0)
+			antix::grow_bounds( box.y, y + vision_range );
+		if (lefta > M_PI && righta < M_PI)
+			antix::grow_bounds( box.x, x - vision_range );
+		if (lefta > -M_PI && righta < -M_PI)
+			antix::grow_bounds( box.x, x - vision_range );
+		if (lefta > -M_PI/2.0 && righta < -M_PI/2.0 )
+			antix::grow_bounds( box.y, y - vision_range );
 	}
 
 	/*

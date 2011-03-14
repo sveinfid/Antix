@@ -1,7 +1,5 @@
 - scoring
 
-- bounding boxes from rtv/faster
-
 - able to disable viewing all nodes in gui with keypress
 
 - optimize:
