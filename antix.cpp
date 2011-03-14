@@ -27,6 +27,8 @@
 #define SLEEP 0
 #define GUI 1
 #define COLLISIONS 1
+// # of turns until a puck respawns from a home
+#define PUCK_LIFETIME 10
 
 // Debug everything
 #define DEBUG 0

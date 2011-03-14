@@ -363,7 +363,10 @@ parse_client_message(antixtransfer::control_message *msg) {
 			cout << "(PICKUP) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
 #endif
 		} else if (msg->robot(i).puck_action() == antixtransfer::control_message::DROP) {
-			r->drop(&my_map->pucks);
+			r->drop(&my_map->pucks, &my_map->homes);
+#if DEBUG
+			cout << "Puck dropped on turn " << antix::turn << endl;
+#endif
 		}
 
 		// Always set speed
@@ -676,6 +679,9 @@ main(int argc, char **argv) {
 
 	// enter main loop
 	while (1) {
+		// update scores: decrement lifetimes, assign scores + respawn pucks if nec
+		my_map->update_scores();
+
 		// update poses for internal robots
 		my_map->update_poses();
 

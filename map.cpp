@@ -110,6 +110,9 @@ public:
 				node_list->home(i).team()
 			);
 			homes.push_back(h);
+#if DEBUG
+			cout << "Added home " << h->team << endl;
+#endif
 		}
 	}
 
@@ -174,6 +177,27 @@ public:
 	}
 
 	/*
+		Place puck randomly within our section of the map
+		Make sure it doesn't fall within a home
+	*/
+	void
+	respawn_puck(Puck *p) {
+		p->x = antix::rand_between( my_min_x, my_max_x );
+		p->y = antix::rand_between( 0, antix::world_size );
+
+		// XXX this is same code as in Robot::drop(). Combine
+		// (the checking whether in home)
+		vector<Home *>::const_iterator homes_end = homes.end();
+		for (vector<Home *>::const_iterator it = homes.begin(); it != homes_end; it++) {
+			const double range = hypot( (*it)->x - p->x, (*it)->y - p->y );
+			// if it's in a home, try again
+			if ( range < antix::home_radius ) {
+				respawn_puck(p);
+			}
+		}
+	}
+
+	/*
 		Place pucks randomly within our region
 	*/
 	void
@@ -182,6 +206,7 @@ public:
 			// XXX is this -0.01 needed?
 			//pucks.push_back( new Puck(my_min_x, my_max_x - 0.01) );
 			Puck *p = new Puck(my_min_x, my_max_x - 0.01);
+			respawn_puck(p);
 			unsigned int index = antix::Cell(p->x, p->y);
 			p->index = index;
 			Robot::matrix[index].pucks.push_back( p );
@@ -835,6 +860,37 @@ public:
 #if DEBUG
 		cout << "Sensors re-calculated." << endl;
 #endif
+	}
+	
+	/*
+		- Look at each home that has area within our section of the map
+		- Go through the pucks in that home
+		- If lifetime for a puck is 0, increment the score of that team
+		  and respawn the puck randomly within our section
+		- Otherwise decrement puck's lifetime
+	*/
+	void
+	update_scores() {
+		// XXX only look at homes that are necessary to look at!
+		vector<Home *>::const_iterator homes_end = homes.end();
+		for (vector<Home *>::const_iterator it = homes.begin(); it != homes_end; it++) {
+			vector<Puck *>::const_iterator pucks_end = (*it)->pucks.end();
+			for (vector<Puck *>::const_iterator it2 = (*it)->pucks.begin(); it2 != pucks_end; it2++ ) {
+				if ( (*it2)->lifetime == 0 ) {
+					// update score
+					(*it)->score++;
+					// disassociate puck from home
+					(*it2)->home = NULL;
+					antix::EraseAll( *it2, (*it)->pucks );
+					// respawn puck
+					respawn_puck( *it2 );
+				} else {
+					(*it2)->lifetime--;
+				}
+			}
+			cout << "After updating scores, home " << (*it)->team << " has score ";
+			cout << (*it)->score << " turn " << antix::turn << endl;
+		}
 	}
 
 	/*

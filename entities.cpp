@@ -24,23 +24,31 @@ public:
 	Colour (double r, double g, double b) : r(r), g(g), b(b) { }
 };
 
+class Puck;
+
 class Home {
 public:
 	double x, y;
 	double r;
 	Colour colour;
 	int team;
+	vector<Puck *> pucks;
+	int score;
 
 	Home(double x, double y, double r, int team) : x(x), y(y), r(r), team(team) {
 		colour = Colour();
+		score = 0;
 	}
 
-	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) { }
+	Home(double x, double y, double r, Colour colour) : x(x), y(y), r(r), colour(colour) {
+		score = 0;
+	}
 
 	Home(double r) : r(r) {
 		x = antix::rand_between(0, antix::world_size);
 		y = antix::rand_between(0, antix::world_size);
 		colour = Colour();
+		score = 0;
 	}
 };
 
@@ -53,6 +61,8 @@ public:
 	unsigned int index;
 	bool held;
 	Robot *robot;
+	Home *home;
+	int lifetime;
 
 	// random pose stuff is from rtv's Antix
 	Puck(double min_x, double max_x) {
@@ -61,10 +71,14 @@ public:
 		held = false;
 		robot = NULL;
 		index = 0;
+		lifetime = 0;
+		home = NULL;
 	}
 	Puck(double x, double y, bool held) : x(x), y(y), held(held) {
 		robot = NULL;
 		index = 0;
+		lifetime = 0;
+		home = NULL;
 	}
 };
 
@@ -353,6 +367,12 @@ public:
 					matrix[index].pucks.push_back( puck );
 					puck->index = index;
 				}
+
+				// if puck is in a home, disassociate it from that home
+				if (puck->home != NULL) {
+					antix::EraseAll( puck, puck->home->pucks );
+					puck->home = NULL;
+				}
 #if DEBUG
 				cout << "Robot " << id << " on team " << team << " picked up a puck." << endl;
 #endif
@@ -365,7 +385,7 @@ public:
 		Attempt to drop a puck for the given robot
 	*/
 	void
-	drop(vector<Puck *> *pucks) {
+	drop(vector<Puck *> *pucks, vector<Home *> *homes) {
 #if DEBUG
 		cout << "Trying to drop puck on robot " << id << " team " << team << endl;
 #endif
@@ -394,7 +414,30 @@ public:
 		has_puck = false;
 		puck->held = false;
 		puck->robot = NULL;
+		// store reference so as to check puck location further down
+		Puck *p = puck;
 		puck = NULL;
+
+		assert(p->home == NULL);
+
+		// if it's in a home, add it to that home's vector of pucks
+		vector<Home *>::const_iterator homes_end = homes->end();
+		for (vector<Home *>::const_iterator it = homes->begin(); it != homes_end; it++) {
+			const double range = hypot( (*it)->x - x, (*it)->y - y );
+			if (range < antix::home_radius) {
+				p->home = *it;
+#if NDEBUG
+				// make sure puck isn't already in the vector
+				for (vector<Puck *>::const_iterator it2 = homes->pucks.begin(); it2 != homes->pucks.end(); it2++) {
+					assert(*it2 != p);
+				}
+#endif
+				(*it)->pucks.push_back( p );
+				// set lifetime to initial
+				p->lifetime = PUCK_LIFETIME;
+				break;
+			}
+		}
 #if DEBUG
 		cout << "Done dropping puck" << endl;
 #endif
