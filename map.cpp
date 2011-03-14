@@ -192,9 +192,13 @@ public:
 			const double range = hypot( (*it)->x - p->x, (*it)->y - p->y );
 			// if it's in a home, try again
 			if ( range < antix::home_radius ) {
-				respawn_puck(p);
+				return respawn_puck(p);
 			}
 		}
+		// only add in cell when we find one we're staying in
+		unsigned int index = antix::Cell(p->x, p->y);
+		p->index = index;
+		Robot::matrix[index].pucks.push_back( p );
 	}
 
 	/*
@@ -207,9 +211,6 @@ public:
 			//pucks.push_back( new Puck(my_min_x, my_max_x - 0.01) );
 			Puck *p = new Puck(my_min_x, my_max_x - 0.01);
 			respawn_puck(p);
-			unsigned int index = antix::Cell(p->x, p->y);
-			p->index = index;
-			Robot::matrix[index].pucks.push_back( p );
 			pucks.push_back( p );
 		}
 		cout << "Created " << pucks.size() << " pucks." << endl;
@@ -882,6 +883,8 @@ public:
 					// disassociate puck from home
 					(*it2)->home = NULL;
 					antix::EraseAll( *it2, (*it)->pucks );
+					// remove puck from sense matrix
+					antix::EraseAll( *it2, Robot::matrix[ (*it2)->index ].pucks );
 					// respawn puck
 					respawn_puck( *it2 );
 				} else {
