@@ -217,13 +217,21 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 	// for each robot in the message, add it to our list
 	int i;
 	int robot_size = move_bot_msg->robot_size();
+	Robot *r;
 	for(i = 0; i < robot_size; i++) {
-		my_map->add_robot(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(),
+		r = my_map->add_robot(move_bot_msg->robot(i).x(), move_bot_msg->robot(i).y(),
 			move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team(),
 			move_bot_msg->robot(i).a(), move_bot_msg->robot(i).v(),
 			move_bot_msg->robot(i).w(), move_bot_msg->robot(i).has_puck(),
 			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
+
+		int ints_size = move_bot_msg->robot(i).ints_size();
+		for (int j = 0; j < ints_size; j++)
+			r->ints.push_back( move_bot_msg->robot(i).ints(j) );
+		int doubles_size = move_bot_msg->robot(i).doubles_size();
+		for (int j = 0; j < doubles_size; j++)
+			r->doubles.push_back( move_bot_msg->robot(i).doubles(j) );
 	}
 #if DEBUG
 	cout << i+1 << " robots transferred to this node." << endl;
@@ -358,6 +366,16 @@ parse_client_message(antixtransfer::control_message *msg) {
 #if DEBUG
 		cout << "(SETSPEED) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
 #endif
+
+		// Always update robot's individual memory
+		r->ints.clear();
+		int ints_size = msg->robot(i).ints_size();
+		for (int j = 0; j < ints_size; j++)
+			r->ints.push_back( msg->robot(i).ints(j) );
+		r->doubles.clear();
+		int doubles_size = msg->robot(i).doubles_size();
+		for (int j = 0; j < doubles_size; j++)
+			r->doubles.push_back( msg->robot(i).doubles(j) );
 	}
 }
 

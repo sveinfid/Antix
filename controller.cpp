@@ -2,6 +2,9 @@
 
 class Controller {
 public:
+	static vector<double> doubles_shared;
+	static vector<int> ints_shared;
+
 	double x,
 		y,
 		a;
@@ -15,6 +18,9 @@ public:
 	antixtransfer::control_message::Puck_Action puck_action;
 	double v,
 		w;
+
+	vector<double> doubles;
+	vector<int> ints;
 
 	Controller(double x, double y,
 		double a, int id,
@@ -108,3 +114,6 @@ public:
 		}
 	}
 };
+
+vector<double> Controller::doubles_shared;
+vector<int> Controller::ints_shared;

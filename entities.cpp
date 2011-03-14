@@ -137,6 +137,10 @@ public:
 	// store what pucks we can see
 	vector<SeePuck> see_pucks;
 
+	// robot's individual memory
+	vector<int> ints;
+	vector<double> doubles;
+
 	// Used in Map
 	Robot(double x, double y, int id, int team, double last_x, double last_y) : x(x), y(y), id(id), team(team), last_x(last_x), last_y(last_y) {
 		a = 0;

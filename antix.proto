@@ -173,6 +173,8 @@ message move_bot {
 		required bool has_puck = 8;
 		required double last_x = 9;
 		required double last_y = 10;
+		repeated int32 ints = 11;
+		repeated double doubles = 12;
 	}
 	required bool from_right = 1;
 	repeated Robot robot = 2;
@@ -192,6 +194,8 @@ message control_message {
 		required double w = 4;
 		optional double last_x = 5;
 		optional double last_y = 6;
+		repeated int32 ints = 7;
+		repeated double doubles = 8;
 	}
 
 	required int32 team = 1;
@@ -223,6 +227,8 @@ message sense_data {
 		required double last_y = 7;
 		repeated Seen_Robot seen_robot = 8;
 		repeated Seen_Puck seen_puck = 9;
+		repeated int32 ints = 10;
+		repeated double doubles = 11;
 	}
 
 	repeated Robot robot = 1;

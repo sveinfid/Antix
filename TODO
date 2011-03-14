@@ -4,8 +4,6 @@
 
 - able to disable viewing all nodes in gui with keypress
 
-- able to serialize data in controllers to pass to other nodes
-
 - optimize:
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:

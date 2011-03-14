@@ -79,6 +79,14 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 			my_home, &seen_pucks, sense_msg->robot(i).has_puck()
 		);
 
+		// Update this robot's memory
+		int doubles_size = sense_msg->robot(i).doubles_size();
+		for (int j = 0; j < doubles_size; j++)
+			ctlr.doubles.push_back( sense_msg->robot(i).doubles(j) );
+		int ints_size = sense_msg->robot(i).ints_size();
+		for (int j = 0; j < ints_size; j++)
+			ctlr.ints.push_back( sense_msg->robot(i).ints(j) );
+
 #if DEBUG
 		cout << "Got last x " << sense_msg->robot(i).last_x();
 		cout << " and last y " << sense_msg->robot(i).last_y();
@@ -96,6 +104,13 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		r->set_puck_action( ctlr.puck_action );
 		r->set_v( ctlr.v );
 		r->set_w( ctlr.w );
+
+		vector<double>::const_iterator doubles_end = ctlr.doubles.end();
+		for (vector<double>::const_iterator it = ctlr.doubles.begin(); it != doubles_end; it++)
+			r->add_doubles( *it );
+		vector<int>::const_iterator ints_end = ctlr.ints.end();
+		for (vector<int>::const_iterator it = ctlr.ints.begin(); it != ints_end; it++)
+			r->add_ints( *it );
 	}
 
 	// send the decision for all of our robots to this node

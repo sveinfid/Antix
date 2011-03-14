@@ -254,7 +254,7 @@ public:
 		foreign_pucks.push_back( Puck(x, y, held) );
 	}
 
-	void
+	Robot *
 	add_robot(double x,
 		double y,
 		int id,
@@ -320,6 +320,8 @@ public:
 			assert(p->robot == r);
 			assert(r->puck == p);
 		}
+
+		return r;
 	}
 
 	/*
@@ -339,6 +341,13 @@ public:
 		r_move->set_has_puck(r->has_puck);
 		r_move->set_last_x(r->last_x);
 		r_move->set_last_y(r->last_y);
+
+		vector<int>::const_iterator ints_end = r->ints.end();
+		for (vector<int>::const_iterator it = r->ints.begin(); it != ints_end; it++)
+			r_move->add_ints( *it );
+		vector<double>::const_iterator doubles_end = r->doubles.end();
+		for (vector<double>::const_iterator it = r->doubles.begin(); it != doubles_end; it++)
+			r_move->add_doubles( *it );
 #if DEBUG
 		cout << "Moving robot with a " << r->a << " w " << r->w << " (Turn " << antix::turn << ")" << endl;
 #endif
@@ -738,6 +747,13 @@ public:
 			robot_pb->set_id( (*r)->id );
 			robot_pb->set_last_x( (*r)->last_x );
 			robot_pb->set_last_y( (*r)->last_y );
+
+			vector<int>::const_iterator ints_end = (*r)->ints.end();
+			for (vector<int>::const_iterator it = (*r)->ints.begin(); it != ints_end; it++)
+				robot_pb->add_ints( *it );
+			vector<double>::const_iterator doubles_end = (*r)->doubles.end();
+			for (vector<double>::const_iterator it = (*r)->doubles.begin(); it != doubles_end; it++)
+				robot_pb->add_doubles( *it );
 
 			int x( antix::Cell_x( (*r)->x ) );
 			int y( antix::Cell_y( (*r)->y ) );
