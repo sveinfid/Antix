@@ -926,12 +926,16 @@ public:
 
 					// disassociate puck from home
 					(*it2)->home = NULL;
-					it2 = h->pucks.erase(it2);
 
 					// remove puck from sense matrix
 					antix::EraseAll( *it2, Robot::matrix[ (*it2)->index ].pucks );
+
 					// respawn puck
 					respawn_puck( *it2 );
+
+					// remove from home->pucks, continue
+					it2 = h->pucks.erase(it2);
+
 				} else {
 					(*it2)->lifetime--;
 					it2++;
