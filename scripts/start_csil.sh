@@ -5,8 +5,7 @@
 #
 
 WORKSTATIONS=workstations.txt_partial
-ANTIX_PATH=/home/wjs2/Antix
-USER=wjs2
+ANTIX_PATH=/home/$USER/Antix
 
 if [ $# -ne 3 ]
 then
@@ -21,7 +20,7 @@ ROBOTS_PER_TEAM=$3
 #count=0
 for line in `cat $ANTIX_PATH/scripts/$WORKSTATIONS`
 do
-	ssh -p 24 $USER@$line.csil.sfu.ca $ANTIX_PATH/scripts/start_csil_local.sh $MASTER $NUM_TEAMS $ROBOTS_PER_TEAM &
+	ssh -oStrictHostKeyChecking=no -p 24 $USER@$line.csil.sfu.ca $ANTIX_PATH/scripts/start_csil_local.sh $MASTER $NUM_TEAMS $ROBOTS_PER_TEAM &
 #  count=`expr $count + 1`
 #  if [ $count -eq $NUM_NODES ]
 #  then
