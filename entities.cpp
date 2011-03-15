@@ -395,7 +395,7 @@ public:
 			const double range( hypot( dx, dy ) );
 
 			if (range < antix::home_radius) {
-#if NDEBUG
+#ifndef NDEBUG
 				// make sure puck isn't already in the vector
 				for (vector<Puck *>::const_iterator it2 = h->pucks.begin(); it2 != h->pucks.end(); it2++) {
 					assert(*it2 != p);
