@@ -199,6 +199,7 @@ main(int argc, char **argv) {
 			node_sync_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 		} catch (zmq::error_t e) {
 			cout << "Error: Node sync req new: " << e.what() << endl;
+			delete node_sync_req_sock;
 			antix::sleep(1000);
 			continue;
 		}
@@ -222,6 +223,7 @@ main(int argc, char **argv) {
 			node_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 		} catch (zmq::error_t e) {
 			cout << "Error: Node sync sub new: " << e.what() << endl;
+			delete node_sub_sock;
 			antix::sleep(1000);
 			continue;
 		}
@@ -246,6 +248,7 @@ main(int argc, char **argv) {
 			node_req_sock = new zmq::socket_t(context, ZMQ_REQ);
 		} catch (zmq::error_t e) {
 			cout << "Error: Node req new: " << e.what() << endl;
+			delete node_req_sock;
 			antix::sleep(1000);
 			continue;
 		}

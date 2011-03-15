@@ -568,28 +568,132 @@ main(int argc, char **argv) {
 	move_right_msg.set_from_right(false);
 
 	// socket to announce ourselves to master on
-	master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
+	while (1) {
+		try {
+			master_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+		} catch (zmq::error_t e) {
+			cout << "Error: Master req sock new: " << e.what() << endl;
+			delete master_req_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			master_req_sock->connect(antix::make_endpoint(master_host, master_node_port));
+		} catch (zmq::error_t e) {
+			cout << "Error: Master req sock connect: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// socket to receive list of nodes on (and receive turn begin signal)
-	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
-	// subscribe to all messages on this socket
-	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-	master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+	while (1) {
+		try {
+			master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
+		} catch (zmq::error_t e) {
+			cout << "Error: Master sub sock new: " << e.what() << endl;
+			delete master_sub_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			// subscribe to all messages on this socket
+			master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
+		} catch (zmq::error_t e) {
+			cout << "Error: Master sub sock set subs: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			master_sub_sock->connect(antix::make_endpoint(master_host, master_publish_port));
+		} catch (zmq::error_t e) {
+			cout << "Error: Master sub sock connect: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	string ipc_fname_prefix = IPC_PREFIX;
 
 	// sync rep sock which receives done messages from clients
-	sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	sync_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "r"));
+	while (1) {
+		try {
+			sync_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+		} catch (zmq::error_t e) {
+			cout << "Error: Sync rep sock new: " << e.what() << endl;
+			delete sync_rep_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			sync_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "r"));
+		} catch (zmq::error_t e) {
+			cout << "Error: Sync rep sock bind: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// sync pub sock which sends begin message to clients
-	sync_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
-	sync_pub_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "p"));
+	while (1) {
+		try {
+			sync_pub_sock = new zmq::socket_t(context, ZMQ_PUB);
+		} catch (zmq::error_t e) {
+			cout << "Error: Sync pub sock new: " << e.what() << endl;
+			delete sync_pub_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			sync_pub_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "p"));
+		} catch (zmq::error_t e) {
+			cout << "Error: Sync pub sock bind: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// rep socket that receives control messages from clients
-	control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	control_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "c"));
+	while (1) {
+		try {
+			control_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+		} catch (zmq::error_t e) {
+			cout << "Error: Control rep sock new: " << e.what() << endl;
+			delete control_rep_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			control_rep_sock->bind(antix::make_endpoint_ipc(ipc_fname_prefix + ipc_id + "c"));
+		} catch (zmq::error_t e) {
+			cout << "Error: Control rep sock bind: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	cout << "Waiting for connection from " << total_teams << " teams." << endl;
 
@@ -693,18 +797,94 @@ main(int argc, char **argv) {
 
 	// connect to both of our neighbour's REP sockets
 	// we request foreign entities to this socket
-	left_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	left_req_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
-	right_req_sock = new zmq::socket_t(context, ZMQ_REQ);
-	right_req_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
+	while (1) {
+		try {
+			left_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+		} catch (zmq::error_t e) {
+			cout << "Error: Left req sock new: " << e.what() << endl;
+			delete left_req_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			left_req_sock->connect(antix::make_endpoint(left_node.ip_addr(), left_node.neighbour_port()));
+		} catch (zmq::error_t e) {
+			cout << "Error: Left req sock connect: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			right_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+		} catch (zmq::error_t e) {
+			cout << "Error: Right req sock new: " << e.what() << endl;
+			delete right_req_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			right_req_sock->connect(antix::make_endpoint(right_node.ip_addr(), right_node.neighbour_port()));
+		} catch (zmq::error_t e) {
+			cout << "Error: Right req sock connect: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// open REP socket where neighbours request border entities
-	neighbour_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	neighbour_rep_sock->bind(antix::make_endpoint(my_ip, my_neighbour_port));
+	while (1) {
+		try {
+			neighbour_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+		} catch (zmq::error_t e) {
+			cout << "Error: Neighbour rep sock new: " << e.what() << endl;
+			delete neighbour_rep_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			neighbour_rep_sock->bind(antix::make_endpoint(my_ip, my_neighbour_port));
+		} catch (zmq::error_t e) {
+			cout << "Error: Neighbour rep sock bind: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// create REP socket that receives queries from GUI
-	gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);
-	gui_rep_sock->bind(antix::make_endpoint(my_ip, my_gui_port));
+	while (1) {
+		try {
+			gui_rep_sock = new zmq::socket_t(context, ZMQ_REP);
+		} catch (zmq::error_t e) {
+			cout << "Error: GUI rep sock new: " << e.what() << endl;
+			delete gui_rep_sock;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
+	while (1) {
+		try {
+			gui_rep_sock->bind(antix::make_endpoint(my_ip, my_gui_port));
+		} catch (zmq::error_t e) {
+			cout << "Error: GUI rep sock bind: " << e.what() << endl;
+			antix::sleep(1000);
+			continue;
+		}
+		break;
+	}
 
 	// response from master (sync message)
 	string response;
