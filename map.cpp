@@ -393,6 +393,8 @@ public:
 		assert(r->puck->robot == r);
 		assert(r->puck->held == true);
 
+		assert(r->puck->home == NULL);
+
 		// remove puck from cell
 		antix::EraseAll( r->puck, Robot::matrix[ r->puck->index ].pucks );
 
@@ -914,20 +916,25 @@ public:
 		// XXX only look at homes that are necessary to look at!
 		vector<Home *>::const_iterator homes_end = homes.end();
 		for (vector<Home *>::const_iterator it = homes.begin(); it != homes_end; it++) {
-			vector<Puck *>::const_iterator pucks_end = (*it)->pucks.end();
-			for (vector<Puck *>::const_iterator it2 = (*it)->pucks.begin(); it2 != pucks_end; it2++ ) {
-				if ( (*it2)->lifetime == 0 ) {
+			Home *h = *it;
+			// Must while loop since possibly altering the home->pucks vector
+			vector<Puck *>::iterator it2 = h->pucks.begin();
+			while (it2 != h->pucks.end()) {
+				if ( (*it2)->lifetime <= 0 ) {
 					// update score
 					(*it)->score++;
+
 					// disassociate puck from home
 					(*it2)->home = NULL;
-					antix::EraseAll( *it2, (*it)->pucks );
+					it2 = h->pucks.erase(it2);
+
 					// remove puck from sense matrix
 					antix::EraseAll( *it2, Robot::matrix[ (*it2)->index ].pucks );
 					// respawn puck
 					respawn_puck( *it2 );
 				} else {
 					(*it2)->lifetime--;
+					it2++;
 				}
 			}
 #if DEBUG
