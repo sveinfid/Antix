@@ -681,12 +681,14 @@ public:
 
 		// look down the cells on far left
 		// check 3 furthest left cols
-		int left_limit = antix::matrix_left_x_col + 3;
-		for (int x = antix::matrix_left_x_col; x < left_limit; x++) {
+		int left_limit = antix::matrix_left_x_col + 10;
+		for (int x = antix::matrix_left_x_col - 10; x < left_limit; x++) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_height;
 				//cout << "Index left " << index << " x " << x << " y " << y << endl;
+				if (index >= Robot::matrix.size())
+					continue;
 				assert(index < Robot::matrix.size());
 				// Look at the robots & pucks
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
@@ -696,13 +698,15 @@ public:
 		// and on far right
 		// check 3 farthest right columns. start from column on furthest right
 		// and go back
-		int right_limit = antix::matrix_right_x_col - 3;
-		for (int x = antix::matrix_right_x_col; x > right_limit; x--) {
+		int right_limit = antix::matrix_right_x_col - 10;
+		for (int x = antix::matrix_right_x_col + 10; x > right_limit; x--) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				if (x < 0)
 					continue;
 				// 2d array into 1d matrix: x + y*width
 				int index = x + y * antix::matrix_height;
+				if (index >= Robot::matrix.size())
+					continue;
 				//cout << "Index right " << index << " x " << x << " y " << y << endl;
 				assert(index < Robot::matrix.size());
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
@@ -713,16 +717,20 @@ public:
 		for (int y = 0; y < antix::matrix_height; y++) {
 			int index = 0 + y * antix::matrix_height;
 			//cout << "Index far left " << index << " x " << 0 << " y " << y << endl;
+			assert(index < Robot::matrix.size());
 			examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 		}
 
 		// far left node can have index for bot move into far right
-		int far_right_limit = antix::matrix_right_world_x_col - 3;
-		for (int x = antix::matrix_right_world_x_col; x > far_right_limit; x--) {
+		int far_right_limit = antix::matrix_right_world_x_col - 10;
+		for (int x = antix::matrix_right_world_x_col + 10; x > far_right_limit; x--) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				if (x < 0)
 					continue;
 				int index = x + y * antix::matrix_height;
+				if (index >= Robot::matrix.size())
+					continue;
+				assert(index < Robot::matrix.size());
 				//cout << "Index far right " << index << " x " << x << " y " << y << endl;
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 			}
