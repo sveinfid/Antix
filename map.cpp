@@ -35,7 +35,9 @@ public:
 	vector<Robot> foreign_robots;
 
 	// We need to know homes to set robot's first last_x, last_y
-	vector<Home *> homes;
+	vector<Home *> all_homes;
+	// And homes that we check for scoring
+	vector<Home *> local_homes;
 	
 	Robot* bots[BOTS_TEAM_SIZE][BOTS_ROBOT_SIZE]; //bots[teamsize][amount of robots per team]
 
@@ -49,7 +51,7 @@ public:
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			delete *it;
 		}
-		for (vector<Home *>::iterator it = homes.begin(); it != homes.end(); it++) {
+		for (vector<Home *>::iterator it = all_homes.begin(); it != all_homes.end(); it++) {
 			delete *it;
 		}
 		for (map<int, antixtransfer::sense_data *>::iterator it = sense_map.begin(); it != sense_map.end(); it++) {
@@ -109,16 +111,28 @@ public:
 				0,
 				node_list->home(i).team()
 			);
-			homes.push_back(h);
+			all_homes.push_back(h);
 #if DEBUG
 			cout << "Added home " << h->team << endl;
 #endif
+		}
+
+		// Take the subset of those homes that have area within our section
+		// of the map and place in another vector
+		for (vector<Home *>::iterator it = all_homes.begin(); it != all_homes.end(); it++) {
+			Home *h = *it;
+			if (h->x + antix::home_radius >= my_min_x && h->x - antix::home_radius < my_max_x) {
+				local_homes.push_back(h);
+#if DEBUG
+				cout << "Found a local home for team " << h->team << endl;
+#endif
+			}
 		}
 	}
 
 	Home *
 	find_robot_home(int team) {
-		for (vector<Home *>::iterator it = homes.begin(); it != homes.end(); it++) {
+		for (vector<Home *>::iterator it = all_homes.begin(); it != all_homes.end(); it++) {
 			if ( (*it)->team == team )
 				return *it;
 		}
@@ -185,7 +199,7 @@ public:
 		p->x = antix::rand_between( my_min_x, my_max_x );
 		p->y = antix::rand_between( 0, antix::world_size );
 
-		Home *h = Robot::is_puck_in_home(p, &homes);
+		Home *h = Robot::is_puck_in_home(p, &local_homes);
 		if (h != NULL) {
 			return respawn_puck(p);
 		}
@@ -914,8 +928,8 @@ public:
 	void
 	update_scores() {
 		// XXX only look at homes that are necessary to look at!
-		vector<Home *>::const_iterator homes_end = homes.end();
-		for (vector<Home *>::const_iterator it = homes.begin(); it != homes_end; it++) {
+		vector<Home *>::const_iterator homes_end = local_homes.end();
+		for (vector<Home *>::const_iterator it = local_homes.begin(); it != homes_end; it++) {
 			Home *h = *it;
 			// Must while loop since possibly altering the home->pucks vector
 			vector<Puck *>::iterator it2 = h->pucks.begin();

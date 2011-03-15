@@ -363,7 +363,7 @@ parse_client_message(antixtransfer::control_message *msg) {
 			cout << "(PICKUP) Got last x " << r->last_x << " and last y " << r->last_y << " from client on turn " << antix::turn << endl;
 #endif
 		} else if (msg->robot(i).puck_action() == antixtransfer::control_message::DROP) {
-			r->drop(&my_map->pucks, &my_map->homes);
+			r->drop(&my_map->pucks, &my_map->local_homes);
 #if DEBUG
 			cout << "Puck dropped on turn " << antix::turn << endl;
 #endif
@@ -519,8 +519,8 @@ update_scores_to_send(antixtransfer::done *done_msg) {
 
 	// send them on every TURNS_SEND_SCORE turns
 	if (rem == 0) {
-		const vector<Home *>::const_iterator homes_end = my_map->homes.end();
-		for (vector<Home *>::const_iterator it = my_map->homes.begin(); it != homes_end; it++) {
+		const vector<Home *>::const_iterator homes_end = my_map->local_homes.end();
+		for (vector<Home *>::const_iterator it = my_map->local_homes.begin(); it != homes_end; it++) {
 			antixtransfer::done::Score *score = done_msg->add_scores();
 			score->set_team_id( (*it)->team );
 			score->set_score( (*it)->score );
