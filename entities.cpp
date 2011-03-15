@@ -382,6 +382,32 @@ public:
 	}
 
 	/*
+		Return pointer to the Home puck p is in, if it's in a home
+		Otherwise NULL
+	*/
+	static Home *
+	is_puck_in_home(Puck *p, vector<Home *> *homes) {
+		vector<Home *>::iterator homes_end = homes->end();
+		for (vector<Home *>::const_iterator it = homes->begin(); it != homes_end; it++) {
+			Home *h = *it;
+			const double dx( antix::WrapDistance( h->x - p->x ) );
+			const double dy( antix::WrapDistance( h->y - p->y ) );
+			const double range( hypot( dx, dy ) );
+
+			if (range < antix::home_radius) {
+#if NDEBUG
+				// make sure puck isn't already in the vector
+				for (vector<Puck *>::const_iterator it2 = h->pucks.begin(); it2 != h->pucks.end(); it2++) {
+					assert(*it2 != p);
+				}
+#endif
+				return h;
+			}
+		}
+		return NULL;
+	}
+
+	/*
 		Attempt to drop a puck for the given robot
 	*/
 	void
@@ -421,22 +447,12 @@ public:
 		assert(p->home == NULL);
 
 		// if it's in a home, add it to that home's vector of pucks
-		vector<Home *>::const_iterator homes_end = homes->end();
-		for (vector<Home *>::const_iterator it = homes->begin(); it != homes_end; it++) {
-			const double range = hypot( (*it)->x - x, (*it)->y - y );
-			if (range < antix::home_radius) {
-				p->home = *it;
-#if NDEBUG
-				// make sure puck isn't already in the vector
-				for (vector<Puck *>::const_iterator it2 = homes->pucks.begin(); it2 != homes->pucks.end(); it2++) {
-					assert(*it2 != p);
-				}
-#endif
-				(*it)->pucks.push_back( p );
-				// set lifetime to initial
-				p->lifetime = PUCK_LIFETIME;
-				break;
-			}
+		Home *h = is_puck_in_home(p, homes);
+		if (h != NULL) {
+			p->home = h;
+			h->pucks.push_back( p );
+			// set lifetime to initial
+			p->lifetime = PUCK_LIFETIME;
 		}
 #if DEBUG
 		cout << "Done dropping puck" << endl;

@@ -76,7 +76,7 @@ public:
 
 		// + 1000 as our calculations not exact in some places. Rounding error or?
 		//Robot::matrix.resize(antix::matrix_width * antix::matrix_height + 1000);
-		Robot::matrix.resize(antix::matrix_height * antix::matrix_height);
+		Robot::matrix.resize(antix::matrix_height * antix::matrix_height + 1000);
 		cout << "Vision matrix has " << Robot::matrix.size() << " cells" << endl;
 
 #if COLLISIONS
@@ -185,16 +185,11 @@ public:
 		p->x = antix::rand_between( my_min_x, my_max_x );
 		p->y = antix::rand_between( 0, antix::world_size );
 
-		// XXX this is same code as in Robot::drop(). Combine
-		// (the checking whether in home)
-		vector<Home *>::const_iterator homes_end = homes.end();
-		for (vector<Home *>::const_iterator it = homes.begin(); it != homes_end; it++) {
-			const double range = hypot( (*it)->x - p->x, (*it)->y - p->y );
-			// if it's in a home, try again
-			if ( range < antix::home_radius ) {
-				return respawn_puck(p);
-			}
+		Home *h = Robot::is_puck_in_home(p, &homes);
+		if (h != NULL) {
+			return respawn_puck(p);
 		}
+
 		// only add in cell when we find one we're staying in
 		unsigned int index = antix::Cell(p->x, p->y);
 		p->index = index;
@@ -495,9 +490,11 @@ public:
 	check_correct_robots_in_border(antixtransfer::SendMap *border_map_left, antixtransfer::SendMap *border_map_right) {
 		for (vector<Robot *>::iterator it = robots.begin(); it != robots.end(); it++) {
 			if ((*it)->x > my_max_x - Robot::vision_range) {
+				//cout << "Robot at " << (*it)->x << ", " << (*it)->y << " cell " << antix::Cell( (*it)->x, (*it)->y ) << endl;
 				assert(check_in_border_robot(border_map_right, *it));
 			}
 			else if ((*it)->x < my_min_x + Robot::vision_range) {
+				//cout << "Robot at " << (*it)->x << ", " << (*it)->y << " cell " << antix::Cell( (*it)->x, (*it)->y ) << endl;
 				assert(check_in_border_robot(border_map_left, *it));
 			}
 		}
@@ -680,14 +677,17 @@ public:
 
 		// Now we look at robots and pucks on the sides of the matrix
 
-		// look down the cells on far left (whole height where x = 0)
-		// check 3 furthest left cols (x = 0, 1, 2)
-		for (int x = 0; x <= 2; x++) {
+		// XXX all of these loops can probably be tightened to include less cols
+
+		// look down the cells on far left
+		// check 3 furthest left cols
+		int left_limit = antix::matrix_left_x_col + 3;
+		for (int x = antix::matrix_left_x_col; x < left_limit; x++) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
-				int index = x + y * antix::matrix_width;
-				assert(index < Robot::matrix.size());
+				int index = x + y * antix::matrix_height;
 				//cout << "Index left " << index << " x " << x << " y " << y << endl;
+				assert(index < Robot::matrix.size());
 				// Look at the robots & pucks
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
@@ -696,22 +696,45 @@ public:
 		// and on far right
 		// check 3 farthest right columns. start from column on furthest right
 		// and go back
-		for (int x = antix::matrix_right_x_col; x >= antix::matrix_right_x_col - 2; x--) {
+		int right_limit = antix::matrix_right_x_col - 3;
+		for (int x = antix::matrix_right_x_col; x > right_limit; x--) {
 			for (int y = 0; y < antix::matrix_height; y++) {
+				if (x < 0)
+					continue;
 				// 2d array into 1d matrix: x + y*width
-				int index = x + y * antix::matrix_width;
-				assert(index < Robot::matrix.size());
+				int index = x + y * antix::matrix_height;
 				//cout << "Index right " << index << " x " << x << " y " << y << endl;
+				assert(index < Robot::matrix.size());
+				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
+			}
+		}
+
+		// far right node can have index for bot move into far left
+		for (int y = 0; y < antix::matrix_height; y++) {
+			int index = 0 + y * antix::matrix_height;
+			//cout << "Index far left " << index << " x " << 0 << " y " << y << endl;
+			examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
+		}
+
+		// far left node can have index for bot move into far right
+		int far_right_limit = antix::matrix_right_world_x_col - 3;
+		for (int x = antix::matrix_right_world_x_col; x > far_right_limit; x--) {
+			for (int y = 0; y < antix::matrix_height; y++) {
+				if (x < 0)
+					continue;
+				int index = x + y * antix::matrix_height;
+				//cout << "Index far right " << index << " x " << x << " y " << y << endl;
 				examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
 			}
 		}
 
 		// It's also possible for robots to wrap around to cells on far side of world
 		// this may only be needed for far left node?
-		for (int x = antix::matrix_right_world_col; x >= antix::matrix_right_world_col - 2; x--) {
+		/*
+		for (int x = antix::matrix_right_world_x_col; x >= antix::matrix_right_world_x_col - 2; x--) {
 			for (int y = 0; y < antix::matrix_height; y++) {
 				// 2d array into 1d matrix: x + y*width
-				int index = x + y * antix::matrix_width;
+				int index = x + y * antix::matrix_height;
 				assert(index < Robot::matrix.size());
 				//assert(index < antix::matrix_height * antix::matrix_width);
 				//cout << "Index FAR right " << index << " x " << x << " y " << y << endl;
@@ -719,6 +742,14 @@ public:
 				//examine_border_cell(index, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
 			}
 		}
+		*/
+		/*
+		assert( antix::matrix_left_x_col < Robot::matrix.size() );
+		examine_border_cell(antix::matrix_left_x_col, move_left_msg, move_right_msg, border_map_left, border_map_right, LEFT_CELLS);
+
+		assert( antix::matrix_right_x_col < Robot::matrix.size() );
+		examine_border_cell(antix::matrix_right_x_col, move_left_msg, move_right_msg, border_map_left, border_map_right, RIGHT_CELLS);
+		*/
 
 #ifndef NDEBUG
 		check_correct_robots_in_border(border_map_left, border_map_right);
@@ -891,8 +922,10 @@ public:
 					(*it2)->lifetime--;
 				}
 			}
+#if DEBUG
 			cout << "After updating scores, home " << (*it)->team << " has score ";
 			cout << (*it)->score << " turn " << antix::turn << endl;
+#endif
 		}
 	}
 
@@ -970,10 +1003,14 @@ public:
 		//if (x < 0 || x > antix::matrix_width || y < 0 || y > antix::matrix_height)
 
 		// we don't wrap along x, so don't care about these cases
-		if (x < 0 || x > antix::matrix_width)
-			return;
+		// XXX something like this may make sense
+		// x < our min coord, x > our max coord
+		//if (x < 0 || x > antix::matrix_width)
+		//	return;
+
 		// We don't wrap x, just y (since map split along x axis)
-		unsigned int index( x + (antix::CellWrap(y) * antix::matrix_width) );
+		unsigned int index( x + (antix::CellWrap(y) * antix::matrix_height) );
+		//cout << "Index in updatesensors cell " << index << " x " << x << " y " << antix::CellWrap(y) << endl;
 		assert( index < Robot::matrix.size());
 
 		TestRobotsInCell( Robot::matrix[index], r, robot_pb );

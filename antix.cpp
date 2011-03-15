@@ -69,8 +69,10 @@ public:
 	// NOTE: Width is the width of only our section of the matrix
 	static unsigned int matrix_width;
 	static unsigned int matrix_height;
+
+	static unsigned int matrix_left_x_col;
 	static unsigned int matrix_right_x_col;
-	static unsigned int matrix_right_world_col;
+	static unsigned int matrix_right_world_x_col;
 
 	static unsigned int cmatrix_width;
 
@@ -407,29 +409,14 @@ public:
 
 	/*
 		these cell methods similar/same to those from rtv's antix
-
-		NOTE: We have Cell_x/y and NoCellWrap_x/y as we start counting from
-		x = 0 always, even if our offset is not that in the larger world.
-		This was in an attempt to only store a portion of the matrix on each
-		node, though we now again store the whole matrix everywhere.
-
-		It could be reverted either way, but at the moment the border and
-		move messages assume cells are populated in this way.
 	*/
 
 	static inline unsigned int
 	Cell_x(double x) {
-		const double d = offset_size / (double) matrix_width;
-
-		// this can be < 0 and cause invalid value due to unsigned
-		const double new_x = x - my_min_x;
-		if (new_x < 0)
-			x = 0;
-		else
-			x = new_x;
+		const double d = world_size / (double) matrix_height;
 
 		// wraparound
-		// we don't wrap around x
+		// we don't wrap around x?
 		/*
 		while (x > world_size)
 			x -= world_size;
@@ -466,26 +453,24 @@ public:
 	Cell(double x, double y) {
 		unsigned int cx = Cell_x(x);
 		unsigned int cy = Cell_y(y);
-		unsigned int i = cx + cy * matrix_width;
+		unsigned int i = cx + cy * matrix_height;
 		//cout << "Cell: cx " << cx << " x " << x << " cy " << cy << " y " << y << " = " << i << endl;
-		//unsigned int i = Cell_x(x) + Cell_y(y) * matrix_width;
-		//assert(i < matrix_width * matrix_height + 1000);
 		assert( i < matrix_height * matrix_height );
 		return i;
-		//return ( Cell_x(x) + ( Cell_y(y) * matrix_width ) );
 	}
 
 	// used for bounding boxes
 	static inline unsigned int
 	CellNoWrap_x (double x) {
-		const double d = offset_size / (double) matrix_width;
+		//const double d = offset_size / (double) matrix_width;
+		const double d = world_size / (double) matrix_height;
 
-		// this can be < 0 and cause invalid value due to unsigned
-		const double new_x = x - my_min_x;
-		if (new_x < 0)
-			x = 0;
-		else
-			x = new_x;
+		// XXX
+		if (x < 0)
+			x = -x;
+
+		unsigned int i = floor(x / d);
+		//cout << "CellNoWrap_x got x " << x << " d " << d << " floor: " << i << endl;
 
 		return floor( x / d );
 	}
@@ -502,7 +487,7 @@ public:
 	*/
 	static inline unsigned int
 	CCell_x(double x) {
-		const double d = antix::world_size / (double) cmatrix_width;
+		const double d = world_size / (double) cmatrix_width;
 
 		// wraparound
 		/*
@@ -519,7 +504,7 @@ public:
 
 	static inline unsigned int
 	CCell_y(double x) {
-		const double d = antix::world_size / (double) cmatrix_width;
+		const double d = world_size / (double) cmatrix_width;
 
 		// wraparound
 		while (x > world_size)
@@ -626,8 +611,9 @@ double antix::my_min_x;
 double antix::home_radius;
 unsigned int antix::matrix_width;
 unsigned int antix::matrix_height;
+unsigned int antix::matrix_left_x_col;
 unsigned int antix::matrix_right_x_col;
-unsigned int antix::matrix_right_world_col;
+unsigned int antix::matrix_right_world_x_col;
 unsigned int antix::cmatrix_width;
 int antix::turn = 0;
 
