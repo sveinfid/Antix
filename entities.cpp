@@ -218,23 +218,29 @@ public:
 		if (has_puck) {
 			puck->x = x;
 			puck->y = y;
+#if DEBUG_ERASE_PUCK
+			cout << "EraseAll puck #1 in revert_move()" << endl;
+#endif
 			antix::EraseAll( puck, matrix[old_index].pucks );
 			matrix[index].pucks.push_back( puck );
+			puck->index = index;
 		}
 
 		// update collision index
 		const unsigned int old_cindex = cindex;
 		cmatrix[old_cindex] = NULL;
 		cindex = antix::CCell( x, y );
-		// someone moved into our old cell
-		if ( cmatrix[cindex] != NULL ) {
+		// someone moved into our old cell (and it's not us)
+		if ( cmatrix[cindex] != NULL && cmatrix[cindex] != this) {
 			// collide with them & revert their move too
-			cmatrix[cindex]->revert_move();
 			cmatrix[cindex]->collide();
+			cmatrix[cindex]->revert_move();
 		}
 		cmatrix[cindex] = this;
 
+#if DEBUG_COLLIDE
 		cout << "Reverting our move... old cindex " << old_cindex << " new cindex " << cindex << endl;
+#endif
 	}
 
 	/*
@@ -304,6 +310,9 @@ public:
 			matrix[new_index].robots.push_back( this );
 
 			if (has_puck) {
+#if DEBUG_ERASE_PUCK
+				cout << "EraseAll puck #1 in update_pose()" << endl;
+#endif
 				antix::EraseAll( puck, matrix[index].pucks );
 				matrix[new_index].pucks.push_back( puck );
 				puck->index = new_index;
@@ -401,6 +410,9 @@ public:
 
 				// ensure puck is in our same cell
 				if (puck->index != index) {
+#if DEBUG_ERASE_PUCK
+					cout << "EraseAll puck #1 in pickup()" << endl;
+#endif
 					antix::EraseAll( puck, matrix[puck->index].pucks );
 					matrix[index].pucks.push_back( puck );
 					puck->index = index;
@@ -408,6 +420,9 @@ public:
 
 				// if puck is in a home, disassociate it from that home
 				if (puck->home != NULL) {
+#if DEBUG_ERASE_PUCK
+					cout << "EraseAll puck #2 in pickup()" << endl;
+#endif
 					antix::EraseAll( puck, puck->home->pucks );
 					puck->home = NULL;
 				}

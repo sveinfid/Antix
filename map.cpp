@@ -286,9 +286,17 @@ public:
 		// and set it collided
 		// this is needed as collision cells may be split between nodes
 		if ( Robot::cmatrix[index] != NULL ) {
+#if DEBUG_COLLIDE
 			cout << "Found that we collide with a foreign robot! Reverting..." << endl;
-			Robot::cmatrix[index]->revert_move();
+#endif
 			Robot::cmatrix[index]->collide();
+#if DEBUG_COLLIDE
+			cout << "Got past collide()" << endl;
+#endif
+			Robot::cmatrix[index]->revert_move();
+#if DEBUG_COLLIDE
+			cout << "Got past revert()" << endl;
+#endif
 		}
 	}
 
@@ -426,10 +434,16 @@ public:
 		assert(r->puck->home == NULL);
 
 		// remove puck from cell
+#if DEBUG_ERASE_PUCK
+		cout << "EraseAll puck #1 in remove_puck()" << endl;
+#endif
 		antix::EraseAll( r->puck, Robot::matrix[ r->puck->index ].pucks );
 
 		// remove puck from vector
 		// XXX expensive
+#if DEBUG_ERASE_PUCK
+		cout << "EraseAll puck #2 in remove_puck()" << endl;
+#endif
 		antix::EraseAll( r->puck, pucks );
 		
 		// remove record on robot to deleted puck
@@ -958,6 +972,9 @@ public:
 					(*it2)->home = NULL;
 
 					// remove puck from sense matrix
+#if DEBUG_ERASE_PUCK
+		cout << "EraseAll puck #1 in update_scores()" << endl;
+#endif
 					antix::EraseAll( *it2, Robot::matrix[ (*it2)->index ].pucks );
 
 					// respawn puck
