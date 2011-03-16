@@ -233,8 +233,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		r->old_x = move_bot_msg->robot(i).old_x();
 		r->old_y = move_bot_msg->robot(i).old_y();
 		
-		cout << "Got robot with old_x " << r->old_x << " and old y " << r->old_y << endl;
-
 		int ints_size = move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)
 			r->ints.push_back( move_bot_msg->robot(i).ints(j) );

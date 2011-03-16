@@ -194,19 +194,47 @@ public:
 		When this robot collides, this is called
 	*/
 	void
-	collide(Robot *other_robot) {
-		// other robot starts heading in direction we were going
-		other_robot->a = a;
-
+	collide() {
 		// 180 our direction?
 		a = antix::AngleNormalize(a + M_PI);
 
 		// both speeds to 0
 		v = 0;
-		other_robot->v = 0;
-
 		w = 0;
-		other_robot->w = 0;
+	}
+
+	void
+	revert_move() {
+		// old coords
+		x = old_x;
+		y = old_y;
+
+		// update sense index
+		const unsigned int old_index = index;
+		antix::EraseAll( this, matrix[old_index].robots );
+		index = antix::Cell( x, y );
+		matrix[index].robots.push_back( this );
+		// do same with our puck
+		if (has_puck) {
+			puck->x = x;
+			puck->y = y;
+			antix::EraseAll( puck, matrix[old_index].pucks );
+			matrix[index].pucks.push_back( puck );
+		}
+
+		// update collision index
+		const unsigned int old_cindex = cindex;
+		cmatrix[old_cindex] = NULL;
+		cindex = antix::CCell( x, y );
+		// someone moved into our old cell
+		if ( cmatrix[cindex] != NULL ) {
+			// collide with them & revert their move too
+			cmatrix[cindex]->revert_move();
+			cmatrix[cindex]->collide();
+		}
+		cmatrix[cindex] = this;
+
+		cout << "Reverting our move... old cindex " << old_cindex << " new cindex " << cindex << endl;
 	}
 
 	/*
@@ -237,7 +265,11 @@ public:
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
 			if ( cmatrix[new_cindex] != NULL ) {
-				collide( cmatrix[new_cindex] );
+				// we collide
+				collide();
+				// other robot also collides
+				cmatrix[new_cindex]->collide();
+
 				return;
 			}
 			// otherwise no robot in that cell. move to it and continue

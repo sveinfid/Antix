@@ -279,6 +279,17 @@ public:
 		int team) {
 
 		foreign_robots.push_back( Robot(x, y, id, team) );
+
+		// We also look at the collision cell this robot is in
+		unsigned int index = antix::CCell(x, y);
+		// if it's occupied already by one of our robots, revert our robot's move
+		// and set it collided
+		// this is needed as collision cells may be split between nodes
+		if ( Robot::cmatrix[index] != NULL ) {
+			cout << "Found that we collide with a foreign robot! Reverting..." << endl;
+			Robot::cmatrix[index]->revert_move();
+			Robot::cmatrix[index]->collide();
+		}
 	}
 
 	void
@@ -317,7 +328,10 @@ public:
 		if (Robot::cmatrix[new_cindex] != NULL) {
 			//cerr << "Error: Moved to an already occupied collision cell!" << endl;
 			r->cindex = -1;
-			r->collide(Robot::cmatrix[new_cindex]);
+			// new robot collides
+			r->collide();
+			// so does the one already in the cell
+			Robot::cmatrix[new_cindex]->collide();
 		} else {
 			r->cindex = new_cindex;
 			Robot::cmatrix[new_cindex] = r;
@@ -382,8 +396,6 @@ public:
 		r_move->set_bbox_y_max(r->sensor_bbox.y.max);
 		r_move->set_old_x(r->old_x);
 		r_move->set_old_y(r->old_y);
-
-		cout << "Moving robot with old x " << r->old_x << " old y " << r->old_y << endl;
 
 		vector<int>::const_iterator ints_end = r->ints.end();
 		for (vector<int>::const_iterator it = r->ints.begin(); it != ints_end; it++)
