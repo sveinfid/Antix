@@ -308,6 +308,10 @@ public:
 		foreign_pucks.push_back( Puck(x, y, held) );
 	}
 
+	/*
+		Add robot to local records
+		If collision cell it enters is occupied, return NULL
+	*/
 	Robot *
 	add_robot(double x,
 		double y,
@@ -332,20 +336,14 @@ public:
 #if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
-		// XXX handle this better...
+		// If the cell is occupied, don't add it!
 		if (Robot::cmatrix[new_cindex] != NULL) {
-			//cerr << "Error: Moved to an already occupied collision cell!" << endl;
-			r->cindex = -1;
-			// new robot collides
-			r->collide();
-			// so does the one already in the cell
-			Robot::cmatrix[new_cindex]->collide();
+			delete r;
+			return NULL;
 		} else {
 			r->cindex = new_cindex;
 			Robot::cmatrix[new_cindex] = r;
 		}
-		// may not make sense since cell may be taken
-		//r->cindex = new_cindex;
 #endif
 		
 		// bots[][] array
@@ -384,6 +382,7 @@ public:
 	/*
 		Robot has been found to be outside of our map portion
 		Add the relevant data to a new Robot entry in the given move_bot message
+		XXX Keep up to date with antix::copy_move_bot_robot
 	*/
 	void
 	add_robot_to_move_msg(Robot *r, antixtransfer::move_bot *move_bot_msg) {

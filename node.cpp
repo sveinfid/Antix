@@ -10,6 +10,8 @@
 
 #include "map.cpp"
 
+#define REJECTED 2
+
 using namespace std;
 
 string master_host;
@@ -47,6 +49,10 @@ antixtransfer::move_bot move_right_msg;
 antixtransfer::SendMap sendmap_recv;
 // used in exchange_foreign_entities
 antixtransfer::move_bot move_bot_msg;
+// used in handle_move_request / exchange_foreign_entities
+antixtransfer::move_bot reject_move_bot_msg;
+// used in handle rejected
+antixtransfer::move_bot rejected_move_bot_msg;
 // used in service_control_messages
 antixtransfer::control_message control_msg;
 antixtransfer::sense_data blank_sense_msg;
@@ -226,13 +232,23 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
 
+#if COLLISIONS
+		// Robot is NULL if the collision cell is occupied
+		// Add it to reject move bot message for sending back to the node
+		if (r == NULL) {
+			cout << "Robot could not enter cell! Adding it to reject move msg..." << endl;
+			antix::copy_move_bot_robot(&reject_move_bot_msg, move_bot_msg->mutable_robot(i));
+			continue;
+		}
+#endif
+
 		r->sensor_bbox.x.min = move_bot_msg->robot(i).bbox_x_min();
 		r->sensor_bbox.x.max = move_bot_msg->robot(i).bbox_x_max();
 		r->sensor_bbox.y.min = move_bot_msg->robot(i).bbox_y_min();
 		r->sensor_bbox.y.max = move_bot_msg->robot(i).bbox_y_max();
 		r->old_x = move_bot_msg->robot(i).old_x();
 		r->old_y = move_bot_msg->robot(i).old_y();
-		
+
 		int ints_size = move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)
 			r->ints.push_back( move_bot_msg->robot(i).ints(j) );
@@ -241,7 +257,66 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			r->doubles.push_back( move_bot_msg->robot(i).doubles(j) );
 	}
 #if DEBUG
-	cout << i+1 << " robots transferred to this node." << endl;
+	cout << i+1 << " robots in move message." << endl;
+#endif
+}
+
+/*
+	We just deleted and sent these robots, but they collided at the other side
+	Add them back to our records at their old coordinates and set them
+	as having collided
+*/
+void
+handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejected_move_bot_msg) {
+	int rc = antix::recv_pb(sock, rejected_move_bot_msg, 0);
+	assert(rc == 1);
+
+	// for each robot in the message, add it to our list
+	int i;
+	int robot_size = rejected_move_bot_msg->robot_size();
+	Robot *r;
+	for(i = 0; i < robot_size; i++) {
+		cout << "Got a rejected moved robot back! Adding it" << endl;
+
+		// First make sure our old cell isn't now occupied
+		// If it is, revert that robot and collide it
+		int ccell = antix::CCell( rejected_move_bot_msg->robot(i).old_x(), rejected_move_bot_msg->robot(i).old_y() );
+		if ( Robot::cmatrix[ccell] != NULL ) {
+			Robot::cmatrix[ccell]->collide();
+			Robot::cmatrix[ccell]->revert_move();
+		}
+
+		r = my_map->add_robot(
+			// we add the OLD coord location
+			rejected_move_bot_msg->robot(i).old_x(),
+			rejected_move_bot_msg->robot(i).old_y(),
+			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
+			rejected_move_bot_msg->robot(i).a(), rejected_move_bot_msg->robot(i).v(),
+			rejected_move_bot_msg->robot(i).w(), rejected_move_bot_msg->robot(i).has_puck(),
+			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y()
+		);
+		// If this is NULL, somehow our cell was still occupied...
+		assert(r != NULL);
+
+		r->sensor_bbox.x.min = rejected_move_bot_msg->robot(i).bbox_x_min();
+		r->sensor_bbox.x.max = rejected_move_bot_msg->robot(i).bbox_x_max();
+		r->sensor_bbox.y.min = rejected_move_bot_msg->robot(i).bbox_y_min();
+		r->sensor_bbox.y.max = rejected_move_bot_msg->robot(i).bbox_y_max();
+		r->old_x = rejected_move_bot_msg->robot(i).old_x();
+		r->old_y = rejected_move_bot_msg->robot(i).old_y();
+
+		int ints_size = rejected_move_bot_msg->robot(i).ints_size();
+		for (int j = 0; j < ints_size; j++)
+			r->ints.push_back( rejected_move_bot_msg->robot(i).ints(j) );
+		int doubles_size = rejected_move_bot_msg->robot(i).doubles_size();
+		for (int j = 0; j < doubles_size; j++)
+			r->doubles.push_back( rejected_move_bot_msg->robot(i).doubles(j) );
+
+		// set the robot as collided
+		r->collide();
+	}
+#if DEBUG
+	cout << i+1 << " robots in move message." << endl;
 #endif
 }
 
@@ -263,7 +338,6 @@ void
 send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
 	// build border entities at same time
-	//my_map->build_move_message(&move_left_msg, &move_right_msg);
 	my_map->build_moves_and_border_entities(&move_left_msg, &move_right_msg, &border_map_left, &border_map_right);
 	
 	// Send our move messages
@@ -306,6 +380,9 @@ exchange_foreign_entities() {
 #if DEBUG
 			cout << "Received foreign entities response from left req sock" << endl;
 #endif
+#if COLLISIONS
+			handle_rejected_moved_robots(left_req_sock, &rejected_move_bot_msg);
+#endif
 			update_foreign_entities(left_req_sock);
 			responses++;
 		}
@@ -314,6 +391,9 @@ exchange_foreign_entities() {
 		if (items[1].revents & ZMQ_POLLIN) {
 #if DEBUG
 			cout << "Received foreign entities response from right req sock" << endl;
+#endif
+#if COLLISIONS
+			handle_rejected_moved_robots(right_req_sock, &rejected_move_bot_msg);
 #endif
 			update_foreign_entities(right_req_sock);
 			responses++;
@@ -325,8 +405,16 @@ exchange_foreign_entities() {
 			assert(rc == 1);
 			// we have received a move request: first update our local records with
 			// the sent bots
+
+			// Bots to send that are rejected
+			reject_move_bot_msg.clear_robot();	
+
 			handle_move_request(&move_bot_msg);
 
+#if COLLISIONS
+			// first send back any rejected moved robots
+			antix::send_pb_flags(neighbour_rep_sock, &reject_move_bot_msg, ZMQ_SNDMORE);
+#endif
 			// send back a list of foreign neighbours depending on which neighbour
 			// the move request was from
 			if (move_bot_msg.from_right() == false)
@@ -565,6 +653,8 @@ main(int argc, char **argv) {
 	// initialize move messages: only needs to be done once, so may as well do it here
 	move_left_msg.set_from_right(true);
 	move_right_msg.set_from_right(false);
+	reject_move_bot_msg.set_from_right(false);
+	rejected_move_bot_msg.set_from_right(false);
 
 	// socket to announce ourselves to master on
 	while (1) {

@@ -222,6 +222,25 @@ public:
 	}
 
 	/*
+		Send the protobuf message pb_obj on socket with given flags
+		Can probably mass replace the above function send_pb() with this
+	*/
+	static int
+	send_pb_flags(zmq::socket_t *socket, google::protobuf::Message *pb_obj, int flags) {
+		string pb_as_str;
+		pb_obj->SerializeToString(&pb_as_str);
+
+		zmq::message_t msg( pb_as_str.size() + 1 );
+		memcpy( msg.data(), pb_as_str.c_str(), pb_as_str.size() + 1);
+
+		int rc = -1;
+		//while (rc != 1);
+			rc = socket->send(msg, flags);
+		assert(rc == 1);
+		return rc;
+	}
+
+	/*
 		Receive a waiting protobuf message on socket, parse into pb_obj
 
 		NOTE: ParseFromString() clears the passed protobuf object.
@@ -606,6 +625,37 @@ public:
 			b.min = val;
 		if ( val > b.max )
 			b.max = val;
+	}
+
+	/*
+		Add a new robot to move_bot_msg that is a copy of those attributes in robot r
+		XXX This should be identical to Map::add_robot_to_move_msg(), except for not
+		being a Robot object
+	*/
+	static void
+	copy_move_bot_robot(antixtransfer::move_bot *move_bot_msg, antixtransfer::move_bot::Robot *r) {
+		antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
+		r_move->set_id(r->id());
+		r_move->set_team(r->team());
+		r_move->set_x(r->x());
+		r_move->set_y(r->y());
+		r_move->set_a(r->a());
+		r_move->set_v(r->v());
+		r_move->set_w(r->w());
+		r_move->set_has_puck(r->has_puck());
+		r_move->set_last_x(r->last_x());
+		r_move->set_last_y(r->last_y());
+		r_move->set_bbox_x_min(r->bbox_x_min());
+		r_move->set_bbox_x_max(r->bbox_x_max());
+		r_move->set_bbox_y_min(r->bbox_y_min());
+		r_move->set_bbox_y_max(r->bbox_x_max());
+		r_move->set_old_x(r->old_x());
+		r_move->set_old_y(r->old_y());
+
+		for (int i = 0; i < r->ints_size(); i++)
+			r_move->add_ints( r->ints(i) );
+		for (int i = 0; i < r->doubles_size(); i++)
+			r_move->add_doubles( r->doubles(i) );
 	}
 };
 
