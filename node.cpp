@@ -230,6 +230,10 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		r->sensor_bbox.x.max = move_bot_msg->robot(i).bbox_x_max();
 		r->sensor_bbox.y.min = move_bot_msg->robot(i).bbox_y_min();
 		r->sensor_bbox.y.max = move_bot_msg->robot(i).bbox_y_max();
+		r->old_x = move_bot_msg->robot(i).old_x();
+		r->old_y = move_bot_msg->robot(i).old_y();
+		
+		cout << "Got robot with old_x " << r->old_x << " and old y " << r->old_y << endl;
 
 		int ints_size = move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)
@@ -279,9 +283,6 @@ send_move_messages() {
 */
 void
 exchange_foreign_entities() {
-	// first we re-calculate what entities local to us are near borders
-	//my_map->rebuild_border_entities(&border_map_left, &border_map_right);
-
 	// We wait for any requests (move requests in this case), to which we respond
 	// by giving the requester a list of our foreign entities
 	// We also wait for a response from our earlier move requests

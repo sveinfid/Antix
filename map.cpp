@@ -380,6 +380,10 @@ public:
 		r_move->set_bbox_x_max(r->sensor_bbox.x.max);
 		r_move->set_bbox_y_min(r->sensor_bbox.y.min);
 		r_move->set_bbox_y_max(r->sensor_bbox.y.max);
+		r_move->set_old_x(r->old_x);
+		r_move->set_old_y(r->old_y);
+
+		cout << "Moving robot with old x " << r->old_x << " old y " << r->old_y << endl;
 
 		vector<int>::const_iterator ints_end = r->ints.end();
 		for (vector<int>::const_iterator it = r->ints.begin(); it != ints_end; it++)

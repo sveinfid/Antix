@@ -128,6 +128,9 @@ public:
 	unsigned int cindex;
 
 	double x, y;
+	// the location of robot before move. this is used in collision logic
+	// to revert collided moves in some cases
+	double old_x, old_y;
 	// orientation
 	double a;
 	// forward speed
@@ -243,6 +246,9 @@ public:
 			cmatrix[cindex] = this;
 		}
 #endif
+
+		old_x = x;
+		old_y = y;
 
 		x = new_x;
 		y = new_y;
