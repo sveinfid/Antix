@@ -38,7 +38,7 @@ public:
 	vector<Home *> all_homes;
 	// And homes that we check for scoring
 	vector<Home *> local_homes;
-	
+
 	Robot* bots[BOTS_TEAM_SIZE][BOTS_ROBOT_SIZE]; //bots[teamsize][amount of robots per team]
 
 	// what each robot can see by team
@@ -166,6 +166,7 @@ public:
 						cindex = antix::CCell(r->x, r->y);
 					}
 					r->cindex = cindex;
+					r->cindex_old = cindex;
 					Robot::cmatrix[cindex] = r;
 #endif
 
@@ -280,6 +281,17 @@ public:
 
 		foreign_robots.push_back( Robot(x, y, id, team) );
 
+#if COLLISION
+		// We reserve the cell containing this robot: Cannot move there
+		unsigned int cindex = antix::CCell(x, y);
+		// Shouldn't be already occupied!
+		assert( Robot::cmatrix[cindex] == NULL );
+		assert( Robot::reserved_cells.count( cindex ) == 0 );
+
+		Robot::reserved_cells.insert( cindex );
+#endif
+
+#if COLLIDE_SHARED_CELL_FIX
 		// We also look at the collision cell this robot is in
 		unsigned int index = antix::CCell(x, y);
 		// if it's occupied already by one of our robots, revert our robot's move
@@ -298,6 +310,7 @@ public:
 			cout << "Got past revert()" << endl;
 #endif
 		}
+#endif
 	}
 
 	void
@@ -472,7 +485,9 @@ public:
 
 		// from collision matrix
 #if COLLISIONS
-		//assert(Robot::cmatrix[r->cindex] == r);
+		// may not be true if collision on movement is in its erroneous state
+		// where a robot can move into an already occupied cell
+		assert(Robot::cmatrix[r->cindex] == r);
 		if (Robot::cmatrix[r->cindex] == r) {
 			Robot::cmatrix[r->cindex] = NULL;
 		}
@@ -1013,6 +1028,17 @@ public:
 #endif
 		}
 		assert(robot_count == robots.size());
+#if COLLISIONS
+		// Done with the previous turn's reserved cells now
+		Robot::reserved_cells.clear();
+		// And we can clear the previous cindices of our own robots
+		// XXX expensive
+		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
+			assert(Robot::cmatrix[ (*it)->cindex_old ] == *it);
+			if ( (*it)->cindex_old != (*it)->cindex )
+				Robot::cmatrix[ (*it)->cindex_old ] = NULL;
+		}
+#endif
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
 #endif

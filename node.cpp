@@ -287,7 +287,7 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 		}
 
 		r = my_map->add_robot(
-			// we add the OLD coord location
+			// we add the robot at its OLD coord location
 			rejected_move_bot_msg->robot(i).old_x(),
 			rejected_move_bot_msg->robot(i).old_y(),
 			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
@@ -406,8 +406,10 @@ exchange_foreign_entities() {
 			// we have received a move request: first update our local records with
 			// the sent bots
 
+#if COLLISIONS
 			// Bots to send that are rejected
 			reject_move_bot_msg.clear_robot();	
+#endif
 
 			handle_move_request(&move_bot_msg);
 

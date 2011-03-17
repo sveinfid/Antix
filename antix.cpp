@@ -33,6 +33,10 @@
 // # of turns to wait before updating master with per node scores
 #define TURNS_SEND_SCORE 100
 
+// enable code to revert moves if foreign robot is in same collision cell
+// as some cells may be shared between nodes
+#define COLLIDE_SHARED_CELL_FIX 0
+
 // Debug everything
 #define DEBUG 0
 // Debug just syncing

@@ -122,10 +122,24 @@ public:
 	static vector<MatrixCell> matrix;
 	static vector<Robot *> cmatrix;
 
+#if COLLISIONS
+	// Reserved collision cells: those which were occupied by robots on border
+	// for our neighbours
+	// ONLY used for neighbour's border cells
+	static set<int> reserved_cells;
+#endif
+
 	// index into sensor matrix
 	unsigned int index;
 	// index into collision matrix
 	unsigned int cindex;
+
+	// previous cindex (after our update_pose() has run)
+	// we don't allow a robot to move to our old cindex (to make revert_move()
+	// always valid)
+	// We clear these old cindices from being occupied after update_pose is run
+	// on every robot
+	unsigned int cindex_old;
 
 	double x, y;
 	// the location of robot before move. this is used in collision logic
@@ -169,6 +183,7 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
+		cindex_old = 0;
 		home = NULL;
 	}
 
@@ -181,6 +196,7 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
+		cindex_old = 0;
 		home = NULL;
 	}
 
@@ -205,6 +221,7 @@ public:
 
 	void
 	revert_move() {
+		cout << "Trying to revert move of robot " << id << " team " << team << endl;
 		// old coords
 		x = old_x;
 		y = old_y;
@@ -235,6 +252,7 @@ public:
 			// collide with them & revert their move too
 			cmatrix[cindex]->collide();
 			cmatrix[cindex]->revert_move();
+			assert( cmatrix[cindex] == NULL );
 		}
 		cmatrix[cindex] = this;
 
@@ -277,9 +295,15 @@ public:
 				cmatrix[new_cindex]->collide();
 
 				return;
+			// Don't move into border robot cell either
+			} else if ( reserved_cells.count( new_cindex ) > 0 ) {
+				collide();
+				return;
 			}
 			// otherwise no robot in that cell. move to it and continue
-			cmatrix[cindex] = NULL;
+			// XXX done in update_poses() in map now
+			//cmatrix[cindex] = NULL;
+			cindex_old = cindex;
 			cindex = new_cindex;
 			cmatrix[cindex] = this;
 		}
@@ -520,5 +544,6 @@ double Robot::vision_range_squared;
 double Robot::robot_radius;
 vector<MatrixCell> Robot::matrix;
 vector<Robot *> Robot::cmatrix;
+set<int> Robot::reserved_cells;
 
 #endif

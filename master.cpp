@@ -20,7 +20,7 @@ using namespace std;
 double world_size;
 int num_pucks;
 
-const int sleep_time = 100;
+const int sleep_time = 20;
 // pucks per node to initially create
 // range of robot sight
 const double vision_range = 0.1;
