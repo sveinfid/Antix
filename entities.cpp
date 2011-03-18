@@ -285,6 +285,8 @@ public:
 		*/
 #if COLLISIONS
 		unsigned int new_cindex = antix::CCell(new_x, new_y);
+		// Always need to update cindex_old, even if we don't move
+		cindex_old = cindex;
 		// we try to move to a new collision cell
 		if (new_cindex != cindex) {
 			// if it's occupied, we can't move there. Disallow move
