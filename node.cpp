@@ -283,14 +283,6 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 	for(i = 0; i < robot_size; i++) {
 		cout << "Got a rejected moved robot back! Adding it" << endl;
 
-		// First make sure our old cell isn't now occupied
-		// If it is, revert that robot and collide it
-		int ccell = antix::CCell( rejected_move_bot_msg->robot(i).old_x(), rejected_move_bot_msg->robot(i).old_y() );
-		if ( Robot::cmatrix[ccell] != NULL ) {
-			Robot::cmatrix[ccell]->collide();
-			Robot::cmatrix[ccell]->revert_move();
-		}
-
 		r = my_map->add_robot(
 			// we add the robot at its OLD coord location
 			rejected_move_bot_msg->robot(i).old_x(),
