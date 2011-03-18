@@ -265,6 +265,11 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 	We just deleted and sent these robots, but they collided at the other side
 	Add them back to our records at their old coordinates and set them
 	as having collided
+
+	We must do this in the following case:
+		- Sent robot, and receiving node attempted to insert that robot
+		- It reverted its robot that is in that cell, but reverting it did not move
+		  the robot out of the cell. We must take it back.
 */
 void
 handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejected_move_bot_msg) {

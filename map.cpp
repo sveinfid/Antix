@@ -349,7 +349,15 @@ public:
 #if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
-		// If the cell is occupied, don't add it!
+		// If the cell is occupied, attempt to revert the move of our local robot
+		// so as to avoid network traffic. If that robot is still in the same cell,
+		// fail to insert. The sent robot gets sent back to sender
+		if (Robot::cmatrix[new_cindex] != NULL) {
+			// First try to clear our cell by reverting our robot one move
+			Robot::cmatrix[new_cindex]->collide();
+			Robot::cmatrix[new_cindex]->revert_move();
+		}
+		// Try again. If fails, fail for good
 		if (Robot::cmatrix[new_cindex] != NULL) {
 			delete r;
 			return NULL;

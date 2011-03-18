@@ -208,6 +208,8 @@ public:
 
 	/*
 		When this robot collides, this is called
+
+		Make sure if you're going to call revert_move() that this is called first
 	*/
 	void
 	collide() {
@@ -255,6 +257,9 @@ public:
 			assert( cmatrix[cindex] == NULL );
 		}
 		cmatrix[cindex] = this;
+
+		// XXX probably not needed
+		cindex_old = cindex;
 
 #if DEBUG_COLLIDE
 		cout << "Reverting our move... old cindex " << old_cindex << " new cindex " << cindex << endl;
