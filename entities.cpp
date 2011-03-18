@@ -303,6 +303,7 @@ public:
 
 				return;
 			// Don't move into border robot cell either
+			// XXX must be updated to do new collision check
 			} else if ( reserved_cells.count( new_cindex ) > 0 ) {
 				collide();
 				return;
@@ -488,6 +489,80 @@ public:
 				return h;
 			}
 		}
+		return NULL;
+	}
+
+	/*
+		If the target cindex is taken, definitely collided
+		Otherwise perform geometric collision checks on those cells around
+		the target cindex
+
+		Returns the robot we collided with, or NULL
+	*/
+	static Robot *
+	did_collide(Robot *r, unsigned int cindex, double x, double y) {
+		if (Robot::cmatrix[cindex] != NULL && Robot::cmatrix[cindex] != r)
+			return Robot::cmatrix[cindex];
+		const unsigned int c_x = antix::CCell_x(x);
+		const unsigned int c_y = antix::CCell_y(y);
+		const unsigned int top_left = (c_x - 1) * (c_y - 1) * antix::cmatrix_width;
+		const unsigned int top_centre = (c_x) * (c_y - 1) * antix::cmatrix_width;
+		const unsigned int top_right = (c_x + 1) * (c_y - 1) * antix::cmatrix_width;
+		const unsigned int bottom_left = (c_x - 1) * (c_y + 1) * antix::cmatrix_width;
+		const unsigned int bottom_centre = (c_x) * (c_y + 1) * antix::cmatrix_width;
+		const unsigned int bottom_right = (c_x + 1) * (c_y + 1) * antix::cmatrix_width;
+		const unsigned int left = (c_x - 1) * (c_y) * antix::cmatrix_width;
+		const unsigned int right = (c_x + 1) * (c_y) * antix::cmatrix_width;
+		assert(top_left < cmatrix_width * cmatrix_width);
+		assert(top_centre < cmatrix_width * cmatrix_width);
+		assert(top_right < cmatrix_width * cmatrix_width);
+		assert(bottom_left < cmatrix_width * cmatrix_width);
+		assert(bottom_centre < cmatrix_width * cmatrix_width);
+		assert(bottom_right < cmatrix_width * cmatrix_width);
+		assert(left < cmatrix_width * cmatrix_width);
+		assert(right < cmatrix_width * cmatrix_width);
+		Robot *r2;
+		r2 = check_geom_collided(r, top_left, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, top_centre, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, top_right, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, bottom_left, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, bottom_centre, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, bottom_right, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, left, x, y);
+		if (r2 != NULL) return r2;
+
+		r2 = check_geom_collided(r, right, x, y);
+		if (r2 != NULL) return r2;
+
+		return NULL;
+	}
+
+	static Robot *
+	check_geom_collided(Robot *r, unsigned int cindex, double x, double y) {
+		if (Robot::cmatrix[cindex] == NULL || Robot::cmatrix[cindex] == r)
+			return NULL;
+
+		Robot *r2 = Robot::cmatrix[cindex];
+
+		const double dx( antix::WrapDistance( r2->x - x ) );
+		const double dy( antix::WrapDistance( r2->y - y ) );
+		// XXX This could be same distance squared formula as in testrobots...
+		const double range( hypot( dx, dy ) );
+
+		if (range < robot_radius)
+			return r2;
 		return NULL;
 	}
 
