@@ -1,3 +1,5 @@
+- better display of scores (gui?)
+
 - optimize:
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:
@@ -8,5 +10,4 @@
 - put back in sensing using foreign robots/pucks. Currently they are ignored
 	- foreign pucks have been ignored the whole time, but we used to deal with foreign robots prior to grid
 - foreign puck pickup
-
-- improve collisions issue re: when robot moves into node, may move into occupied cell. currently just doesn't get in a cell
+	- could insert this similarly into the handshake with send border / move / rejected
