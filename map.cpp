@@ -281,7 +281,7 @@ public:
 
 		foreign_robots.push_back( Robot(x, y, id, team) );
 
-#if COLLISION
+#if COLLIDE_SHARED_CELL_FIX
 		// We reserve the cell containing this robot: Cannot move there
 		unsigned int cindex = antix::CCell(x, y);
 		// Shouldn't be already occupied!
@@ -289,9 +289,7 @@ public:
 		assert( Robot::reserved_cells.count( cindex ) == 0 );
 
 		Robot::reserved_cells.insert( cindex );
-#endif
 
-#if COLLIDE_SHARED_CELL_FIX
 		// We also look at the collision cell this robot is in
 		unsigned int index = antix::CCell(x, y);
 		// if it's occupied already by one of our robots, revert our robot's move
@@ -349,18 +347,14 @@ public:
 #if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
-		// If the cell is occupied, attempt to revert the move of our local robot
-		// so as to avoid network traffic. If that robot is still in the same cell,
-		// fail to insert. The sent robot gets sent back to sender
+		// If cell occupied (or collision occur), reject robot
 		if (Robot::cmatrix[new_cindex] != NULL) {
-			// First try to clear our cell by reverting our robot one move
+			// Collide our robot
 			Robot::cmatrix[new_cindex]->collide();
-			Robot::cmatrix[new_cindex]->revert_move();
-		}
-		// Try again. If fails, fail for good
-		if (Robot::cmatrix[new_cindex] != NULL) {
 			delete r;
 			return NULL;
+
+		// Otherwise cell is free
 		} else {
 			r->cindex = new_cindex;
 			Robot::cmatrix[new_cindex] = r;
@@ -1025,7 +1019,9 @@ public:
 #if DEBUG
 		cout << "Updating poses for all robots..." << endl;
 #endif
+
 		vector<Robot *>::const_iterator robots_end = robots.end();
+
 #ifndef NDEBUG
 		int robot_count = 0;
 #endif
@@ -1037,15 +1033,16 @@ public:
 		}
 		assert(robot_count == robots.size());
 #if COLLISIONS
-		// Done with the previous turn's reserved cells now
-		Robot::reserved_cells.clear();
-		// And we can clear the previous cindices of our own robots
+		// We can clear the previous cindices of our own robots
 		// XXX expensive
 		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
 			assert(Robot::cmatrix[ (*it)->cindex_old ] == *it);
 			if ( (*it)->cindex_old != (*it)->cindex )
 				Robot::cmatrix[ (*it)->cindex_old ] = NULL;
 		}
+
+		// Done with the previous turn's reserved cells now
+		Robot::reserved_cells.clear();
 #endif
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
