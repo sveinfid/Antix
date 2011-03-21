@@ -78,6 +78,7 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 			sense_msg->robot(i).last_x(), sense_msg->robot(i).last_y(),
 			my_home, &seen_pucks, sense_msg->robot(i).has_puck()
 		);
+		ctlr.collided = sense_msg->robot(i).collided();
 
 		// Update this robot's memory
 		int doubles_size = sense_msg->robot(i).doubles_size();

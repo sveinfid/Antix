@@ -19,6 +19,8 @@ public:
 	double v,
 		w;
 
+	bool collided;
+
 	vector<double> doubles;
 	vector<int> ints;
 
@@ -40,6 +42,10 @@ public:
 		const double dy( antix::WrapDistance( home->y - y ) );
 		const double da( antix::fast_atan2( dy, dx ) );
 		const double dist( hypot( dx, dy ) );
+
+		if (collided) {
+			//cout << "I collided!" << endl;
+		}
 
 		// if this robot is holding a puck
 		if (has_puck) {

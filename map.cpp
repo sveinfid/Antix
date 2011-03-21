@@ -882,6 +882,7 @@ public:
 			robot_pb->set_id( (*r)->id );
 			robot_pb->set_last_x( (*r)->last_x );
 			robot_pb->set_last_y( (*r)->last_y );
+			robot_pb->set_collided( (*r)->collided );
 
 			vector<int>::const_iterator ints_end = (*r)->ints.end();
 			for (vector<int>::const_iterator it = (*r)->ints.begin(); it != ints_end; it++)

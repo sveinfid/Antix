@@ -240,6 +240,7 @@ message sense_data {
 		repeated Seen_Puck seen_puck = 9;
 		repeated int32 ints = 10;
 		repeated double doubles = 11;
+		required bool collided = 12;
 	}
 
 	repeated Robot robot = 1;

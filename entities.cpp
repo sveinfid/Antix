@@ -134,6 +134,8 @@ public:
 	// index into collision matrix
 	unsigned int cindex;
 
+	bool collided;
+
 	// previous cindex (after our update_pose() has run)
 	// we don't allow a robot to move to our old cindex (to make revert_move()
 	// always valid)
@@ -185,6 +187,7 @@ public:
 		cindex = 0;
 		cindex_old = 0;
 		home = NULL;
+		collided = false;
 	}
 
 	// Used in GUI & foreign robots
@@ -198,6 +201,7 @@ public:
 		cindex = 0;
 		cindex_old = 0;
 		home = NULL;
+		collided = false;
 	}
 
 	void
@@ -307,6 +311,8 @@ public:
 		// both speeds to 0
 		v = 0;
 		w = 0;
+
+		collided = true;
 	}
 
 	void
@@ -383,6 +389,8 @@ public:
 		cindex_old = cindex;
 		old_x = x;
 		old_y = y;
+
+		collided = false;
 
 		// we try to move to a new collision cell
 		if (new_cindex != cindex) {
