@@ -323,6 +323,8 @@ public:
 	/*
 		Add robot to local records
 		If collision cell it enters is occupied, return NULL
+
+		If force is true, force addition of robot despite collision
 	*/
 	Robot *
 	add_robot(double x,
@@ -334,7 +336,8 @@ public:
 		double w,
 		bool has_puck,
 		double last_x,
-		double last_y) {
+		double last_y,
+		bool force) {
 
 #if DEBUG
 		cout << "Moving: added new robot team " << team << " id " << id << " with a " << a << " w " << w << " (" << x << ", " << y << ") (Turn " << antix::turn << ")" << endl;
@@ -349,9 +352,9 @@ public:
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
 		// If cell occupied (or collision occur), reject robot
-		if (Robot::cmatrix[new_cindex] != NULL) {
-			// Collide our robot
-			Robot::cmatrix[new_cindex]->collide();
+		if (Robot::did_collide( r, new_cindex, x, y ) != NULL && !force ) {
+			// Collide our local robot
+			//Robot::cmatrix[new_cindex]->collide();
 			delete r;
 			return NULL;
 
@@ -490,7 +493,7 @@ public:
 #if COLLISIONS
 		// may not be true if collision on movement is in its erroneous state
 		// where a robot can move into an already occupied cell
-		assert(Robot::cmatrix[r->cindex] == r);
+		//assert(Robot::cmatrix[r->cindex] == r);
 		if (Robot::cmatrix[r->cindex] == r) {
 			Robot::cmatrix[r->cindex] = NULL;
 		}
@@ -1067,7 +1070,10 @@ public:
 		// We can clear the previous cindices of our own robots
 		// XXX expensive
 		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
-			assert(Robot::cmatrix[ (*it)->cindex_old ] == *it);
+			// this assert is invalidated due to forceful addition in adding
+			// rejected robots.
+			//assert(Robot::cmatrix[ (*it)->cindex_old ] == *it);
+			//if ( (*it)->cindex_old != (*it)->cindex )
 			if ( (*it)->cindex_old != (*it)->cindex )
 				Robot::cmatrix[ (*it)->cindex_old ] = NULL;
 		}

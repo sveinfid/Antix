@@ -229,7 +229,8 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team(),
 			move_bot_msg->robot(i).a(), move_bot_msg->robot(i).v(),
 			move_bot_msg->robot(i).w(), move_bot_msg->robot(i).has_puck(),
-			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
+			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y(),
+			false
 		);
 
 #if COLLISIONS
@@ -290,7 +291,8 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
 			rejected_move_bot_msg->robot(i).a(), rejected_move_bot_msg->robot(i).v(),
 			rejected_move_bot_msg->robot(i).w(), rejected_move_bot_msg->robot(i).has_puck(),
-			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y()
+			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y(),
+			true
 		);
 		// If this is NULL, somehow our cell was still occupied...
 		assert(r != NULL);
