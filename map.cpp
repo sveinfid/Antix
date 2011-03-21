@@ -161,7 +161,8 @@ public:
 					// collision matrix
 					// make sure we appear at an unused location
 					unsigned int cindex = antix::CCell(r->x, r->y);
-					while ( Robot::cmatrix[cindex] != NULL ) {
+					//while ( Robot::cmatrix[cindex] != NULL ) {
+					while ( Robot::did_collide( r, cindex, r->x, r->y ) != NULL ) {
 						r->random_warp(my_min_x, my_max_x);
 						cindex = antix::CCell(r->x, r->y);
 					}
@@ -1032,6 +1033,36 @@ public:
 #endif
 		}
 		assert(robot_count == robots.size());
+
+#if COLLISIONS
+#ifndef NDEBUG
+		// n^2 check for missed collisions
+		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
+			for (vector<Robot *>::const_iterator it2 = robots.begin(); it2 != robots_end; it2++) {
+				const Robot *r1 = *it;
+				const Robot *r2 = *it2;
+				if (r1 == r2)
+					continue;
+
+				const double dx( antix::WrapDistance( r2->x - r1->x ) );
+				const double dy( antix::WrapDistance( r2->y - r1->y ) );
+				const double range( hypot( dx, dy ) );
+
+				if (range <= Robot::robot_radius + Robot::robot_radius) {
+				/*
+					cout << "Found a collision that was allowed." << endl;
+					cout << "\tRobot " << r1->id << " team " << r1->team << " at (";
+					cout << r1->x << ", " << r1->y << ") cell " << r1->cindex << endl;
+					cout << "\tRobot " << r2->id << " team " << r2->team << " at (";
+					cout << r2->x << ", " << r2->y << ") cell " << r2->cindex << endl;
+					*/
+				}
+			}
+		}
+#endif
+#endif
+
+
 #if COLLISIONS
 		// We can clear the previous cindices of our own robots
 		// XXX expensive
