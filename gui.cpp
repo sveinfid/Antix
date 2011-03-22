@@ -11,6 +11,10 @@
 #include <GL/glut.h>
 #endif
 #include "zpr.h"
+#include <utility>
+#include <string>
+#include "glfont.h"
+#include <sstream>
 
 using namespace std;
 
@@ -50,6 +54,12 @@ int current_node = 0;
 #define VIEW_SINGLE_NODE 1
 #define VIEW_ALL_NODE 2
 int view_mode = VIEW_SINGLE_NODE;
+
+//gui scoring stuff
+int jscore;
+string stringScore;
+stringstream ss;
+char tempCharToDisplayScore;
 
 void
 associate_robot_with_home(Robot *r) {
@@ -290,6 +300,16 @@ DrawAll() {
 		GlDrawCircle( it->x-world_size, it->y, home_radius, 16 );
 		GlDrawCircle( it->x, it->y+world_size, home_radius, 16 );
 		GlDrawCircle( it->x, it->y-world_size, home_radius, 16 );
+
+		glColor3f(0.0, 1.0, 0.0); // Green
+	        glRasterPos2i(it->x, it->y);
+        	ss.str("");
+	        ss << it->score;
+        	stringScore = "Score:"+ss.str();
+	        for (string::iterator i = stringScore.begin(); i != stringScore.end(); ++i){
+        	    tempCharToDisplayScore = *i;
+	            glutBitmapCharacter(GLUT_BITMAP_9_BY_15, tempCharToDisplayScore);
+        	}
 	}
 	assert(homes_count == homes.size());
 	
