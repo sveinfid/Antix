@@ -249,3 +249,11 @@ message sense_data {
 message GUI_Request {
 	required bool r = 1;
 }
+
+message Scores {
+	message Score {
+		required int32 id = 1;
+		required int32 score = 2;
+	}
+	repeated Score score = 1;
+}

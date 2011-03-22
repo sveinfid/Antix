@@ -13,7 +13,7 @@
 #include "zpr.h"
 #include <utility>
 #include <string>
-#include "glfont.h"
+//#include "glfont.h"
 #include <sstream>
 
 using namespace std;
@@ -24,9 +24,11 @@ string master_host;
 // we use client port when connecting to the master
 string master_req_port = "7771";
 string master_sub_port = "7773";
+string master_gui_req_port = "7774";
 
 zmq::socket_t *master_req_sock;
 zmq::socket_t *master_sub_sock;
+zmq::socket_t *master_gui_req_sock;
 vector<zmq::socket_t *> req_sockets;
 
 // from master
@@ -104,6 +106,9 @@ rebuild_entity_db() {
 		node_iterator++;
 			
 	}*/
+
+	// Request scores from master
+	antix::send_blank(master_gui_req_sock);
 	
 #if DEBUG
 	cout << "Sync: Sent entity requests to nodes." << endl;
@@ -156,6 +161,23 @@ rebuild_entity_db() {
 #ifndef NDEBUG
 	cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
 #endif
+
+	// Read response from master: contains update of scores
+	antixtransfer::Scores scores_msg;
+	antix::recv_pb(master_gui_req_sock, &scores_msg, 0);
+
+	for (int i = 0; i < scores_msg.score_size(); i++) {
+		Home *h = NULL;
+		// find the home associated with the score we're on
+		for (vector<Home>::iterator it2 = homes.begin(); it2 != homes.end(); it2++) {
+			if (it2->team == scores_msg.score(i).id()) {
+				h = &*it2;
+				break;
+			}
+		}
+		assert(h != NULL);
+		h->score = scores_msg.score(i).score();
+	}
 }
 
 void
@@ -296,20 +318,25 @@ DrawAll() {
 		glColor3f( it->colour.r, it->colour.g, it->colour.b );
 
 		GlDrawCircle( it->x, it->y, home_radius, 16 );
+		/*
 		GlDrawCircle( it->x+world_size, it->y, home_radius, 16 );
 		GlDrawCircle( it->x-world_size, it->y, home_radius, 16 );
 		GlDrawCircle( it->x, it->y+world_size, home_radius, 16 );
 		GlDrawCircle( it->x, it->y-world_size, home_radius, 16 );
+		*/
 
 		glColor3f(0.0, 1.0, 0.0); // Green
-	        glRasterPos2i(it->x, it->y);
-        	ss.str("");
-	        ss << it->score;
-        	stringScore = "Score:"+ss.str();
-	        for (string::iterator i = stringScore.begin(); i != stringScore.end(); ++i){
-        	    tempCharToDisplayScore = *i;
-	            glutBitmapCharacter(GLUT_BITMAP_9_BY_15, tempCharToDisplayScore);
-        	}
+
+		glRasterPos2d(it->x, it->y);
+		ss.str("");
+		ss << it->score;
+		stringScore = "Score: " + ss.str();
+		cout << "String score " << stringScore << endl;
+		for (string::iterator i = stringScore.begin(); i != stringScore.end(); ++i){
+			tempCharToDisplayScore = *i;
+			//glutBitmapCharacter(GLUT_BITMAP_9_BY_15, tempCharToDisplayScore);
+			glutBitmapCharacter(GLUT_BITMAP_8_BY_13, tempCharToDisplayScore);
+		}
 	}
 	assert(homes_count == homes.size());
 	
@@ -446,6 +473,10 @@ main(int argc, char **argv) {
 	master_sub_sock = new zmq::socket_t(context, ZMQ_SUB);
 	master_sub_sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 	master_sub_sock->connect(antix::make_endpoint(master_host, master_sub_port));
+
+	// GUI sock on master is where we receive scores for teams
+	master_gui_req_sock = new zmq::socket_t(context, ZMQ_REQ);
+	master_gui_req_sock->connect(antix::make_endpoint(master_host, master_gui_req_port));
 
 	string s;
 	while (s != "start") {

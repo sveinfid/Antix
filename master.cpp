@@ -46,6 +46,7 @@ string node_port = "7770";
 string client_port = "7771";
 string operator_port = "7772";
 string publish_port = "7773";
+string gui_port = "7774";
 
 int next_node_id = 0;
 // client_id :: robot_count
@@ -288,6 +289,27 @@ handle_done(zmq::socket_t *rep_sock,
 	}
 }
 
+/*
+	GUI sends a req. Send back a list of scores for each home
+*/
+void
+handle_gui(zmq::socket_t *gui_rep_sock) {
+	antix::recv_blank(gui_rep_sock);
+
+	antixtransfer::Scores scores_msg;
+
+	for (map<int, int>::const_iterator it = scores.begin(); it != scores.end(); it++) {
+		antixtransfer::Scores::Score *score = scores_msg.add_score();
+		score->set_id( it->first );
+		score->set_score( it->second );
+	}
+
+	int rc = -1;
+	while (rc != 1) {
+		rc = antix::send_pb(gui_rep_sock, &scores_msg);
+	}
+}
+
 int
 main(int argc, char **argv) {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -316,11 +338,15 @@ main(int argc, char **argv) {
 	// when operator starts, node list is published on this socket
 	zmq::socket_t publish_socket(context, ZMQ_PUB);
 
+	// gui gets score data on this socket
+	zmq::socket_t gui_rep_sock(context, ZMQ_REP);
+
 	// start listening for connections
 	nodes_socket.bind(antix::make_endpoint(host, node_port));
 	clients_socket.bind(antix::make_endpoint(host, client_port));
 	operators_socket.bind(antix::make_endpoint(host, operator_port));
 	publish_socket.bind(antix::make_endpoint(host, publish_port));
+	gui_rep_sock.bind(antix::make_endpoint(host, gui_port));
 
 	cout << "Master started." << endl;
 
@@ -411,14 +437,15 @@ main(int argc, char **argv) {
 	// polling set
 	zmq::pollitem_t items [] = {
 		{ nodes_socket, 0, ZMQ_POLLIN, 0 },
-		{ operators_socket, 0, ZMQ_POLLIN, 0}
+		{ operators_socket, 0, ZMQ_POLLIN, 0},
+		{ gui_rep_sock, 0, ZMQ_POLLIN, 0}
 	};
 	// respond to shutdown messages from operator
 	// and turn done messages from node
 	// expect operator sending shutdown
 	while (1) {
 		//zmq::message_t message;
-		zmq::poll(&items [0], 2, -1);
+		zmq::poll(&items [0], 3, -1);
 
 		// message from a node
 		if (items[0].revents & ZMQ_POLLIN) {
@@ -443,6 +470,11 @@ main(int argc, char **argv) {
 			cout << "Operator sent shutdown signal. Shutting down..." << endl;
 			shutting_down = true;
 			antix::send_blank(&operators_socket);
+		}
+
+		// message from gui
+		if (items[2].revents & ZMQ_POLLIN) {
+			handle_gui(&gui_rep_sock);
 		}
 	}
 
