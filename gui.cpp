@@ -331,7 +331,6 @@ DrawAll() {
 		ss.str("");
 		ss << it->score;
 		stringScore = "Score: " + ss.str();
-		cout << "String score " << stringScore << endl;
 		for (string::iterator i = stringScore.begin(); i != stringScore.end(); ++i){
 			tempCharToDisplayScore = *i;
 			//glutBitmapCharacter(GLUT_BITMAP_9_BY_15, tempCharToDisplayScore);
