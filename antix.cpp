@@ -33,10 +33,6 @@
 // # of turns to wait before updating master with per node scores
 #define TURNS_SEND_SCORE 100
 
-// enable code to revert moves if foreign robot is in same collision cell
-// as some cells may be shared between nodes
-#define COLLIDE_SHARED_CELL_FIX 0
-
 // Debug everything
 #define DEBUG 0
 // Debug just syncing
@@ -653,8 +649,6 @@ public:
 		r_move->set_bbox_x_max(r->bbox_x_max());
 		r_move->set_bbox_y_min(r->bbox_y_min());
 		r_move->set_bbox_y_max(r->bbox_x_max());
-		r_move->set_old_x(r->old_x());
-		r_move->set_old_y(r->old_y());
 
 		for (int i = 0; i < r->ints_size(); i++)
 			r_move->add_ints( r->ints(i) );

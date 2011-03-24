@@ -136,17 +136,7 @@ public:
 
 	bool collided;
 
-	// previous cindex (after our update_pose() has run)
-	// we don't allow a robot to move to our old cindex (to make revert_move()
-	// always valid)
-	// We clear these old cindices from being occupied after update_pose is run
-	// on every robot
-	unsigned int cindex_old;
-
 	double x, y;
-	// the location of robot before move. this is used in collision logic
-	// to revert collided moves in some cases
-	double old_x, old_y;
 	// orientation
 	double a;
 	// forward speed
@@ -185,7 +175,6 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
-		cindex_old = 0;
 		home = NULL;
 		collided = false;
 	}
@@ -199,7 +188,6 @@ public:
 		has_puck = false;
 		index = 0;
 		cindex = 0;
-		cindex_old = 0;
 		home = NULL;
 		collided = false;
 	}
@@ -300,8 +288,6 @@ public:
 
 	/*
 		When this robot collides, this is called
-
-		Make sure if you're going to call revert_move() that this is called first
 	*/
 	void
 	collide() {
@@ -313,52 +299,6 @@ public:
 		w = 0;
 
 		collided = true;
-	}
-
-	void
-	revert_move() {
-		cout << "Trying to revert move of robot " << id << " team " << team << endl;
-		// old coords
-		x = old_x;
-		y = old_y;
-
-		// update sense index
-		const unsigned int old_index = index;
-		antix::EraseAll( this, matrix[old_index].robots );
-		index = antix::Cell( x, y );
-		matrix[index].robots.push_back( this );
-		// do same with our puck
-		if (has_puck) {
-			puck->x = x;
-			puck->y = y;
-#if DEBUG_ERASE_PUCK
-			cout << "EraseAll puck #1 in revert_move()" << endl;
-#endif
-			antix::EraseAll( puck, matrix[old_index].pucks );
-			matrix[index].pucks.push_back( puck );
-			puck->index = index;
-		}
-
-		// update collision index
-		const unsigned int old_cindex = cindex;
-		assert(cmatrix[old_cindex] == this);
-		cmatrix[old_cindex] = NULL;
-
-		cindex = antix::CCell( x, y );
-
-		// Should always be free at this point due to not allowed to move into
-		// a robot's prior location in same turn
-		if (cmatrix[cindex] == this)
-			cout << "ITS US" << endl;
-		assert(cmatrix[cindex] == NULL);
-		cmatrix[cindex] = this;
-
-		// XXX probably not needed
-		cindex_old = cindex;
-
-#if DEBUG_COLLIDE
-		cout << "Reverting our move... old cindex " << old_cindex << " new cindex " << cindex << endl;
-#endif
 	}
 
 	/*
@@ -385,10 +325,6 @@ public:
 		*/
 #if COLLISIONS
 		unsigned int new_cindex = antix::CCell(new_x, new_y);
-		// Always need to update cindex_old, even if we don't move
-		cindex_old = cindex;
-		old_x = x;
-		old_y = y;
 
 		collided = false;
 
@@ -402,13 +338,6 @@ public:
 				cmatrix[new_cindex]->collide();
 
 				return;
-#if COLLIDE_SHARED_CELL_FIX
-			// Don't move into border robot cell either
-			// XXX must be updated to do new collision check
-			} else if ( reserved_cells.count( new_cindex ) > 0 ) {
-				collide();
-				return;
-#endif
 			}
 		}
 		// Now do checks in surrounding cells at the location we want for

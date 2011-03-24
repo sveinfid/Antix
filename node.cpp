@@ -247,8 +247,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		r->sensor_bbox.x.max = move_bot_msg->robot(i).bbox_x_max();
 		r->sensor_bbox.y.min = move_bot_msg->robot(i).bbox_y_min();
 		r->sensor_bbox.y.max = move_bot_msg->robot(i).bbox_y_max();
-		r->old_x = move_bot_msg->robot(i).old_x();
-		r->old_y = move_bot_msg->robot(i).old_y();
 
 		int ints_size = move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)
@@ -264,13 +262,11 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 
 /*
 	We just deleted and sent these robots, but they collided at the other side
-	Add them back to our records at their old coordinates and set them
-	as having collided
+	Add them back to our records and set them as having collided
 
 	We must do this in the following case:
 		- Sent robot, and receiving node attempted to insert that robot
-		- It reverted its robot that is in that cell, but reverting it did not move
-		  the robot out of the cell. We must take it back.
+		- Overlapped/collided at the target side
 */
 void
 handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejected_move_bot_msg) {
@@ -294,15 +290,13 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 //			true
 			false
 		);
-		// If this is NULL, somehow our cell was still occupied...
+		// If this is NULL, somehow robot collided
 		assert(r != NULL);
 
 		r->sensor_bbox.x.min = rejected_move_bot_msg->robot(i).bbox_x_min();
 		r->sensor_bbox.x.max = rejected_move_bot_msg->robot(i).bbox_x_max();
 		r->sensor_bbox.y.min = rejected_move_bot_msg->robot(i).bbox_y_min();
 		r->sensor_bbox.y.max = rejected_move_bot_msg->robot(i).bbox_y_max();
-		r->old_x = rejected_move_bot_msg->robot(i).old_x();
-		r->old_y = rejected_move_bot_msg->robot(i).old_y();
 
 		int ints_size = rejected_move_bot_msg->robot(i).ints_size();
 		for (int j = 0; j < ints_size; j++)

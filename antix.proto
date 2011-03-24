@@ -184,8 +184,6 @@ message move_bot {
 		required double bbox_x_max = 14;
 		required double bbox_y_min = 15;
 		required double bbox_y_max = 16;
-		required double old_x = 17;
-		required double old_y = 18;
 	}
 	required bool from_right = 1;
 	repeated Robot robot = 2;
