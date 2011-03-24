@@ -205,13 +205,22 @@ public:
 
 		Robot *r2 = cmatrix[cindex];
 
+		const double max_range = robot_radius + robot_radius;
+
+		// can perhaps avoid subsequent checks by looking at dx, dy individually,
+		// similar to that in testrobots
 		const double dx( antix::WrapDistance( r2->x - x ) );
 		const double dy( antix::WrapDistance( r2->y - y ) );
-		// XXX This could be same distance squared formula as in testrobots...
-		const double range( hypot( dx, dy ) );
 
-		if (range <= robot_radius + robot_radius)
+		//const double range( hypot( dx, dy ) );
+		//if (range <= robot_radius + robot_radius)
+		//	return r2;
+
+		const double squared_max_range = max_range ^ 2;
+		const double dsq = dx*dx + dy*dy;
+		if ( dsq <= squared_max_range )
 			return r2;
+
 		return NULL;
 	}
 
