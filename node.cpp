@@ -276,7 +276,6 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 	int i;
 	int robot_size = rejected_move_bot_msg->robot_size();
 	Robot *r;
-	cout << "I got a rejected robot!" << endl;
 	for(i = 0; i < robot_size; i++) {
 		//cout << "Got a rejected moved robot back! Adding it" << endl;
 
@@ -290,15 +289,6 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 		);
 		// If this is NULL, somehow robot collided
 		assert(r != NULL);
-
-		// Make sure to delete robot from moving_robots or else we get lost
-		for (vector<Robot *>::iterator it = my_map->moving_robots.begin(); it != my_map->moving_robots.end(); it++) {
-			if ((*it)->id == r->id && (*it)->team == r->team) {
-				delete *it;
-				my_map->moving_robots.erase( it );
-				break;
-			}
-		}
 
 		r->sensor_bbox.x.min = rejected_move_bot_msg->robot(i).bbox_x_min();
 		r->sensor_bbox.x.max = rejected_move_bot_msg->robot(i).bbox_x_max();
@@ -988,23 +978,18 @@ main(int argc, char **argv) {
 
 	// enter main loop
 	while (1) {
-		cout << "1" << endl;
 		// update scores: decrement lifetimes, assign scores + respawn pucks if nec
 		my_map->update_scores();
 
-		cout << "2" << endl;
 		// update poses for internal robots
 		my_map->update_poses();
 
-		cout << "3" << endl;
 		// send movement requests to neighbouring nodes (a bot moved out of range)
 		send_move_messages();
 
-		cout << "4" << endl;
 		// receive move requests & respond with foreign entities, receive move responses
 		exchange_foreign_entities();
 
-		cout << "5" << endl;
 		// build message for each client of what their robots can see
 		my_map->build_sense_messages();
 		
@@ -1012,7 +997,6 @@ main(int argc, char **argv) {
 		my_map->print_local_robots();
 #endif
 
-		cout << "6" << endl;
 		// service control messages on our REP socket
 		service_control_messages();
 

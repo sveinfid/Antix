@@ -353,6 +353,11 @@ public:
 			return;
 		}
 
+		// remove from old cindex
+		if (cindex != new_cindex) {
+			cmatrix[cindex] = NULL;
+		}
+
 		cindex = new_cindex;
 		cmatrix[cindex] = this;
 #endif

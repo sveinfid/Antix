@@ -286,16 +286,14 @@ public:
 		for(vector<Robot *>::iterator it = moving_robots.begin(); it != moving_robots.end(); it++) {
 			r = *it;
 #if COLLISIONS
-			// Robot was still in collision matrix
-			assert(Robot::cmatrix[r->cindex] == r);
-			cout << "Got here 1 " << endl;
+			// Robot is still in collision matrix unless it was rejected
+			// In the case it was rejected and re-added to the matrix, a new robot
+			// object was allocated, in which case we only need to delete this one
 			if (Robot::cmatrix[r->cindex] == r) {
 				Robot::cmatrix[r->cindex] = NULL;
 			}
-			cout << "Got here 2 " << endl;
 #endif
 			delete r;
-			cout << "Got here 3 " << endl;
 		}
 		// Now we can clear the vector
 		moving_robots.clear();
@@ -647,7 +645,7 @@ public:
 				// send to our left neighbour
 				if ((*it_robot)->x < my_min_x && (*it_robot)->x > my_min_x - antix::offset_size) {
 #if DEBUG
-					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (1)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (1) turn " << antix::turn << endl;
 #endif
 					add_robot_to_move_msg(*it_robot, move_left_msg);
 					it_robot = remove_robot(it_robot);
@@ -657,7 +655,7 @@ public:
 				// assume that we are the far right node: send it to our right neighbour
 				} else if ((*it_robot)->x < my_min_x) {
 #if DEBUG
-					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (2)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (2) turn " << antix::turn << endl;
 #endif
 					add_robot_to_move_msg(*it_robot, move_right_msg);
 					it_robot = remove_robot(it_robot);
@@ -670,7 +668,7 @@ public:
 				// we send it to our right neighbour
 				if ((*it_robot)->x >= my_max_x && (*it_robot)->x < my_max_x + antix::offset_size) {
 #if DEBUG
-					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (3)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to right node (3) turn " << antix::turn << endl;
 #endif
 					add_robot_to_move_msg(*it_robot, move_right_msg);
 					it_robot = remove_robot(it_robot);
@@ -680,7 +678,7 @@ public:
 				// assume we are the far left node: send it to our left neighbour
 				} else if ((*it_robot)->x >= my_max_x) {
 #if DEBUG
-					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (4)" << endl;
+					cout << "Moving robot " << (*it_robot)->id << " on team " << (*it_robot)->team << " to left node (4) turn " << antix::turn << endl;
 #endif
 					add_robot_to_move_msg(*it_robot, move_left_msg);
 					it_robot = remove_robot(it_robot);
@@ -1038,12 +1036,10 @@ public:
 		int robot_count = 0;
 #endif
 		for(vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
-			cout << "Calling update pose on robot " << endl;
 			(*it)->update_pose();
 #ifndef NDEBUG
 			robot_count++;
 #endif
-			cout << "Done updating robot's pose " << endl;
 		}
 		assert(robot_count == robots.size());
 
