@@ -351,6 +351,11 @@ send_move_messages() {
 /*
 	Send our foreign/border entities to our 2 neighbours
 	Receive the same from each neighbour
+
+	We've sent move messages to both left and right neighbours
+	Receive move messages from each neighbour and attempt to add the robots
+	Respond by sending back any robots which collided and our border entities
+	We also receive the same response for the move messages we sent
 */
 void
 exchange_foreign_entities() {
