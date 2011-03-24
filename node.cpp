@@ -229,15 +229,14 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			move_bot_msg->robot(i).id(), move_bot_msg->robot(i).team(),
 			move_bot_msg->robot(i).a(), move_bot_msg->robot(i).v(),
 			move_bot_msg->robot(i).w(), move_bot_msg->robot(i).has_puck(),
-			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y(),
-			false
+			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
 
 #if COLLISIONS
 		// Robot is NULL if the robot's wanted location causes overlap
 		// Add it to reject move bot message for sending back to the node
 		if (r == NULL) {
-			//cout << "Robot could not enter cell! Adding it to reject move msg..." << endl;
+			cout << "Robot could not enter cell! Adding it to reject move msg..." << endl;
 			antix::copy_move_bot_robot(&reject_move_bot_msg, move_bot_msg->mutable_robot(i));
 			continue;
 		}
@@ -277,6 +276,7 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 	int i;
 	int robot_size = rejected_move_bot_msg->robot_size();
 	Robot *r;
+	cout << "I got a rejected robot!" << endl;
 	for(i = 0; i < robot_size; i++) {
 		//cout << "Got a rejected moved robot back! Adding it" << endl;
 
@@ -286,9 +286,7 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
 			rejected_move_bot_msg->robot(i).a(), rejected_move_bot_msg->robot(i).v(),
 			rejected_move_bot_msg->robot(i).w(), rejected_move_bot_msg->robot(i).has_puck(),
-			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y(),
-			true
-//			false
+			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y()
 		);
 		// If this is NULL, somehow robot collided
 		assert(r != NULL);

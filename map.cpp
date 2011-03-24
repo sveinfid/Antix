@@ -335,8 +335,8 @@ public:
 		double w,
 		bool has_puck,
 		double last_x,
-		double last_y,
-		bool force) {
+		double last_y)
+		{
 
 #if DEBUG
 		cout << "Moving: added new robot team " << team << " id " << id << " with a " << a << " w " << w << " (" << x << ", " << y << ") (Turn " << antix::turn << ")" << endl;
@@ -350,19 +350,22 @@ public:
 #if COLLISIONS
 		// collision matrix
 		unsigned int new_cindex = antix::CCell( x, y );
-		// If cell occupied (or collision occur), reject robot
-		if (Robot::did_collide( r, new_cindex, x, y ) != NULL && !force ) {
-			// Collide our local robot
-			//Robot::cmatrix[new_cindex]->collide();
-			delete r;
-			return NULL;
+		// If cell occupied (or collision occur), reject robot (unless it's us!)
+		Robot *r2 = Robot::did_collide( r, new_cindex, x, y );
+		if (r2 != NULL) {
+			// if it's not us, fail to add
+			if (r2->id != r->id && r2->team != r->team) {
+				// Collide our local robot
+				//Robot::cmatrix[new_cindex]->collide();
+				delete r;
+				return NULL;
+			}
+		}
 
 		// Otherwise cell is free
-		} else {
-			r->cindex = new_cindex;
-			Robot::cmatrix[new_cindex] = r;
-			cout << "Adding robot in cell " << r->cindex << " id " << r->id << " team " << r->team << endl;
-		}
+		r->cindex = new_cindex;
+		Robot::cmatrix[new_cindex] = r;
+		cout << "Adding robot in cell " << r->cindex << " id " << r->id << " team " << r->team << endl;
 #endif
 		
 		// bots[][] array
@@ -492,9 +495,9 @@ public:
 		// may not be true if collision on movement is in its erroneous state
 		// where a robot can move into an already occupied cell
 		assert(Robot::cmatrix[r->cindex] == r);
-		if (Robot::cmatrix[r->cindex] == r) {
-			Robot::cmatrix[r->cindex] = NULL;
-		}
+		//if (Robot::cmatrix[r->cindex] == r) {
+		//	Robot::cmatrix[r->cindex] = NULL;
+		//}
 		// we leave it in the collision cell for now as we wish a collision
 		// to be registered in case we must move back
 #endif
@@ -502,11 +505,10 @@ public:
 		// delete robot from memory
 		// keep index as we use it to delete from sense matrix
 		int index = r->index;
-		delete r;
+		//delete r;
 
 		// add robot to moving_robots to be deleted when move complete
-		//cout << "Reserving cindex " << r->cindex << " with robot " << r->id << " on team " << r->team << " as we are moving" << endl;
-		//moving_robots.push_back( r );
+		moving_robots.push_back( r );
 
 		// from matrix
 		return Robot::matrix[index].robots.erase( it );
