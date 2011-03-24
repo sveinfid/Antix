@@ -234,7 +234,7 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		);
 
 #if COLLISIONS
-		// Robot is NULL if the collision cell is occupied
+		// Robot is NULL if the robot's wanted location causes overlap
 		// Add it to reject move bot message for sending back to the node
 		if (r == NULL) {
 			//cout << "Robot could not enter cell! Adding it to reject move msg..." << endl;
@@ -285,14 +285,14 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 		//cout << "Got a rejected moved robot back! Adding it" << endl;
 
 		r = my_map->add_robot(
-			// we add the robot at its OLD coord location
-			rejected_move_bot_msg->robot(i).old_x(),
-			rejected_move_bot_msg->robot(i).old_y(),
+			rejected_move_bot_msg->robot(i).x(),
+			rejected_move_bot_msg->robot(i).y(),
 			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
 			rejected_move_bot_msg->robot(i).a(), rejected_move_bot_msg->robot(i).v(),
 			rejected_move_bot_msg->robot(i).w(), rejected_move_bot_msg->robot(i).has_puck(),
 			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y(),
-			true
+//			true
+			false
 		);
 		// If this is NULL, somehow our cell was still occupied...
 		assert(r != NULL);
@@ -429,6 +429,7 @@ exchange_foreign_entities() {
 #endif
 		}
 	}
+	my_map->done_neighbour_exchange();
 #if DEBUG_SYNC
 	cout << "Sync: done exchange_foreign_entities" << endl;
 #endif

@@ -1,5 +1,3 @@
-- better display of scores (gui?)
-
 - optimize:
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:

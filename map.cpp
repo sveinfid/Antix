@@ -33,6 +33,8 @@ public:
 	// sent to us by neighbours
 	vector<Puck> foreign_pucks;
 	vector<Robot> foreign_robots;
+	// those robots that are to be sent/are sent in current turn
+	vector<Robot *> moving_robots;
 
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> all_homes;
@@ -274,6 +276,29 @@ public:
 		return NULL;*/
 	}
 
+	/*
+		Called when a turn's exchange with neighbour is complete
+		Do clean up
+	*/
+	void
+	done_neighbour_exchange() {
+		// clear those robots in moving robots since we are done with them
+		Robot *r;
+		for(vector<Robot *>::iterator it = moving_robots.begin(); it != moving_robots.end(); it++) {
+			Robot *r = *it;
+#if COLLISIONS
+			// Robot was still in collision matrix
+			assert(Robot::cmatrix[r->cindex] == r);
+			if (Robot::cmatrix[r->cindex] == r) {
+				Robot::cmatrix[r->cindex] = NULL;
+			}
+#endif
+			delete r;
+			it = moving_robots.erase( it );
+		}
+		assert( moving_robots.size() == 0 );
+	}
+
 	void
 	add_foreign_robot(double x,
 		double y,
@@ -494,14 +519,19 @@ public:
 		// may not be true if collision on movement is in its erroneous state
 		// where a robot can move into an already occupied cell
 		//assert(Robot::cmatrix[r->cindex] == r);
-		if (Robot::cmatrix[r->cindex] == r) {
-			Robot::cmatrix[r->cindex] = NULL;
-		}
+		//if (Robot::cmatrix[r->cindex] == r) {
+		//	Robot::cmatrix[r->cindex] = NULL;
+		//}
+		// we leave it in the collision cell for now as we wish a collision
+		// to be registered in case we must move back
 #endif
 
 		// delete robot from memory
+		// keep index as we use it to delete from sense matrix
 		int index = r->index;
-		delete r;
+		//delete r;
+		// add robot to moving_robots to be deleted when move complete
+		moving_robots.push_back( r );
 
 		// from matrix
 		return Robot::matrix[index].robots.erase( it );
