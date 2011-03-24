@@ -122,13 +122,6 @@ public:
 	static vector<MatrixCell> matrix;
 	static vector<Robot *> cmatrix;
 
-#if COLLISIONS
-	// Reserved collision cells: those which were occupied by robots on border
-	// for our neighbours
-	// ONLY used for neighbour's border cells
-	static set<int> reserved_cells;
-#endif
-
 	// index into sensor matrix
 	unsigned int index;
 	// index into collision matrix
@@ -216,7 +209,7 @@ public:
 		//if (range <= robot_radius + robot_radius)
 		//	return r2;
 
-		const double squared_max_range = max_range ^ 2;
+		const double squared_max_range = max_range * max_range;
 		const double dsq = dx*dx + dy*dy;
 		if ( dsq <= squared_max_range )
 			return r2;
@@ -596,6 +589,5 @@ double Robot::vision_range_squared;
 double Robot::robot_radius;
 vector<MatrixCell> Robot::matrix;
 vector<Robot *> Robot::cmatrix;
-set<int> Robot::reserved_cells;
 
 #endif

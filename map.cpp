@@ -163,14 +163,12 @@ public:
 					// collision matrix
 					// make sure we appear at an unused location
 					unsigned int cindex = antix::CCell(r->x, r->y);
-					//while ( Robot::cmatrix[cindex] != NULL ) {
 					while ( Robot::did_collide( r, cindex, r->x, r->y ) != NULL ) {
 						r->random_warp(my_min_x, my_max_x);
 						cindex = antix::CCell(r->x, r->y);
 					}
 					r->cindex = cindex;
-					r->cindex_old = cindex;
-					Robot::cmatrix[cindex] = r;
+					Robot::cmatrix[r->cindex] = r;
 #endif
 
 					// bots[][] array
@@ -284,18 +282,23 @@ public:
 	done_neighbour_exchange() {
 		// clear those robots in moving robots since we are done with them
 		Robot *r;
+		// Free the memory and collision matrix indices
 		for(vector<Robot *>::iterator it = moving_robots.begin(); it != moving_robots.end(); it++) {
-			Robot *r = *it;
+			r = *it;
 #if COLLISIONS
 			// Robot was still in collision matrix
 			assert(Robot::cmatrix[r->cindex] == r);
+			cout << "Got here 1 " << endl;
 			if (Robot::cmatrix[r->cindex] == r) {
 				Robot::cmatrix[r->cindex] = NULL;
 			}
+			cout << "Got here 2 " << endl;
 #endif
 			delete r;
-			it = moving_robots.erase( it );
+			cout << "Got here 3 " << endl;
 		}
+		// Now we can clear the vector
+		moving_robots.clear();
 		assert( moving_robots.size() == 0 );
 	}
 
@@ -358,6 +361,7 @@ public:
 		} else {
 			r->cindex = new_cindex;
 			Robot::cmatrix[new_cindex] = r;
+			cout << "Adding robot in cell " << r->cindex << " id " << r->id << " team " << r->team << endl;
 		}
 #endif
 		
@@ -487,10 +491,10 @@ public:
 #if COLLISIONS
 		// may not be true if collision on movement is in its erroneous state
 		// where a robot can move into an already occupied cell
-		//assert(Robot::cmatrix[r->cindex] == r);
-		//if (Robot::cmatrix[r->cindex] == r) {
-		//	Robot::cmatrix[r->cindex] = NULL;
-		//}
+		assert(Robot::cmatrix[r->cindex] == r);
+		if (Robot::cmatrix[r->cindex] == r) {
+			Robot::cmatrix[r->cindex] = NULL;
+		}
 		// we leave it in the collision cell for now as we wish a collision
 		// to be registered in case we must move back
 #endif
@@ -498,9 +502,11 @@ public:
 		// delete robot from memory
 		// keep index as we use it to delete from sense matrix
 		int index = r->index;
-		//delete r;
+		delete r;
+
 		// add robot to moving_robots to be deleted when move complete
-		moving_robots.push_back( r );
+		//cout << "Reserving cindex " << r->cindex << " with robot " << r->id << " on team " << r->team << " as we are moving" << endl;
+		//moving_robots.push_back( r );
 
 		// from matrix
 		return Robot::matrix[index].robots.erase( it );
@@ -1030,16 +1036,18 @@ public:
 		int robot_count = 0;
 #endif
 		for(vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
+			cout << "Calling update pose on robot " << endl;
 			(*it)->update_pose();
 #ifndef NDEBUG
 			robot_count++;
 #endif
+			cout << "Done updating robot's pose " << endl;
 		}
 		assert(robot_count == robots.size());
 
 #if COLLISIONS
 #ifndef NDEBUG
-		// n^2 check for missed collisions
+		// n^2 check for missed collisions (overlapped)
 		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
 			for (vector<Robot *>::const_iterator it2 = robots.begin(); it2 != robots_end; it2++) {
 				const Robot *r1 = *it;
@@ -1065,22 +1073,6 @@ public:
 #endif
 #endif
 
-
-#if COLLISIONS
-		// We can clear the previous cindices of our own robots
-		// XXX expensive
-		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
-			// this assert is invalidated due to forceful addition in adding
-			// rejected robots.
-			//assert(Robot::cmatrix[ (*it)->cindex_old ] == *it);
-			//if ( (*it)->cindex_old != (*it)->cindex )
-			if ( (*it)->cindex_old != (*it)->cindex )
-				Robot::cmatrix[ (*it)->cindex_old ] = NULL;
-		}
-
-		// Done with the previous turn's reserved cells now
-		Robot::reserved_cells.clear();
-#endif
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
 #endif

@@ -35,12 +35,21 @@
 
 // Debug everything
 #define DEBUG 0
+
+#if DEBUG
+#define DEBUG_SYNC 1
+#define DEBUG_ERASE_PUCK 1
+#define DEBUG_COLLIDE 1
+#else
+
 // Debug just syncing
 #define DEBUG_SYNC 0
 // Use to debug EraseAll() on Pucks
 #define DEBUG_ERASE_PUCK 0
 // Get some output about collisions
 #define DEBUG_COLLIDE 0
+
+#endif
 
 // handy STL iterator macro pair. Use FOR_EACH(I,C){ } to get an iterator I to
 // each item in a collection C.
