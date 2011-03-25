@@ -9,7 +9,9 @@ targets=master operator node client
 gui_targets=gui
 objs=antix.pb.o
 
-CFLAGS=-O3 -ggdb
+# For debugging
+#CFLAGS=-ggdb -Wall
+CFLAGS=-O3
 GLUTLIBS=-L/usr/X11R6/lib -lGLU -lGL -lglut -lX11 -lXext -lXmu -lXi
 GLUTFLAGS=-I/usr/include/GL
 

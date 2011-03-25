@@ -354,16 +354,16 @@ public:
 			// if it's not us, fail to add
 			if (r2->id != r->id && r2->team != r->team) {
 				// Collide our local robot
+				// XXX ?
 				//Robot::cmatrix[new_cindex]->collide();
 				delete r;
 				return NULL;
 			}
 		}
 
-		// Otherwise cell is free
+		// Cell is free or occupied by the robot already
 		r->cindex = new_cindex;
 		Robot::cmatrix[new_cindex] = r;
-		cout << "Adding robot in cell " << r->cindex << " id " << r->id << " team " << r->team << endl;
 #endif
 		
 		// bots[][] array

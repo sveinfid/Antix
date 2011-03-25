@@ -236,7 +236,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		// Robot is NULL if the robot's wanted location causes overlap
 		// Add it to reject move bot message for sending back to the node
 		if (r == NULL) {
-			cout << "Robot could not enter cell! Adding it to reject move msg..." << endl;
 			antix::copy_move_bot_robot(&reject_move_bot_msg, move_bot_msg->mutable_robot(i));
 			continue;
 		}
@@ -303,7 +302,8 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 			r->doubles.push_back( rejected_move_bot_msg->robot(i).doubles(j) );
 
 		// set the robot as collided
-		r->collide();
+		// XXX
+		//r->collide();
 	}
 #if DEBUG
 	cout << i+1 << " robots in move message." << endl;
