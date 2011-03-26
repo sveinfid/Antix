@@ -522,14 +522,12 @@ public:
 		const double d = world_size / (double) cmatrix_width;
 
 		// wraparound
-		/*
-		don't wrap around x
+		// XXX don't wrap around x?
 		while (x > world_size)
 			x -= world_size;
 
 		while (x < 0)
 			x += world_size;
-		*/
 		
 		return floor(x / d);
 	}

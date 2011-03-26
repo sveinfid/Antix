@@ -241,14 +241,18 @@ public:
 		const unsigned int c_x = antix::CCell_x(x);
 		const unsigned int c_y = antix::CCell_y(y);
 
-		const unsigned int top_left = (c_x - 1) + (c_y - 1) * antix::cmatrix_width;
-		const unsigned int top_centre = (c_x) + (c_y - 1) * antix::cmatrix_width;
-		const unsigned int top_right = (c_x + 1) + (c_y - 1) * antix::cmatrix_width;
-		const unsigned int bottom_left = (c_x - 1) + (c_y + 1) * antix::cmatrix_width;
-		const unsigned int bottom_centre = (c_x) + (c_y + 1) * antix::cmatrix_width;
-		const unsigned int bottom_right = (c_x + 1) + (c_y + 1) * antix::cmatrix_width;
-		const unsigned int left = (c_x - 1) + (c_y) * antix::cmatrix_width;
-		const unsigned int right = (c_x + 1) + (c_y) * antix::cmatrix_width;
+		const double ccell_length = 2*robot_radius;
+
+		const unsigned int top_left = antix::CCell(x - ccell_length, y - ccell_length);
+		const unsigned int top_centre = antix::CCell(x, y - ccell_length);
+		const unsigned int top_right = antix::CCell(x + ccell_length, y - ccell_length);
+
+		const unsigned int bottom_left = antix::CCell(x - ccell_length, y + ccell_length);
+		const unsigned int bottom_centre = antix::CCell(x, y + ccell_length);
+		const unsigned int bottom_right = antix::CCell(x + ccell_length, y + ccell_length);
+
+		const unsigned int left = antix::CCell(x - ccell_length, y);
+		const unsigned int right = antix::CCell(x + ccell_length, y);
 
 		const unsigned int cmatrix_size = antix::cmatrix_width * antix::cmatrix_width;
 
