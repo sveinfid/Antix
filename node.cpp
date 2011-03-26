@@ -10,8 +10,6 @@
 
 #include "map.cpp"
 
-#define REJECTED 2
-
 using namespace std;
 
 string master_host;
@@ -30,9 +28,8 @@ int total_teams;
 
 Map *my_map;
 
-// robots & pucks near our borders that we send to our neighbours
-antixtransfer::SendMap border_map_left;
-antixtransfer::SendMap border_map_right;
+// robots & pucks near our borders that we send/recv with our neighbours
+antixtransfer::SendMap crit_map;
 
 antixtransfer::Node_list node_list;
 antixtransfer::Node_list::Node left_node;
@@ -49,10 +46,6 @@ antixtransfer::move_bot move_right_msg;
 antixtransfer::SendMap sendmap_recv;
 // used in exchange_foreign_entities
 antixtransfer::move_bot move_bot_msg;
-// used in handle_move_request / exchange_foreign_entities
-antixtransfer::move_bot reject_move_bot_msg;
-// used in handle rejected
-antixtransfer::move_bot rejected_move_bot_msg;
 // used in service_control_messages
 antixtransfer::control_message control_msg;
 antixtransfer::sense_data blank_sense_msg;
@@ -232,14 +225,7 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 			move_bot_msg->robot(i).last_x(), move_bot_msg->robot(i).last_y()
 		);
 
-#if COLLISIONS
-		// Robot is NULL if the robot's wanted location causes overlap
-		// Add it to reject move bot message for sending back to the node
-		if (r == NULL) {
-			antix::copy_move_bot_robot(&reject_move_bot_msg, move_bot_msg->mutable_robot(i));
-			continue;
-		}
-#endif
+		assert( r != NULL );
 
 		r->sensor_bbox.x.min = move_bot_msg->robot(i).bbox_x_min();
 		r->sensor_bbox.x.max = move_bot_msg->robot(i).bbox_x_max();
@@ -252,58 +238,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 		int doubles_size = move_bot_msg->robot(i).doubles_size();
 		for (int j = 0; j < doubles_size; j++)
 			r->doubles.push_back( move_bot_msg->robot(i).doubles(j) );
-	}
-#if DEBUG
-	cout << i+1 << " robots in move message." << endl;
-#endif
-}
-
-/*
-	We just deleted and sent these robots, but they collided at the other side
-	Add them back to our records and set them as having collided
-
-	We must do this in the following case:
-		- Sent robot, and receiving node attempted to insert that robot
-		- Overlapped/collided at the target side
-*/
-void
-handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejected_move_bot_msg) {
-	int rc = antix::recv_pb(sock, rejected_move_bot_msg, 0);
-	assert(rc == 1);
-
-	// for each robot in the message, add it to our list
-	int i;
-	int robot_size = rejected_move_bot_msg->robot_size();
-	Robot *r;
-	for(i = 0; i < robot_size; i++) {
-		//cout << "Got a rejected moved robot back! Adding it" << endl;
-
-		r = my_map->add_robot(
-			rejected_move_bot_msg->robot(i).x(),
-			rejected_move_bot_msg->robot(i).y(),
-			rejected_move_bot_msg->robot(i).id(), rejected_move_bot_msg->robot(i).team(),
-			rejected_move_bot_msg->robot(i).a(), rejected_move_bot_msg->robot(i).v(),
-			rejected_move_bot_msg->robot(i).w(), rejected_move_bot_msg->robot(i).has_puck(),
-			rejected_move_bot_msg->robot(i).last_x(), rejected_move_bot_msg->robot(i).last_y()
-		);
-		// If this is NULL, somehow robot collided
-		assert(r != NULL);
-
-		r->sensor_bbox.x.min = rejected_move_bot_msg->robot(i).bbox_x_min();
-		r->sensor_bbox.x.max = rejected_move_bot_msg->robot(i).bbox_x_max();
-		r->sensor_bbox.y.min = rejected_move_bot_msg->robot(i).bbox_y_min();
-		r->sensor_bbox.y.max = rejected_move_bot_msg->robot(i).bbox_y_max();
-
-		int ints_size = rejected_move_bot_msg->robot(i).ints_size();
-		for (int j = 0; j < ints_size; j++)
-			r->ints.push_back( rejected_move_bot_msg->robot(i).ints(j) );
-		int doubles_size = rejected_move_bot_msg->robot(i).doubles_size();
-		for (int j = 0; j < doubles_size; j++)
-			r->doubles.push_back( rejected_move_bot_msg->robot(i).doubles(j) );
-
-		// set the robot as collided
-		// XXX
-		//r->collide();
 	}
 #if DEBUG
 	cout << i+1 << " robots in move message." << endl;
@@ -324,6 +258,7 @@ handle_rejected_moved_robots(zmq::socket_t *sock, antixtransfer::move_bot *rejec
 	requires us to even send move message if it's blank (which makes syncing
 	behaviour easier)
 */
+/*
 void
 send_move_messages() {
 	// First we build our own move messages to be sent to our neighbours
@@ -338,16 +273,126 @@ send_move_messages() {
 	cout << "Movement messages sent." << endl;
 #endif
 }
+*/
 
 /*
-	Send our foreign/border entities to our 2 neighbours
-	Receive the same from each neighbour
+	Do the handshake with both of our neighbours to agree on the state
+	of the critical sections (those sections within sight distance of border).
 
-	We've sent move messages to both left and right neighbours
-	Receive move messages from each neighbour and attempt to add the robots
-	Respond by sending back any robots which collided and our border entities
-	We also receive the same response for the move messages we sent
+	We also deal with robots moving between nodes here.
+
+	This is done as follows:
+	- After poses are updated for all robots that were previously not in the
+	  critical sections, we request a list of robots in the left neighbour's
+	  right critical section.
+	- The left neighbour responds by sending us this list
+	- We update the poses of our robots in our left critical section (that have
+	  not already been moved, such as those that moved into the critical section
+	  during this turn)
+	- We make another request to our left neighbour. This request contains a list
+	  of robots we are moving to it, and all of our robots currently in our left
+	  critical section.
+	- The left neighbour responds by first updating the poses of its robots in
+	  its right critical section, and sending back the robots it needs to move
+	  to us, and its updated robot list of those in its right critical section.
+
+	Thus we must send the requests to the left neighbour, and respond to those
+	requests that will be sent from our right neighbour to us.
 */
+void
+neighbours_handshake() {
+	// Ask our left neighbour to send us its robots in its right critical section
+	antix::send_blank(left_req_sock);
+
+	// Now we wait for the response from our left neighbour, and for requests
+	// from our right neighbour asking its left neighbour (us)
+	zmq::pollitem_t items [] = {
+		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
+		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
+	};
+
+	// A complete handshake has both of these as 2
+	int left_responses_heard = 0;
+	int right_requests_heard = 0;
+
+	int rc;
+	while ( left_responses_heard < 2 || right_requests_heard < 2 ) {
+		zmq::poll(&items [0], 2, -1);
+
+		// response from our left neighbour
+		if (items[0].revents & ZMQ_POLLIN) {
+			// If it's the first response, it contains a list of robots in the
+			// critical section
+			if (left_responses_heard == 0) {
+				antix::recv_pb(left_req_sock, &sendmap_recv, 0);
+				my_map->update_left_crit_region(&sendmap_recv, &move_bot_msg, &crit_map);
+
+				// Initiate new request
+				// Send move message
+				// XXX
+				move_bot_msg.set_from_right( true );
+				antix::send_pb_flags(left_req_sock, &move_bot_msg, ZMQ_SNDMORE);
+				// And send the robots in our left critical section
+				antix::send_pb_flags(left_req_sock, &crit_map, 0);
+			}
+
+			// Second response contains robots that move to this node
+			// and updated positions of robots in the critical section
+			else if (left_responses_heard == 1) {
+				// moved bots
+				antix::recv_pb(left_req_sock, &move_bot_msg, 0);
+				// and robot positions in its right critical section
+				antix::recv_pb(left_req_sock, &crit_map, 0);
+
+				handle_move_request(&move_bot_msg);
+				my_map->add_critical_region(&crit_map);
+			}
+
+			else {
+				// Should never get here
+				assert( 1 == 0 );
+			}
+
+			left_responses_heard++;
+		}
+
+		// right neighbour sent us a request
+		if (items[1].revents & ZMQ_POLLIN) {
+			// If it's the first request, send the robots in our right crit section
+			if (right_requests_heard == 0) {
+				antix::recv_blank(neighbour_rep_sock);
+				my_map->build_right_crit_map(&crit_map);
+				antix::send_pb_flags(neighbour_rep_sock, &crit_map, 0);
+			}
+
+			// The second request contains robots to move to this node
+			// and updated positions of robots in the critical section
+			// add the robots and update the positions of our robots
+			else if (right_requests_heard == 1) {
+				antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
+				antix::recv_pb(neighbour_rep_sock, &crit_map, 0);
+
+				handle_move_request(&move_bot_msg);
+				my_map->add_critical_region(&crit_map);
+
+				// Update poses for our robots
+				my_map->update_right_crit_region(&move_bot_msg, &crit_map);
+
+				// Respond by sending a list of all the robots in our right crit region
+				// and our bots to move to that node
+				antix::send_pb_flags(neighbour_rep_sock, &move_bot_msg, ZMQ_SNDMORE);
+				antix::send_pb_flags(neighbour_rep_sock, &crit_map, 0);
+			}
+
+			else {
+				assert( 1 == 0 );
+			}
+
+			right_requests_heard++;
+		}
+	}
+}
+/*
 void
 exchange_foreign_entities() {
 	// We wait for any requests (move requests in this case), to which we respond
@@ -375,9 +420,6 @@ exchange_foreign_entities() {
 #if DEBUG
 			cout << "Received foreign entities response from left req sock" << endl;
 #endif
-#if COLLISIONS
-			handle_rejected_moved_robots(left_req_sock, &rejected_move_bot_msg);
-#endif
 			update_foreign_entities(left_req_sock);
 			responses++;
 		}
@@ -386,9 +428,6 @@ exchange_foreign_entities() {
 		if (items[1].revents & ZMQ_POLLIN) {
 #if DEBUG
 			cout << "Received foreign entities response from right req sock" << endl;
-#endif
-#if COLLISIONS
-			handle_rejected_moved_robots(right_req_sock, &rejected_move_bot_msg);
 #endif
 			update_foreign_entities(right_req_sock);
 			responses++;
@@ -400,18 +439,8 @@ exchange_foreign_entities() {
 			assert(rc == 1);
 			// we have received a move request: first update our local records with
 			// the sent bots
-
-#if COLLISIONS
-			// Bots to send that are rejected
-			reject_move_bot_msg.clear_robot();	
-#endif
-
 			handle_move_request(&move_bot_msg);
 
-#if COLLISIONS
-			// first send back any rejected moved robots
-			antix::send_pb_flags(neighbour_rep_sock, &reject_move_bot_msg, ZMQ_SNDMORE);
-#endif
 			// send back a list of foreign neighbours depending on which neighbour
 			// the move request was from
 			if (move_bot_msg.from_right() == false)
@@ -430,6 +459,7 @@ exchange_foreign_entities() {
 	cout << "Sync: done exchange_foreign_entities" << endl;
 #endif
 }
+*/
 
 /*
 	For each robot in the message from a client, apply the action
@@ -651,8 +681,6 @@ main(int argc, char **argv) {
 	// initialize move messages: only needs to be done once, so may as well do it here
 	move_left_msg.set_from_right(true);
 	move_right_msg.set_from_right(false);
-	reject_move_bot_msg.set_from_right(false);
-	rejected_move_bot_msg.set_from_right(false);
 
 	// socket to announce ourselves to master on
 	while (1) {
@@ -984,11 +1012,14 @@ main(int argc, char **argv) {
 		// update poses for internal robots
 		my_map->update_poses();
 
+		/*
 		// send movement requests to neighbouring nodes (a bot moved out of range)
 		send_move_messages();
 
 		// receive move requests & respond with foreign entities, receive move responses
 		exchange_foreign_entities();
+		*/
+		neighbours_handshake();
 
 		// build message for each client of what their robots can see
 		my_map->build_sense_messages();

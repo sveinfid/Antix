@@ -129,6 +129,10 @@ public:
 
 	bool collided;
 
+	// Critical section vector we're in, or NULL
+	vector<Robot *> *critical_section;
+	bool in_critical;
+
 	double x, y;
 	// orientation
 	double a;
@@ -170,6 +174,7 @@ public:
 		cindex = 0;
 		home = NULL;
 		collided = false;
+		critical_section = NULL;
 	}
 
 	// Used in GUI & foreign robots
@@ -183,6 +188,7 @@ public:
 		cindex = 0;
 		home = NULL;
 		collided = false;
+		critical_section = NULL;
 	}
 
 	void

@@ -635,35 +635,6 @@ public:
 		if ( val > b.max )
 			b.max = val;
 	}
-
-	/*
-		Add a new robot to move_bot_msg that is a copy of those attributes in robot r
-		XXX This should be identical to Map::add_robot_to_move_msg(), except for not
-		being a Robot object
-	*/
-	static void
-	copy_move_bot_robot(antixtransfer::move_bot *move_bot_msg, antixtransfer::move_bot::Robot *r) {
-		antixtransfer::move_bot::Robot *r_move = move_bot_msg->add_robot();
-		r_move->set_id(r->id());
-		r_move->set_team(r->team());
-		r_move->set_x(r->x());
-		r_move->set_y(r->y());
-		r_move->set_a(r->a());
-		r_move->set_v(r->v());
-		r_move->set_w(r->w());
-		r_move->set_has_puck(r->has_puck());
-		r_move->set_last_x(r->last_x());
-		r_move->set_last_y(r->last_y());
-		r_move->set_bbox_x_min(r->bbox_x_min());
-		r_move->set_bbox_x_max(r->bbox_x_max());
-		r_move->set_bbox_y_min(r->bbox_y_min());
-		r_move->set_bbox_y_max(r->bbox_x_max());
-
-		for (int i = 0; i < r->ints_size(); i++)
-			r_move->add_ints( r->ints(i) );
-		for (int i = 0; i < r->doubles_size(); i++)
-			r_move->add_doubles( r->doubles(i) );
-	}
 };
 
 double antix::offset_size;

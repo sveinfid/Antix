@@ -119,8 +119,8 @@ message MasterServerClientInitialization {
 
 message SendMap {
 	message Robot {
-		required int32 team = 1;
-		required int32 id = 2;
+		required int32 team = 1 [default = -1];
+		required int32 id = 2 [default = -1];
 		required double x = 3;
 		required double y = 4;
 	}
