@@ -211,14 +211,17 @@ public:
 		const double dx( antix::WrapDistance( r2->x - x ) );
 		const double dy( antix::WrapDistance( r2->y - y ) );
 
-		//const double range( hypot( dx, dy ) );
-		//if (range <= robot_radius + robot_radius)
-		//	return r2;
+		const double range( hypot( dx, dy ) );
+		if (range <= max_range)
+			return r2;
 
+		// XXX put this back in
+		/*
 		const double squared_max_range = max_range * max_range;
 		const double dsq = dx*dx + dy*dy;
 		if ( dsq <= squared_max_range )
 			return r2;
+		*/
 
 		return NULL;
 	}

@@ -39,9 +39,6 @@ antixtransfer::Node_list::Node right_node;
 	Repeated protobuf message objects / other objects
 	Declare them once as constructors are expensive
 */
-// messages that are sent repeatedly when bots move left or right
-antixtransfer::move_bot move_left_msg;
-antixtransfer::move_bot move_right_msg;
 // used in update_foreign_entities
 antixtransfer::SendMap sendmap_recv;
 // used in exchange_foreign_entities
@@ -321,16 +318,14 @@ neighbours_handshake() {
 
 		// response from our left neighbour
 		if (items[0].revents & ZMQ_POLLIN) {
-			// If it's the first response, it contains a list of robots in the
-			// critical section
+			// If it's the first response, it contains a list of robots in their
+			// right critical section
 			if (left_responses_heard == 0) {
 				antix::recv_pb(left_req_sock, &sendmap_recv, 0);
 				my_map->update_left_crit_region(&sendmap_recv, &move_bot_msg, &crit_map);
 
 				// Initiate new request
 				// Send move message
-				// XXX
-				move_bot_msg.set_from_right( true );
 				antix::send_pb_flags(left_req_sock, &move_bot_msg, ZMQ_SNDMORE);
 				// And send the robots in our left critical section
 				antix::send_pb_flags(left_req_sock, &crit_map, 0);
@@ -345,7 +340,7 @@ neighbours_handshake() {
 				antix::recv_pb(left_req_sock, &crit_map, 0);
 
 				handle_move_request(&move_bot_msg);
-				my_map->add_critical_region(&crit_map);
+				my_map->add_critical_region_robots(&crit_map);
 			}
 
 			else {
@@ -373,7 +368,7 @@ neighbours_handshake() {
 				antix::recv_pb(neighbour_rep_sock, &crit_map, 0);
 
 				handle_move_request(&move_bot_msg);
-				my_map->add_critical_region(&crit_map);
+				my_map->add_critical_region_robots(&crit_map);
 
 				// Update poses for our robots
 				my_map->update_right_crit_region(&move_bot_msg, &crit_map);
@@ -392,6 +387,7 @@ neighbours_handshake() {
 		}
 	}
 }
+
 /*
 void
 exchange_foreign_entities() {
@@ -675,12 +671,6 @@ main(int argc, char **argv) {
 	ipc_id = string(argv[5]);
 	total_teams = atoi(argv[6]);
 	assert(total_teams > 0);
-
-	// some protobuf stuff that need only be set once
-
-	// initialize move messages: only needs to be done once, so may as well do it here
-	move_left_msg.set_from_right(true);
-	move_right_msg.set_from_right(false);
 
 	// socket to announce ourselves to master on
 	while (1) {

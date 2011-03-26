@@ -185,8 +185,7 @@ message move_bot {
 		required double bbox_y_min = 15;
 		required double bbox_y_max = 16;
 	}
-	required bool from_right = 1;
-	repeated Robot robot = 2;
+	repeated Robot robot = 1;
 }
 
 message control_message {

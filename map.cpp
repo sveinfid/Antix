@@ -42,7 +42,7 @@ public:
 
 	// indices into cindex that have foreign robots
 	// we keep this for a turn until after update_poses()
-	vector<int> foreign_critical_bots;
+	vector<Robot *> foreign_critical_robots;
 
 	// We need to know homes to set robot's first last_x, last_y
 	vector<Home *> all_homes;
@@ -171,7 +171,9 @@ public:
 					// collision matrix
 					// make sure we appear at an unused location
 					unsigned int cindex = antix::CCell(r->x, r->y);
-					while ( Robot::did_collide( r, cindex, r->x, r->y ) != NULL ) {
+					//while ( Robot::did_collide( r, cindex, r->x, r->y ) != NULL ) {
+					// do not collide, do not spawn in a critical section
+					while ( Robot::did_collide( r, cindex, r->x, r->y ) != NULL || in_critical_section(r->x) != 0 ) {
 						r->random_warp(my_min_x, my_max_x);
 						cindex = antix::CCell(r->x, r->y);
 					}
@@ -345,15 +347,20 @@ public:
 		Robot::cmatrix[new_cindex] = r;
 #endif
 
-		// crit section
-		if (x < my_min_x + Robot::vision_range) {
+		// Place in critical section if necessary
+
+		// should always be in one when adding a moved bot?
+		assert( in_critical_section( r-> x ) != 0 );
+
+		// left crit section
+		if (in_critical_section( r-> x ) == 1) {
 			r->critical_section = &left_crit_new;
 			left_crit_new.push_back( r );
-		} else if ( x > my_max_x - Robot::vision_range) {
+
+		// right crit section
+		} else if ( in_critical_section( r->x ) == 2 ) {
 			r->critical_section = &right_crit_new;
 			right_crit_new.push_back( r );
-		} else {
-			assert ( 1 == 0 );
 		}
 		
 		// bots[][] array
@@ -411,9 +418,6 @@ public:
 		r_move->set_bbox_x_max(r->sensor_bbox.x.max);
 		r_move->set_bbox_y_min(r->sensor_bbox.y.min);
 		r_move->set_bbox_y_max(r->sensor_bbox.y.max);
-
-		// XXX doesn't matter, just must be set right now
-		move_bot_msg->set_from_right( true );
 
 		vector<int>::const_iterator ints_end = r->ints.end();
 		for (vector<int>::const_iterator it = r->ints.begin(); it != ints_end; it++)
@@ -1023,9 +1027,25 @@ public:
 	}
 
 	/*
-		Add a robot at x, y which only exists to not be collided
+		Return 1 if in left crit section, 2 if in right, 0 otherwise
 	*/
 	int
+	in_critical_section(double x) {
+		// check that the x is actually in our node
+		assert(x >= my_min_x || x < my_max_x);
+
+		if (x - Robot::robot_radius < my_min_x + Robot::vision_range)
+			return 1;
+		if (x + Robot::robot_radius > my_max_x - Robot::vision_range)
+			return 2;
+
+		return 0;
+	}
+
+	/*
+		Add a robot at x, y which only exists for collision checking
+	*/
+	Robot *
 	add_foreign_crit_robot(double x, double y) {
 		Robot *r = new Robot(x, y, -1, 0.0);
 
@@ -1036,20 +1056,19 @@ public:
 		r->cindex = cindex;
 		Robot::cmatrix[cindex] = r;
 
-		return cindex;
+		return r;
 	}
 
 	/*
-		Update poses for our robots
+		Update poses for robots in our right critical section
 		Add any moved to move_msg
 		Add all critical region bots to crit_map
 	*/
 	void
 	update_right_crit_region(antixtransfer::move_bot *move_msg, antixtransfer::SendMap *crit_map_ours) {
+
 		move_msg->clear_robot();
 		crit_map_ours->clear_robot();
-		// XXX
-		move_msg->set_from_right( true );
 
 		// Update poses for our local crit region bots
 		// while loop since we may remove robots
@@ -1079,7 +1098,7 @@ public:
 			}
 
 			// Or out of crit section but remain in the node
-			if ( r->x < my_max_x - Robot::vision_range ) {
+			if ( in_critical_section( r-> x ) == 0 ) {
 				// and set its crit region vector to NULL
 				r->critical_section = NULL;
 				it = right_crit.erase( it );
@@ -1117,22 +1136,20 @@ public:
 	*/
 	void
 	update_left_crit_region(antixtransfer::SendMap *crit_map, antixtransfer::move_bot *move_msg, antixtransfer::SendMap *crit_map_ours) {
-		move_msg->clear_robot();
-		// doesn't matter, just needs to be set XXX
-		move_msg->set_from_right( true );
 
+		move_msg->clear_robot();
 		crit_map_ours->clear_robot();
 
 		// Right now we only track foreign robots for collisions
 
 		// Indices into cmatrix to remove when movement is complete
-		vector<int> temp_bots;
+		vector<Robot *> temp_foreign_robots;
 		Robot *r;
 		const int robot_size = crit_map->robot_size();
 		for (int i = 0; i < robot_size; i++) {
-			int cindex = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
+			r = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
 			// track for later deletion
-			temp_bots.push_back(cindex);
+			temp_foreign_robots.push_back(r);
 		}
 
 		// Update poses of the robots in our left critical region
@@ -1166,7 +1183,7 @@ public:
 			}
 
 			// if it moves right out of critical region, remove from crit region
-			if ( r->x > my_min_x + Robot::vision_range ) {
+			if ( in_critical_section( r->x ) == 0 ) {
 				// and set its crit region vector to NULL
 				r->critical_section = NULL;
 				it = left_crit.erase( it );
@@ -1176,26 +1193,15 @@ public:
 			it++;
 		}
 
-		// Remove all our foreign robots
-		vector<int>::const_iterator temp_bots_end = temp_bots.end();
-		for (vector<int>::const_iterator it = temp_bots.begin(); it != temp_bots_end; it++) {
-			r = Robot::cmatrix[ *it ];
-			assert( r != NULL );
-#ifndef NDEBUG
-			// Make sure this is one of the bots we just added
-			bool found = false;
-			for (int i = 0; i < crit_map->robot_size(); i++) {
-				if ( r->x == crit_map->robot(i).x() && r->y == crit_map->robot(i).y() && r->team == -1 ) {
-					found = true;
-					break;
-				}
-			}
-			assert( found == true );
-#endif
+		// Remove all the foreign critical section robots
+		vector<Robot *>::const_iterator temp_foreign_robots_end = temp_foreign_robots.end();
+		for (vector<Robot *>::const_iterator it = temp_foreign_robots.begin(); it != temp_foreign_robots_end; it++) {
+			r = *it;
+			assert( Robot::cmatrix[ r->cindex ] == r );
+			Robot::cmatrix[ r->cindex ] = NULL;
 			delete r;
-			Robot::cmatrix[ *it ] = NULL;
 		}
-		temp_bots.clear();
+		temp_foreign_robots.clear();
 
 		// Add all robots in our left critical section to crit_map_ours
 		// XXX optimize
@@ -1219,10 +1225,10 @@ public:
 		Take the final positions of the foreign robots in the crit section for this turn
 	*/
 	void
-	add_critical_region(antixtransfer::SendMap *crit_map) {
+	add_critical_region_robots(antixtransfer::SendMap *crit_map) {
 		for (int i = 0; i < crit_map->robot_size(); i++) {
-			int cindex = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
-			foreign_critical_bots.push_back(cindex);
+			Robot *r = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
+			foreign_critical_robots.push_back(r);
 		}
 	}
 
@@ -1236,8 +1242,8 @@ public:
 #endif
 
 		vector<Robot *>::const_iterator crit_end;
-		// Move those robots that were newly added to critical section into main
-		// critical section vectors
+		// Move those robots that were newly added to critical section in the previous
+		// turn into the main critical section vectors
 		crit_end = right_crit_new.end();
 		for (vector<Robot *>::iterator it = right_crit_new.begin(); it != crit_end; it++) {
 			Robot *r = *it;
@@ -1271,10 +1277,12 @@ public:
 				// being in critical section. Currently unenforced.
 
 				// Left critical section
-				if (r->x < my_min_x + Robot::vision_range) {
+				if ( in_critical_section( r->x ) == 1 ) {
 					r->critical_section = &left_crit_new;
 					left_crit_new.push_back( r );
-				} else if (r->x > my_max_x - Robot::vision_range) {
+
+				// Right critical section
+				} else if ( in_critical_section( r->x) == 2 ) {
 					r->critical_section = &right_crit_new;
 					right_crit_new.push_back( r );
 				}
@@ -1285,6 +1293,16 @@ public:
 #endif
 		}
 		assert(robot_count == robots.size());
+
+		// Remove previous turn's foreign critical region robots
+		for (vector<Robot *>::iterator it = foreign_critical_robots.begin(); it != foreign_critical_robots.end(); it++) {
+			Robot *r = *it;
+
+			assert( Robot::cmatrix[ r->cindex ] == r );
+			Robot::cmatrix[ r->cindex ] = NULL;
+			delete r;
+		}
+		foreign_critical_robots.clear();
 
 #if COLLISIONS
 #ifndef NDEBUG
@@ -1301,31 +1319,24 @@ public:
 				const double range( hypot( dx, dy ) );
 
 				if (range <= Robot::robot_radius + Robot::robot_radius) {
-				/*
 					cout << "Found a collision that was allowed." << endl;
 					cout << "\tRobot " << r1->id << " team " << r1->team << " at (";
 					cout << r1->x << ", " << r1->y << ") cell " << r1->cindex << endl;
 					cout << "\tRobot " << r2->id << " team " << r2->team << " at (";
 					cout << r2->x << ", " << r2->y << ") cell " << r2->cindex << endl;
-					*/
 				}
 			}
 		}
 #endif
 #endif
-		// Remove previous turn's foreign critical region robots
-		for (vector<int>::iterator it = foreign_critical_bots.begin(); it != foreign_critical_bots.end(); it++) {
-			assert( Robot::cmatrix[ *it ] != NULL );
-			delete Robot::cmatrix[ *it ];
-			Robot::cmatrix[ *it ] = NULL;
-		}
-		foreign_critical_bots.clear();
-
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
 #endif
 	}
 
+	/*
+		Add all robots in the right critical section to the SendMap message
+	*/
 	void
 	build_right_crit_map(antixtransfer::SendMap *crit_map) {
 		crit_map->clear_robot();
