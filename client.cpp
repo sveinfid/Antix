@@ -369,9 +369,9 @@ main(int argc, char **argv) {
 			// leave loop
 			break;
 
-//#if DEBUG
+#if DEBUG
 		antix::turn++;
-//#endif
+#endif
 
 #if SLEEP
 		antix::sleep(sleep_time);
