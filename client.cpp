@@ -5,6 +5,7 @@
 
 #include <map>
 #include "controller.cpp"
+#include "ai_rtv.cpp"
 
 using namespace std;
 
@@ -55,6 +56,9 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 	// Message that gets sent as a request containing multiple robots
 	control_msg.clear_robot();
 
+	//Controller ctlr;
+	ai_rtv ctlr;
+
 	// For each robot in the sense data from this node, build a decision
 	int robot_size = sense_msg->robot_size();
 	for (int i = 0; i < robot_size; i++) {
@@ -73,11 +77,23 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 			);
 		}
 
-		Controller ctlr(sense_msg->robot(i).x(), sense_msg->robot(i).y(),
-			sense_msg->robot(i).a(), sense_msg->robot(i).id(),
-			sense_msg->robot(i).last_x(), sense_msg->robot(i).last_y(),
-			my_home, &seen_pucks, sense_msg->robot(i).has_puck()
-		);
+		ctlr.puck_action = antixtransfer::control_message::NONE;
+		ctlr.x = sense_msg->robot(i).x();
+		ctlr.y = sense_msg->robot(i).y();
+		ctlr.a = sense_msg->robot(i).a();
+		ctlr.id = sense_msg->robot(i).id();
+		ctlr.last_x = sense_msg->robot(i).last_x();
+		ctlr.last_y = sense_msg->robot(i).last_y();
+		ctlr.home = my_home;
+		ctlr.seen_pucks = &seen_pucks;
+		ctlr.has_puck = sense_msg->robot(i).has_puck();
+
+		ctlr.v = 0.0;
+		ctlr.w = 0.0;
+
+		ctlr.doubles.clear();
+		ctlr.ints.clear();
+
 		ctlr.collided = sense_msg->robot(i).collided();
 
 		// Update this robot's memory
