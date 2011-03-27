@@ -340,6 +340,7 @@ neighbours_handshake() {
 				antix::recv_pb(left_req_sock, &crit_map, 0);
 
 				handle_move_request(&move_bot_msg);
+				//cout << "Add critical region robots in left neighbour response" << endl;
 				my_map->add_critical_region_robots(&crit_map);
 			}
 
@@ -368,6 +369,7 @@ neighbours_handshake() {
 				antix::recv_pb(neighbour_rep_sock, &crit_map, 0);
 
 				handle_move_request(&move_bot_msg);
+				//cout << "Add critical region robots in right neighbour request" << endl;
 				my_map->add_critical_region_robots(&crit_map);
 
 				// Update poses for our robots

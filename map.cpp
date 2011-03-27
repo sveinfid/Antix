@@ -1051,8 +1051,51 @@ public:
 
 		// put into cmatrix
 		const int cindex = antix::CCell( r->x, r->y );
+
+#ifndef NDEBUG
+		// If the cell is occupied, see if that robot is listed in a critical section
+		// This means that we told the other node about it (hopefully)
+		if (Robot::cmatrix[cindex] != NULL) {
+			bool found = false;
+			for (vector<Robot *>::iterator it = left_crit.begin(); it != left_crit.end(); it++) {
+				if (*it == Robot::cmatrix[cindex]) {
+					found = true;
+					break;
+				}
+			}
+			for (vector<Robot *>::iterator it = left_crit_new.begin(); it != left_crit_new.end(); it++) {
+				if (*it == Robot::cmatrix[cindex]) {
+					found = true;
+					break;
+				}
+			}
+			for (vector<Robot *>::iterator it = right_crit.begin(); it != right_crit.end(); it++) {
+				if (*it == Robot::cmatrix[cindex]) {
+					found = true;
+					break;
+				}
+			}
+			for (vector<Robot *>::iterator it = right_crit_new.begin(); it != right_crit_new.end(); it++) {
+				if (*it == Robot::cmatrix[cindex]) {
+					found = true;
+					break;
+				}
+			}
+			assert( found == true );
+		}
+#endif
+
 		assert( Robot::cmatrix[cindex] == NULL );
-		assert(Robot::did_collide( r, cindex, r->x, r->y ) == NULL);
+
+#ifndef NDEBUG
+		Robot *collided = Robot::did_collide(r, cindex, r->x, r->y);
+		if (collided != NULL) {
+			cout << "Collision with robot at " << collided->x << ", " << collided->y << endl;
+			cout << " and one we were adding at " << x << ", " << y << endl;
+		}
+		assert(collided == NULL);
+#endif
+
 		r->cindex = cindex;
 		Robot::cmatrix[cindex] = r;
 
@@ -1076,8 +1119,14 @@ public:
 		while ( it != right_crit.end() ) {
 			Robot *r = *it;
 			r->update_pose();
+			it++;
+		}
 
-			// Robot may move out of node
+		// Robot may move out of node or leave crit section
+		// while loop since we may remove robots
+		it = right_crit.begin();
+		while ( it != right_crit.end() ) {
+			Robot *r = *it;
 
 			// If robot's x is bigger than ours and smaller than our right neighbour's,
 			// we send it to our right neighbour
@@ -1098,7 +1147,7 @@ public:
 			}
 
 			// Or out of crit section but remain in the node
-			if ( in_critical_section( r-> x ) == 0 ) {
+			if ( in_critical_section( r->x ) == 0 ) {
 				// and set its crit region vector to NULL
 				r->critical_section = NULL;
 				it = right_crit.erase( it );
@@ -1107,6 +1156,15 @@ public:
 
 			it++;
 		}
+
+#ifndef DEBUG
+		// Make sure robot is not in both right_crit_new and right_crit
+		for(vector<Robot *>::iterator it = right_crit.begin(); it != right_crit.end(); it++) {
+			for (vector<Robot *>::iterator it2 = right_crit_new.begin(); it2 != right_crit_new.end(); it2++) {
+				assert( *it != *it2 );
+			}
+		}
+#endif
 
 		// Add all bots in the right crit region to pb message
 		for (vector<Robot *>::iterator it = right_crit.begin(); it != right_crit.end(); it++) {
@@ -1144,10 +1202,10 @@ public:
 
 		// Indices into cmatrix to remove when movement is complete
 		vector<Robot *> temp_foreign_robots;
-		Robot *r;
 		const int robot_size = crit_map->robot_size();
 		for (int i = 0; i < robot_size; i++) {
-			r = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
+			//cout << "Add foreign crit in update_left_crit_region()" << endl;
+			Robot *r = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
 			// track for later deletion
 			temp_foreign_robots.push_back(r);
 		}
@@ -1159,8 +1217,17 @@ public:
 		// while loop since we may remove robots
 		vector<Robot *>::iterator it = left_crit.begin();
 		while ( it != left_crit.end() ) {
-			r = *it;
+			Robot *r = *it;
 			r->update_pose();
+			it++;
+		}
+
+		// Then check if they moved to another node or left crit region
+
+		// while loop since we may remove robots
+		it = left_crit.begin();
+		while ( it != left_crit.end() ) {
+			Robot *r = *it;
 
 			// if the robot moves to left node, remove from both crit region & records
 			// add to move left message
@@ -1196,7 +1263,7 @@ public:
 		// Remove all the foreign critical section robots
 		vector<Robot *>::const_iterator temp_foreign_robots_end = temp_foreign_robots.end();
 		for (vector<Robot *>::const_iterator it = temp_foreign_robots.begin(); it != temp_foreign_robots_end; it++) {
-			r = *it;
+			Robot *r = *it;
 			assert( Robot::cmatrix[ r->cindex ] == r );
 			Robot::cmatrix[ r->cindex ] = NULL;
 			delete r;
@@ -1227,6 +1294,7 @@ public:
 	void
 	add_critical_region_robots(antixtransfer::SendMap *crit_map) {
 		for (int i = 0; i < crit_map->robot_size(); i++) {
+			//cout << "Add foreign crit in add_critical_region_robots()" << endl;
 			Robot *r = add_foreign_crit_robot(crit_map->robot(i).x(), crit_map->robot(i).y() );
 			foreign_critical_robots.push_back(r);
 		}
@@ -1294,20 +1362,11 @@ public:
 		}
 		assert(robot_count == robots.size());
 
-		// Remove previous turn's foreign critical region robots
-		for (vector<Robot *>::iterator it = foreign_critical_robots.begin(); it != foreign_critical_robots.end(); it++) {
-			Robot *r = *it;
-
-			assert( Robot::cmatrix[ r->cindex ] == r );
-			Robot::cmatrix[ r->cindex ] = NULL;
-			delete r;
-		}
-		foreign_critical_robots.clear();
-
 #if COLLISIONS
 #ifndef NDEBUG
 		// n^2 check for missed collisions (overlapped)
 		for (vector<Robot *>::const_iterator it = robots.begin(); it != robots_end; it++) {
+			// Against all local robots
 			for (vector<Robot *>::const_iterator it2 = robots.begin(); it2 != robots_end; it2++) {
 				const Robot *r1 = *it;
 				const Robot *r2 = *it2;
@@ -1326,9 +1385,39 @@ public:
 					cout << r2->x << ", " << r2->y << ") cell " << r2->cindex << endl;
 				}
 			}
+			// Against foreign critical robots
+			for (vector<Robot *>::iterator it2 = foreign_critical_robots.begin(); it2 != foreign_critical_robots.end(); it2++) {
+				const Robot *r1 = *it;
+				const Robot *r2 = *it2;
+				if (r1 == r2)
+					continue;
+
+				const double dx( antix::WrapDistance( r2->x - r1->x ) );
+				const double dy( antix::WrapDistance( r2->y - r1->y ) );
+				const double range( hypot( dx, dy ) );
+
+				if (range <= Robot::robot_radius + Robot::robot_radius) {
+					cout << "Found a collision that was allowed. (FOREIGN)" << endl;
+					cout << "\tRobot " << r1->id << " team " << r1->team << " at (";
+					cout << r1->x << ", " << r1->y << ") cell " << r1->cindex << endl;
+					cout << "\tRobot " << r2->id << " team " << r2->team << " at (";
+					cout << r2->x << ", " << r2->y << ") cell " << r2->cindex << endl;
+				}
+			}
 		}
 #endif
 #endif
+
+		// Remove previous turn's foreign critical region robots
+		for (vector<Robot *>::iterator it = foreign_critical_robots.begin(); it != foreign_critical_robots.end(); it++) {
+			Robot *r = *it;
+
+			assert( Robot::cmatrix[ r->cindex ] == r );
+			Robot::cmatrix[ r->cindex ] = NULL;
+			delete r;
+		}
+		foreign_critical_robots.clear();
+
 #if DEBUG
 		cout << "Poses updated for all robots." << endl;
 #endif

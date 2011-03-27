@@ -1,3 +1,5 @@
+- fix bug: homes split on far edges are not correctly scoring pucks on one side
+
 - optimize:
 	- last_x/last_y from node to client every time not necessary
 	- some data sent between nodes unnecessary:
