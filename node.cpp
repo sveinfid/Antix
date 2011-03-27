@@ -242,37 +242,6 @@ handle_move_request(antixtransfer::move_bot *move_bot_msg) {
 }
 
 /*
-	Move any of our robots to neighbours if necessary
-	Receive any of the same
-
-	Each neighbour must send us one request (even if blank), and we must send one
-	request (even if blank)
-
-	How the move / move response / foreign entities conversation goes:
-	the following two unrelated messages are part of the same conversation:
-	movement only requires an ACK, so in this ACK we send a list of our
-	foreign entities to the move message. Simplifies communication, but
-	requires us to even send move message if it's blank (which makes syncing
-	behaviour easier)
-*/
-/*
-void
-send_move_messages() {
-	// First we build our own move messages to be sent to our neighbours
-	// build border entities at same time
-	my_map->build_moves_and_border_entities(&move_left_msg, &move_right_msg, &border_map_left, &border_map_right);
-	
-	// Send our move messages
-	antix::send_pb(left_req_sock, &move_left_msg);
-	antix::send_pb(right_req_sock, &move_right_msg);
-
-#if DEBUG
-	cout << "Movement messages sent." << endl;
-#endif
-}
-*/
-
-/*
 	Do the handshake with both of our neighbours to agree on the state
 	of the critical sections (those sections within sight distance of border).
 
@@ -389,75 +358,6 @@ neighbours_handshake() {
 		}
 	}
 }
-
-/*
-void
-exchange_foreign_entities() {
-	// We wait for any requests (move requests in this case), to which we respond
-	// by giving the requester a list of our foreign entities
-	// We also wait for a response from our earlier move requests
-	zmq::pollitem_t items [] = {
-		{ *left_req_sock, 0, ZMQ_POLLIN, 0 },
-		{ *right_req_sock, 0, ZMQ_POLLIN, 0},
-		{ *neighbour_rep_sock, 0, ZMQ_POLLIN, 0}
-	};
-	// Both of these must be 2 before we continue (hear from both neighbour nodes)
-	int responses = 0;
-	int requests = 0;
-#if DEBUG_SYNC
-	cout << "Sync: Waiting for messages from neighbours in exchange_foreign_entities()";
-	cout << " (turn " << antix::turn << ")" << endl;
-#endif
-	// Keep waiting for messages until we've received the number we expect
-	int rc;
-	while (responses < 2 || requests < 2) {
-		zmq::poll(&items [0], 3, -1);
-
-		// left_req response
-		if (items[0].revents & ZMQ_POLLIN) {
-#if DEBUG
-			cout << "Received foreign entities response from left req sock" << endl;
-#endif
-			update_foreign_entities(left_req_sock);
-			responses++;
-		}
-
-		// right_req response
-		if (items[1].revents & ZMQ_POLLIN) {
-#if DEBUG
-			cout << "Received foreign entities response from right req sock" << endl;
-#endif
-			update_foreign_entities(right_req_sock);
-			responses++;
-		}
-
-		// neighbour request
-		if (items[2].revents & ZMQ_POLLIN) {
-			rc = antix::recv_pb(neighbour_rep_sock, &move_bot_msg, 0);
-			assert(rc == 1);
-			// we have received a move request: first update our local records with
-			// the sent bots
-			handle_move_request(&move_bot_msg);
-
-			// send back a list of foreign neighbours depending on which neighbour
-			// the move request was from
-			if (move_bot_msg.from_right() == false)
-				antix::send_pb(neighbour_rep_sock, &border_map_left);
-			else
-				antix::send_pb(neighbour_rep_sock, &border_map_right);
-
-			requests++;
-#if DEBUG
-			cout << "Received move request from a neighbour, sent border entities" << endl;
-#endif
-		}
-	}
-	my_map->done_neighbour_exchange();
-#if DEBUG_SYNC
-	cout << "Sync: done exchange_foreign_entities" << endl;
-#endif
-}
-*/
 
 /*
 	For each robot in the message from a client, apply the action
@@ -1004,13 +904,6 @@ main(int argc, char **argv) {
 		// update poses for internal robots
 		my_map->update_poses();
 
-		/*
-		// send movement requests to neighbouring nodes (a bot moved out of range)
-		send_move_messages();
-
-		// receive move requests & respond with foreign entities, receive move responses
-		exchange_foreign_entities();
-		*/
 		neighbours_handshake();
 
 		// build message for each client of what their robots can see
