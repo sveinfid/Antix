@@ -399,7 +399,6 @@ public:
 	/*
 		Robot has been found to be outside of our map portion
 		Add the relevant data to a new Robot entry in the given move_bot message
-		XXX Keep up to date with antix::copy_move_bot_robot
 	*/
 	void
 	add_robot_to_move_msg(Robot *r, antixtransfer::move_bot *move_bot_msg) {
@@ -647,7 +646,6 @@ public:
 	*/
 	void
 	update_scores() {
-		// XXX only look at homes that are necessary to look at!
 		vector<Home *>::const_iterator homes_end = local_homes.end();
 		for (vector<Home *>::const_iterator it = local_homes.begin(); it != homes_end; it++) {
 			Home *h = *it;
