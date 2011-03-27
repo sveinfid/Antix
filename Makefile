@@ -8,6 +8,7 @@ build_dir=.
 targets=master operator node client
 gui_targets=gui
 objs=antix.pb.o
+ai=ai_rtv.so
 
 # For debugging
 #CFLAGS=-ggdb -Wall
@@ -19,7 +20,7 @@ includes=-I$(ZMQ_PATH)/include -I$(PROTOBUF_PATH)/include
 lib_paths=-L$(ZMQ_PATH)/lib -L$(PROTOBUF_PATH)/lib
 libraries=-lzmq -lprotobuf
 
-all: $(objs) $(targets) $(gui_targets)
+all: $(objs) $(targets) $(gui_targets) $(ai)
 
 gui: gui.cpp zpr.o
 	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) zpr.o $(includes) $(GLUTFLAGS) $(lib_paths) $(libraries) $(GLUTLIBS)
@@ -31,11 +32,17 @@ antix.pb.o: antix.proto
 zpr.o:
 	gcc -c zpr.c $(GLUTFLAGS) $(GLUTLIBS)
 
-.cpp: master.cpp operator.cpp node.cpp client.cpp antix.pb.o antix.cpp entities.cpp map.cpp
+.cpp: master.cpp operator.cpp node.cpp antix.pb.o antix.cpp entities.cpp map.cpp
 	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries) -DIPC_PREFIX=\"$(IPC_PREFIX)\"
 
+client: client.cpp controller.cpp
+	g++ $(CFLAGS) -o $(build_dir)/$@ $< $(objs) $(includes) $(lib_paths) $(libraries) -ldl -DIPC_PREFIX=\"$(IPC_PREFIX)\"
+
+ai_rtv.so: ai_rtv.cpp
+	g++ $(CFLAGS) -fPIC -shared -o $(build_dir)/ai_rtv.so ai_rtv.cpp $(includes) $(lib_paths) $(libraries) -DIPC_PREFIX=\"$(IPC_PREFIX)\"
+
 clean:
-	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o
+	rm -f $(targets) $(gui_targets) antix.pb.* zpr.o $(ai)
 
 clean2:
-	rm -f $(targets) $(gui_targets) zpr.o
+	rm -f $(targets) $(gui_targets) $(ai)

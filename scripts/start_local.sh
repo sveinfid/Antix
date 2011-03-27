@@ -5,15 +5,16 @@
 # Usage: ./start_local.sh <number of nodes> <number of teams> <robots per team>
 #
 
-if [ $# -ne 3 ]
+if [ $# -ne 4 ]
 then
-	echo "Usage: $0 <number of nodes> <number of teams> <robots per team>"
+	echo "Usage: $0 <number of nodes> <number of teams> <robots per team> <AI library.so>"
 	exit -1
 fi
 
 NUM_NODES=$1
 NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
+AI_LIBRARY=$4
 
 echo "Removing /tmp/$USER-node* ..."
 rm -f /tmp/$USER-node*
@@ -39,7 +40,7 @@ do
 	while [ $node -lt $NUM_NODES ]
 	do
 		# <#robots> <team id> <node IPC id>
-		./client $ROBOTS_PER_TEAM $i $node &>> ~/clients.local.log &
+		./client $ROBOTS_PER_TEAM $i $node $AI_LIBRARY &>> ~/clients.local.log &
 		node=`expr $node + 1`
 	done
 

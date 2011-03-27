@@ -3,11 +3,15 @@
 	Then it begins controlling robots
 */
 
+#define IS_CLIENT
+
 #include <map>
+#include <dlfcn.h>
 #include "controller.cpp"
-#include "ai_rtv.cpp"
 
 using namespace std;
+
+Controller *ctlr;
 
 string node_ipc_id;
 
@@ -56,9 +60,6 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 	// Message that gets sent as a request containing multiple robots
 	control_msg.clear_robot();
 
-	//Controller ctlr;
-	ai_rtv ctlr;
-
 	// For each robot in the sense data from this node, build a decision
 	int robot_size = sense_msg->robot_size();
 	for (int i = 0; i < robot_size; i++) {
@@ -68,41 +69,49 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 		// we copy seen_pucks to a vector to give a nicer interface
 		// this costs cpu... perhaps undesirable. but otherwise controller
 		// must look at protobuf...
-		vector<CSeePuck> seen_pucks;
+		ctlr->seen_pucks.clear();
 		int seen_puck_size = sense_msg->robot(i).seen_puck_size();
 		for (int j = 0; j < seen_puck_size; j++) {
-			seen_pucks.push_back( CSeePuck(sense_msg->robot(i).seen_puck(j).held(),
-				sense_msg->robot(i).seen_puck(j).range(),
-				sense_msg->robot(i).seen_puck(j).bearing())
+			ctlr->seen_pucks.push_back(
+				CSeePuck(sense_msg->robot(i).seen_puck(j).held(),
+					sense_msg->robot(i).seen_puck(j).range(),
+					sense_msg->robot(i).seen_puck(j).bearing())
 			);
 		}
 
-		ctlr.puck_action = antixtransfer::control_message::NONE;
-		ctlr.x = sense_msg->robot(i).x();
-		ctlr.y = sense_msg->robot(i).y();
-		ctlr.a = sense_msg->robot(i).a();
-		ctlr.id = sense_msg->robot(i).id();
-		ctlr.last_x = sense_msg->robot(i).last_x();
-		ctlr.last_y = sense_msg->robot(i).last_y();
-		ctlr.home = my_home;
-		ctlr.seen_pucks = &seen_pucks;
-		ctlr.has_puck = sense_msg->robot(i).has_puck();
+		ctlr->puck_action = PUCK_ACTION_NONE;
+		ctlr->x = sense_msg->robot(i).x();
+		ctlr->y = sense_msg->robot(i).y();
+		ctlr->a = sense_msg->robot(i).a();
+		ctlr->id = sense_msg->robot(i).id();
+		ctlr->last_x = sense_msg->robot(i).last_x();
+		ctlr->last_y = sense_msg->robot(i).last_y();
+		ctlr->home = my_home;
+		ctlr->has_puck = sense_msg->robot(i).has_puck();
 
-		ctlr.v = 0.0;
-		ctlr.w = 0.0;
+#if DEBUG
+		cout << "Running controller for robot " << ctlr->id << " on turn " << antix::turn << endl;
+		cout << " at " << ctlr->x << ", " << ctlr->y << " and with ";
+		cout << ctlr->last_x << ", " << ctlr->last_y << " as last_x/y" << endl;
+#endif
 
-		ctlr.doubles.clear();
-		ctlr.ints.clear();
+		ctlr->v = 0.0;
+		ctlr->w = 0.0;
 
-		ctlr.collided = sense_msg->robot(i).collided();
+		ctlr->doubles.clear();
+		ctlr->ints.clear();
+
+		ctlr->collided = sense_msg->robot(i).collided();
 
 		// Update this robot's memory
 		int doubles_size = sense_msg->robot(i).doubles_size();
-		for (int j = 0; j < doubles_size; j++)
-			ctlr.doubles.push_back( sense_msg->robot(i).doubles(j) );
+		for (int j = 0; j < doubles_size; j++) {
+			ctlr->doubles.push_back( sense_msg->robot(i).doubles(j) );
+		}
 		int ints_size = sense_msg->robot(i).ints_size();
-		for (int j = 0; j < ints_size; j++)
-			ctlr.ints.push_back( sense_msg->robot(i).ints(j) );
+		for (int j = 0; j < ints_size; j++) {
+			ctlr->ints.push_back( sense_msg->robot(i).ints(j) );
+		}
 
 #if DEBUG
 		cout << "Got last x " << sense_msg->robot(i).last_x();
@@ -111,23 +120,31 @@ controller(zmq::socket_t *node, antixtransfer::sense_data *sense_msg) {
 #endif
 
 		// then run the controller
-		ctlr.controller();
+		ctlr->controller();
 
 		// then add robot's new data to response protobuf
 		antixtransfer::control_message::Robot *r = control_msg.add_robot();
-		r->set_id( ctlr.id );
-		r->set_last_x( ctlr.last_x );
-		r->set_last_y( ctlr.last_y );
-		r->set_puck_action( ctlr.puck_action );
-		r->set_v( ctlr.v );
-		r->set_w( ctlr.w );
+		r->set_id( ctlr->id );
+		r->set_last_x( ctlr->last_x );
+		r->set_last_y( ctlr->last_y );
+		r->set_v( ctlr->v );
+		r->set_w( ctlr->w );
 
-		vector<double>::const_iterator doubles_end = ctlr.doubles.end();
-		for (vector<double>::const_iterator it = ctlr.doubles.begin(); it != doubles_end; it++)
+		if (ctlr->puck_action == PUCK_ACTION_PICKUP)
+			r->set_puck_action(antixtransfer::control_message::PICKUP);
+		else if (ctlr->puck_action == PUCK_ACTION_DROP)
+			r->set_puck_action(antixtransfer::control_message::DROP);
+		else
+			r->set_puck_action(antixtransfer::control_message::NONE);
+
+		vector<double>::const_iterator doubles_end = ctlr->doubles.end();
+		for (vector<double>::const_iterator it = ctlr->doubles.begin(); it != doubles_end; it++) {
 			r->add_doubles( *it );
-		vector<int>::const_iterator ints_end = ctlr.ints.end();
-		for (vector<int>::const_iterator it = ctlr.ints.begin(); it != ints_end; it++)
+		}
+		vector<int>::const_iterator ints_end = ctlr->ints.end();
+		for (vector<int>::const_iterator it = ctlr->ints.begin(); it != ints_end; it++) {
 			r->add_ints( *it );
+		}
 	}
 
 	// send the decision for all of our robots to this node
@@ -191,14 +208,29 @@ main(int argc, char **argv) {
 	srand( time(NULL) );
 	srand48( time(NULL) );
 
-	if (argc != 4) {
-		cerr << "Usage: " << argv[0] << " <# of robots> <client id> <node IPC id>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <# of robots> <client id> <node IPC id> <AI library.so>" << endl;
 		return -1;
 	}
 	assert(atoi(argv[1]) > 0);
 	num_robots = atoi(argv[1]);
 	my_id = atoi(argv[2]);
 	node_ipc_id = string(argv[3]);
+	string ai_library = string(argv[4]);
+	ai_library = "./" + ai_library;
+
+	// Load AI dynamically
+	// From http://stackoverflow.com/questions/496664/c-dynamic-shared-library-on-linux
+	void* handle = dlopen(ai_library.c_str(), RTLD_NOW | RTLD_GLOBAL);
+	if (handle == NULL) {
+		cerr << "Error: could not load AI library: " << dlerror() << endl;
+		exit(-1);
+	}
+	Controller* (*create)();
+	void (*destroy)(Controller*);
+	create = (Controller* (*)())dlsym(handle, "create_object");
+	destroy = (void (*)(Controller*))dlsym(handle, "destroy_object");
+	ctlr = (Controller*) create();
 
 	// initialize some protobufs that do not change
 	sense_req_msg.set_team(my_id);
@@ -313,6 +345,7 @@ main(int argc, char **argv) {
 	sleep_time = init_response.sleep_time();
 	Robot::pickup_range = init_response.pickup_range();
 	antix::world_size = init_response.world_size();
+	ctlr->set_static_vars(antix::world_size, Robot::pickup_range);
 
 	// set our own home
 	my_home = find_our_home(&init_response);
@@ -336,9 +369,9 @@ main(int argc, char **argv) {
 			// leave loop
 			break;
 
-#if DEBUG
+//#if DEBUG
 		antix::turn++;
-#endif
+//#endif
 
 #if SLEEP
 		antix::sleep(sleep_time);
@@ -351,6 +384,9 @@ main(int argc, char **argv) {
 	delete node_sync_req_sock;
 	delete node_sub_sock;
 	delete node_req_sock;
+
+	destroy(ctlr);
+	dlclose(handle);
 
 	google::protobuf::ShutdownProtobufLibrary();
 	return 0;
