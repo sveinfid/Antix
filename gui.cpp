@@ -318,12 +318,10 @@ DrawAll() {
 		glColor3f( it->colour.r, it->colour.g, it->colour.b );
 
 		GlDrawCircle( it->x, it->y, home_radius, 16 );
-		/*
 		GlDrawCircle( it->x+world_size, it->y, home_radius, 16 );
 		GlDrawCircle( it->x-world_size, it->y, home_radius, 16 );
 		GlDrawCircle( it->x, it->y+world_size, home_radius, 16 );
 		GlDrawCircle( it->x, it->y-world_size, home_radius, 16 );
-		*/
 
 		glColor3f(0.0, 1.0, 0.0); // Green
 

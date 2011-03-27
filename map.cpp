@@ -131,11 +131,21 @@ public:
 		// of the map and place in another vector
 		for (vector<Home *>::iterator it = all_homes.begin(); it != all_homes.end(); it++) {
 			Home *h = *it;
+			// Within our x range
 			if (h->x + antix::home_radius >= my_min_x && h->x - antix::home_radius < my_max_x) {
 				local_homes.push_back(h);
-#if DEBUG
-				cout << "Found a local home for team " << h->team << endl;
-#endif
+
+			// On first node, the homes may come from wrapping around the world
+			} else if (my_min_x == 0) {
+				if (h->x + antix::home_radius > antix::world_size) {
+					local_homes.push_back(h);
+				}
+
+			// On last node, homes may come from wrapping around the world
+			} else if (my_max_x == antix::world_size) {
+				if (h->x - antix::home_radius < 0) {
+					local_homes.push_back(h);
+				}
 			}
 		}
 	}

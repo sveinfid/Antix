@@ -904,6 +904,7 @@ main(int argc, char **argv) {
 		// update poses for internal robots
 		my_map->update_poses();
 
+		// Exchange robots/pucks on border, and agree on collisions near borders
 		neighbours_handshake();
 
 		// build message for each client of what their robots can see
