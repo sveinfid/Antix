@@ -75,6 +75,8 @@ message Node_list {
 		required int32 id = 4;
 		// optional as we only set this right before sending out node list
 		optional double x_offset = 5;
+		optional int32 left_neighbour_id = 6;
+		optional int32 right_neighbour_id = 7;
 	}
 
 	message Home {

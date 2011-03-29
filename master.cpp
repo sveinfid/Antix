@@ -134,6 +134,110 @@ assign_robots_to_node() {
 }
 
 /*
+	We have all the nodes we are going to use in the simulation
+	Assign each node's left and right neighbour intelligently
+	i.e. take into account if nodes are running on the same machine by looking
+	at their IPs
+*/
+void
+set_node_neighbours() {
+	// Make sure each neighbour id is -1 initially
+	for (int i = 0; i < node_list.node_size(); i++) {
+		node_list.mutable_node(i)->set_left_neighbour_id( -1 );
+		node_list.mutable_node(i)->set_right_neighbour_id( -1 );
+	}
+
+	// Now set left and right neighbour for each node
+	for (int i = 0; i < node_list.node_size(); i++) {
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i); 
+
+		cout << "Looking at neighbours for node " << i << endl;
+
+		antixtransfer::Node_list::Node *left_node = NULL;
+		// Left neighbour
+		if (node->left_neighbour_id() == -1) {
+			cout << "Node " << i << " needs a left neighbour" << endl;
+			// First look through all nodes looking for a node without a right neighbour
+			// that is on the same machine
+			for (int j = 0; j < node_list.node_size(); j++) {
+				antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
+				assert(other_node != NULL);
+
+				// Don't look at ourself
+				if (other_node->id() == node->id())
+					continue;
+
+				cout << "\tLooking at nodes for node " << i << endl;
+
+				// the found node doesn't have a right neighbour
+				if (other_node->right_neighbour_id() == -1) {
+					// Don't set both neighbours the same!
+					if (other_node->id() == node->right_neighbour_id())
+						continue;
+					cout << "\tFound an acceptable right neighbour (id = " << j << ") for node " << i << endl;
+					// If we found a node on same machine, take it
+					if (other_node->ip_addr() == node->ip_addr()) {
+						left_node = other_node;
+						break;
+					// Otherwise take it for now
+					} else {
+						left_node = other_node;
+					}
+				}
+			}
+
+			// Set both node's new neighbour ids
+			if (left_node == NULL) {
+				cerr << "Failed to get a left neighbour for node" << endl;
+				exit(-1);
+			}
+			cout << "Node " << node->id() << " has left neighbour " << left_node->id() << endl;
+			cout << "Node " << left_node->id() << " has right neighbour " << node->id() << endl;
+			node->set_left_neighbour_id( left_node->id() );
+			left_node->set_right_neighbour_id( node->id() );
+		}
+
+		antixtransfer::Node_list::Node *right_node = NULL;
+		// Right neighbour
+		if (node->right_neighbour_id() == -1) {
+			// Look through all nodes, need one without a left neighbour
+			for (int j = 0; j < node_list.node_size(); j++) {
+				antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
+				assert(other_node != NULL);
+
+				// Don't look at ourself
+				if (other_node->id() == node->id())
+					continue;
+
+				// found node doesn't have a left neighbour
+				if (other_node->left_neighbour_id() == -1) {
+					// Don't set both neighbours the same!
+					if (other_node->id() == node->left_neighbour_id())
+						continue;
+					// If on same machine, take it
+					if (other_node->ip_addr() == node->ip_addr()) {
+						right_node = other_node;
+						break;
+					// Otherwise take it for now
+					} else {
+						right_node = other_node;
+					}
+				}
+			}
+
+			// Set both node's new neighbour ids
+			if (right_node == NULL) {
+				cerr << "Failed to get a right neighbour for node" << endl;
+				exit(-1);
+			}
+			cout << "Node " << node->id() << " has right neighbour " << right_node->id() << endl;
+			cout << "Node " << right_node->id() << " has left neighbour " << node->id() << endl;
+			node->set_right_neighbour_id( right_node->id() );
+			right_node->set_left_neighbour_id( node->id() );
+		}
+	}
+}
+/*
 	Node connected initially
 	Add it to our node list and give it an ID
 */
@@ -417,6 +521,9 @@ main(int argc, char **argv) {
 			// set pucks per node
 			node_list.set_initial_pucks_per_node( ceil( (double) num_pucks / (double) node_list.node_size() ) );
 			cout << "Made " << node_list.initial_pucks_per_node() << " pucks per node." << endl;
+
+			// set each node's neighbour in the node list
+			set_node_neighbours();
 
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb_envelope(&publish_socket, &node_list, "start");
