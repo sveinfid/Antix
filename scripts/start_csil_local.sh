@@ -35,7 +35,7 @@ while [ $count -lt $NUM_TEAMS ]
 do
 #  $ANTIX_PATH/scripts/run_client.tcl $ROBOTS_PER_TEAM $count &>> /home/$USER/clients.$HOST.log &
 	# <num robots> <team> <node ipc sock suffix>
-	$ANTIX_PATH/client $ROBOTS_PER_TEAM $count 0 $AI_LIBRARY &>> /home/$USER/clients.$HOST.log &
+	$ANTIX_PATH/client $ROBOTS_PER_TEAM $count 0 $ANTIX_PATH/$AI_LIBRARY &>> /home/$USER/clients.$HOST.log &
   count=`expr $count + 1`
 done
 

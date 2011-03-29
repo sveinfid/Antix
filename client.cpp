@@ -217,7 +217,10 @@ main(int argc, char **argv) {
 	my_id = atoi(argv[2]);
 	node_ipc_id = string(argv[3]);
 	string ai_library = string(argv[4]);
-	ai_library = "./" + ai_library;
+
+	// If non absolute path, assume cwd for AI.so path
+	if (ai_library[0] != "/")
+		ai_library = "./" + ai_library;
 
 	// Load AI dynamically
 	// From http://stackoverflow.com/questions/496664/c-dynamic-shared-library-on-linux
