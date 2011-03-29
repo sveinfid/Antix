@@ -4,7 +4,7 @@
 #
 
 ANTIX_PATH=/home/$USER/Antix
-export LD_LIBRARY_PATH=/home/$USER/protobuf/lib:/home/$USER/zeromq/lib
+export LD_LIBRARY_PATH=/home/$USER/sfuhome/protobuf/lib:/home/$USER/sfuhome/zeromq/lib
 
 if [ $# -ne 4 ]
 then
@@ -27,6 +27,9 @@ then
 	echo "Error: couldn't rm /tmp/$USER-node*" &> /home/$USER/node.$HOST.log
 	exit -1
 fi
+
+killall client
+killall node
 
 # Then start the client processes
 rm -f /home/$USER/clients.$HOST.log
