@@ -219,7 +219,7 @@ main(int argc, char **argv) {
 	string ai_library = string(argv[4]);
 
 	// If non absolute path, assume cwd for AI.so path
-	if (ai_library[0] != "/")
+	if (ai_library[0] != '/')
 		ai_library = "./" + ai_library;
 
 	// Load AI dynamically
