@@ -71,12 +71,47 @@ set_node_offsets() {
 	double offset_size = world_size / node_list.node_size();
 	double position = 0;
 
-	antixtransfer::Node_list::Node *node;
+	// First set nonsensical offset for each node to ensure we set it after
 	for (int i = 0; i < node_list.node_size(); i++) {
-		node = node_list.mutable_node(i);
-		node->set_x_offset(position);
-		cout << "Assign node with id " << node->id() << " x offset " << position << endl;
-		position = position + offset_size;
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		node->set_x_offset(-1.0);
+	}
+
+	// Then set x offset for each node
+	// We must take make sure to set its neighbour's offsets
+	for (int i = 0; i < node_list.node_size(); i++) {
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		// Not yet set
+		if (node->x_offset() == -1.0) {
+			antixtransfer::Node_list::Node *left_node = NULL;
+			antixtransfer::Node_list::Node *right_node = NULL;
+			// Find our neighbours
+			for (int j = 0; j < node_list.node_size(); j++) {
+				antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
+				if (other_node->id() == node->left_neighbour_id())
+					left_node = other_node;
+				else if (other_node->id() == node->right_neighbour_id())
+					right_node = other_node;
+			}
+			assert( left_node != NULL );
+			assert( right_node != NULL );
+			// ensure we haven't set offset for our neighbours yet
+			assert( left_node->x_offset() == -1.0 );
+			assert( right_node->x_offset() == -1.0 );
+
+			left_node->set_x_offset( position );
+			cout << "Assign node with id " << left_node->id() << " x offset " << position << endl;
+			position += offset_size;
+
+			node->set_x_offset( position );
+			cout << "Assign node with id " << node->id() << " x offset " << position << endl;
+			position += offset_size;
+
+			right_node->set_x_offset( position );
+			cout << "Assign node with id " << right_node->id() << " x offset " << position << endl;
+			position += offset_size;
+
+		}
 	}
 }
 
@@ -147,16 +182,14 @@ set_node_neighbours() {
 		node_list.mutable_node(i)->set_right_neighbour_id( -1 );
 	}
 
-	// Now set left and right neighbour for each node
+	// Now set left neighbour for each node
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i); 
 
-		cout << "Looking at neighbours for node " << i << endl;
-
 		antixtransfer::Node_list::Node *left_node = NULL;
+		bool local_neighbour = false;
 		// Left neighbour
 		if (node->left_neighbour_id() == -1) {
-			cout << "Node " << i << " needs a left neighbour" << endl;
 			// First look through all nodes looking for a node without a right neighbour
 			// that is on the same machine
 			for (int j = 0; j < node_list.node_size(); j++) {
@@ -167,21 +200,29 @@ set_node_neighbours() {
 				if (other_node->id() == node->id())
 					continue;
 
-				cout << "\tLooking at nodes for node " << i << endl;
-
 				// the found node doesn't have a right neighbour
 				if (other_node->right_neighbour_id() == -1) {
 					// Don't set both neighbours the same!
 					if (other_node->id() == node->right_neighbour_id())
 						continue;
-					cout << "\tFound an acceptable right neighbour (id = " << j << ") for node " << i << endl;
-					// If we found a node on same machine, take it
-					if (other_node->ip_addr() == node->ip_addr()) {
+
+					// special case for running local
+					if (node->ip_addr() == "127.0.0.1") {
 						left_node = other_node;
 						break;
-					// Otherwise take it for now
 					} else {
-						left_node = other_node;
+						// If we found a node on same machine, take it
+						// but only if both nodes do not yet have a local neighbour
+						if (other_node->ip_addr() == node->ip_addr()) {
+							if (!node->local_neighbour() && !other_node->local_neighbour()) {
+								left_node = other_node;
+								local_neighbour = true;
+								break;
+							}
+						// Otherwise take it for now
+						} else {
+							left_node = other_node;
+						}
 					}
 				}
 			}
@@ -194,46 +235,9 @@ set_node_neighbours() {
 			cout << "Node " << node->id() << " has left neighbour " << left_node->id() << endl;
 			cout << "Node " << left_node->id() << " has right neighbour " << node->id() << endl;
 			node->set_left_neighbour_id( left_node->id() );
+			node->set_local_neighbour( local_neighbour );
 			left_node->set_right_neighbour_id( node->id() );
-		}
-
-		antixtransfer::Node_list::Node *right_node = NULL;
-		// Right neighbour
-		if (node->right_neighbour_id() == -1) {
-			// Look through all nodes, need one without a left neighbour
-			for (int j = 0; j < node_list.node_size(); j++) {
-				antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
-				assert(other_node != NULL);
-
-				// Don't look at ourself
-				if (other_node->id() == node->id())
-					continue;
-
-				// found node doesn't have a left neighbour
-				if (other_node->left_neighbour_id() == -1) {
-					// Don't set both neighbours the same!
-					if (other_node->id() == node->left_neighbour_id())
-						continue;
-					// If on same machine, take it
-					if (other_node->ip_addr() == node->ip_addr()) {
-						right_node = other_node;
-						break;
-					// Otherwise take it for now
-					} else {
-						right_node = other_node;
-					}
-				}
-			}
-
-			// Set both node's new neighbour ids
-			if (right_node == NULL) {
-				cerr << "Failed to get a right neighbour for node" << endl;
-				exit(-1);
-			}
-			cout << "Node " << node->id() << " has right neighbour " << right_node->id() << endl;
-			cout << "Node " << right_node->id() << " has left neighbour " << node->id() << endl;
-			node->set_right_neighbour_id( right_node->id() );
-			right_node->set_left_neighbour_id( node->id() );
+			left_node->set_local_neighbour( local_neighbour );
 		}
 	}
 }
@@ -266,6 +270,7 @@ handle_node_init(zmq::socket_t *nodes_socket) {
 	node->set_id( next_node_id - 1 );
 	node->set_neighbour_port( init_msg.neighbour_port() );
 	node->set_gui_port( init_msg.gui_port() );
+	node->set_local_neighbour( false );
 
 	cout << "Node connected. IP: " << node->ip_addr();
 	cout << " Neighbour port: " << node->neighbour_port();
@@ -509,9 +514,6 @@ main(int argc, char **argv) {
 				continue;
 			}
 
-			// assign each node in our list an x offset
-			set_node_offsets();
-
 			// set homes & their locations in the node list
 			setup_homes();
 
@@ -524,6 +526,9 @@ main(int argc, char **argv) {
 
 			// set each node's neighbour in the node list
 			set_node_neighbours();
+
+			// assign each node in our list an x offset
+			set_node_offsets();
 
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb_envelope(&publish_socket, &node_list, "start");

@@ -77,6 +77,8 @@ message Node_list {
 		optional double x_offset = 5;
 		optional int32 left_neighbour_id = 6;
 		optional int32 right_neighbour_id = 7;
+		// use local neighbour to ensure only one of node's neighbours is on local machine
+		optional bool local_neighbour = 8 [default = false];
 	}
 
 	message Home {
