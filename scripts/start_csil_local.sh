@@ -6,15 +6,16 @@
 ANTIX_PATH=/home/$USER/Antix
 export LD_LIBRARY_PATH=/home/$USER/protobuf/lib:/home/$USER/zeromq/lib
 
-if [ $# -ne 3 ]
+if [ $# -ne 4 ]
 then
-  echo "Usage: $0 <IP of master> <# of teams> <robots per team>"
+  echo "Usage: $0 <IP of master> <# of teams> <robots per team> <AI library.so>"
   exit -1
 fi
 
 MASTER=$1
 NUM_TEAMS=$2
 ROBOTS_PER_TEAM=$3
+AI_LIBRARY=$4
 HOST=`hostname`
 MY_IP=`$ANTIX_PATH/scripts/get_ip.tcl`
 
@@ -34,7 +35,7 @@ while [ $count -lt $NUM_TEAMS ]
 do
 #  $ANTIX_PATH/scripts/run_client.tcl $ROBOTS_PER_TEAM $count &>> /home/$USER/clients.$HOST.log &
 	# <num robots> <team> <node ipc sock suffix>
-	$ANTIX_PATH/client $ROBOTS_PER_TEAM $count 0 &>> /home/$USER/clients.$HOST.log &
+	$ANTIX_PATH/client $ROBOTS_PER_TEAM $count 0 $AI_LIBRARY &>> /home/$USER/clients.$HOST.log &
   count=`expr $count + 1`
 done
 
