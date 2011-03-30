@@ -357,19 +357,26 @@ public:
 			}
 		}
 	*/
+		int left_neighbour_id = -1;
+		int right_neighbour_id = -1;
 		for (int i = 0; i < node_list->node_size(); i++) {
 			antixtransfer::Node_list::Node *node = node_list->mutable_node(i);
 			if (node->id() == id) {
-				// Go through node list and find the node assoc w/ right/left id we have
-				for (int j = 0; j < node_list->node_size(); j++) {
-					antixtransfer::Node_list::Node *other_node = node_list->mutable_node(j);
-					if (other_node->id() == node->right_neighbour_id())
-						copy_node(right, other_node);
-					else if (other_node->id() == node->left_neighbour_id())
-						copy_node(left, other_node);
-				}
+				left_neighbour_id = node->left_neighbour_id();
+				right_neighbour_id = node->right_neighbour_id();
 				break;
 			}
+		}
+		assert(left_neighbour_id != -1);
+		assert(right_neighbour_id != -1);
+
+		// Go through node list and find the node assoc w/ right/left id we have
+		for (int i = 0; i < node_list->node_size(); i++) {
+			antixtransfer::Node_list::Node *node = node_list->mutable_node(i);
+			if (node->id() == right_neighbour_id())
+				copy_node(right, node);
+			else if (node->id() == left_neighbour_id())
+				copy_node(left, node);
 		}
 		cout << "Left neighbour id: " << left->id() << " " << left->ip_addr() << " neighbour port " << left->neighbour_port() << endl;
 		cout << "Right neighbour id: " << right->id() << " " << right->ip_addr() << " neighbour port " << right->neighbour_port() << endl;
