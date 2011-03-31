@@ -373,9 +373,9 @@ public:
 		// Go through node list and find the node assoc w/ right/left id we have
 		for (int i = 0; i < node_list->node_size(); i++) {
 			antixtransfer::Node_list::Node *node = node_list->mutable_node(i);
-			if (node->id() == right_neighbour_id())
+			if (node->id() == right_neighbour_id)
 				copy_node(right, node);
-			else if (node->id() == left_neighbour_id())
+			else if (node->id() == left_neighbour_id)
 				copy_node(left, node);
 		}
 		cout << "Left neighbour id: " << left->id() << " " << left->ip_addr() << " neighbour port " << left->neighbour_port() << endl;

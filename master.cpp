@@ -77,42 +77,31 @@ set_node_offsets() {
 		node->set_x_offset(-1.0);
 	}
 
-	// Then set x offset for each node
-	// We must take make sure to set its neighbour's offsets
+	// Start from first node in the list. Make it the node with x offset 0
+	// Follow its neighbours in a chain until all nodes have an offset assigned
+	antixtransfer::Node_list::Node *node = node_list.mutable_node(0);
+	set<int> nodes_offsets_assigned;
+	while (nodes_offsets_assigned.size() != node_list.node_size()) {
+		node->set_x_offset( position );
+		cout << "Assigned node " << node->id() << " x offset " << node->x_offset() << endl;
+		position += offset_size;
+		nodes_offsets_assigned.insert( node->id() );
+
+		// find this node's right neighbour to assign an offset to next
+		for (int i = 0; i < node_list.node_size(); i++) {
+			antixtransfer::Node_list::Node *other_node = node_list.mutable_node(i);
+			if (other_node->id() == node->right_neighbour_id()) {
+				node = other_node;
+				break;
+			}
+		}
+	}
+
+	// make sure all nodes have an offset
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
-
-		// Node's x offset has been set
-		if (node->x_offset() != -1.0)
-			continue;
-
-		antixtransfer::Node_list::Node *left_node = NULL;
-		antixtransfer::Node_list::Node *right_node = NULL;
-		// Find our neighbours
-		for (int j = 0; j < node_list.node_size(); j++) {
-			antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
-			if (other_node->id() == node->left_neighbour_id())
-				left_node = other_node;
-			else if (other_node->id() == node->right_neighbour_id())
-				right_node = other_node;
-		}
-		assert( left_node != NULL );
-		assert( right_node != NULL );
-		// ensure we haven't set offset for our neighbours yet
-		assert( left_node->x_offset() == -1.0 );
-		assert( right_node->x_offset() == -1.0 );
-
-		left_node->set_x_offset( position );
-		cout << "Assign node with id " << left_node->id() << " x offset " << position << endl;
-		position += offset_size;
-
-		node->set_x_offset( position );
-		cout << "Assign node with id " << node->id() << " x offset " << position << endl;
-		position += offset_size;
-
-		right_node->set_x_offset( position );
-		cout << "Assign node with id " << right_node->id() << " x offset " << position << endl;
-		position += offset_size;
+		assert( node->x_offset() != -1.0 );
+		cout << "Node " << node->id() << " has x offset " << node->x_offset() << endl;
 	}
 }
 
@@ -203,39 +192,39 @@ set_node_neighbours() {
 			if (other_node->id() == node->id())
 				continue;
 
-			// Don't set both neighbours the same!
+			// Don't set this as left if it is already right neighbour
 			if (other_node->id() == node->right_neighbour_id())
 				continue;
 
 			// the found node doesn't have a right neighbour
 			if (other_node->right_neighbour_id() == -1) {
-
-				// special case for running local: we always take node if it's free
-				if (node->ip_addr() == "127.0.0.1") {
+				// If we found a node on same machine, take it
+				if (other_node->ip_addr() == node->ip_addr()) {
 					left_node = other_node;
 					break;
+				// Otherwise take it for now anyway
 				} else {
-					// If we found a node on same machine, take it
-					if (other_node->ip_addr() == node->ip_addr()) {
-						left_node = other_node;
-						break;
-					// Otherwise take it for now anyway
-					} else {
-						left_node = other_node;
-					}
+					left_node = other_node;
 				}
 			}
-
-			// Set both node's new neighbour ids
-			if (left_node == NULL) {
-				cerr << "Failed to get a left neighbour for node" << endl;
-				exit(-1);
-			}
-			node->set_left_neighbour_id( left_node->id() );
-			left_node->set_right_neighbour_id( node->id() );
-			cout << "Node " << node->id() << " has left neighbour " << left_node->id() << endl;
-			cout << "Node " << left_node->id() << " has right neighbour " << node->id() << endl << endl;
 		}
+
+		// Set both node's new neighbour ids
+		if (left_node == NULL) {
+			cerr << "Failed to get a left neighbour for node" << endl;
+			exit(-1);
+		}
+		node->set_left_neighbour_id( left_node->id() );
+		left_node->set_right_neighbour_id( node->id() );
+		cout << "Node " << node->id() << " has left neighbour " << left_node->id() << endl;
+		cout << "Node " << left_node->id() << " has right neighbour " << node->id() << endl << endl;
+	}
+	
+	// make sure all node's have a right and left neighbour id
+	for (int i = 0; i < node_list.node_size(); i++) {
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		assert(node->left_neighbour_id() != -1);
+		assert(node->right_neighbour_id() != -1);
 	}
 }
 /*
