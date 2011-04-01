@@ -163,9 +163,6 @@ assign_robots_to_node() {
 	Assign each node's left and right neighbour intelligently
 	i.e. take into account if nodes are running on the same machine by looking
 	at their IPs
-
-	XXX This only works for 1 node or 2 nodes on same machine. Otherwise
-	can have 'loops' where maps do not connect externally correctly
 */
 void
 set_node_neighbours() {
@@ -175,51 +172,59 @@ set_node_neighbours() {
 		node_list.mutable_node(i)->set_right_neighbour_id( -1 );
 	}
 
-	// Set left neighbour for every node
-	// When we set the left neighbour, we set that left neighbour's right neighbour
+	// For each node which doesn't yet have a right neighbour, go through the
+	// remaining nodes and try to find one on the same local IP.
+	// If find one, set it as our right neighbour
+	// Do this until we have linked all local nodes to each other
 	for (int i = 0; i < node_list.node_size(); i++) {
-		antixtransfer::Node_list::Node *node = node_list.mutable_node(i); 
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
 
-		antixtransfer::Node_list::Node *left_node = NULL;
-		assert(node->left_neighbour_id() == -1);
+		assert(node->right_neighbour_id() == -1);
 
-		// First look through all nodes looking for a node without a right neighbour
-		// that is on the same machine
-		for (int j = 0; j < node_list.node_size(); j++) {
+		// Look for nodes after this one with the same IP which do not yet have
+		// a left neighbour
+		for (int j = i + 1; j < node_list.node_size(); j++) {
 			antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
-
-			// Don't look at ourself
-			if (other_node->id() == node->id())
+			// already has a left neighbour
+			if (other_node->left_neighbour_id() != -1)
 				continue;
 
-			// Don't set this as left if it is already right neighbour
-			if (other_node->id() == node->right_neighbour_id())
-				continue;
-
-			// the found node doesn't have a right neighbour
-			if (other_node->right_neighbour_id() == -1) {
-				// If we found a node on same machine, take it
-				if (other_node->ip_addr() == node->ip_addr()) {
-					left_node = other_node;
-					break;
-				// Otherwise take it for now anyway
-				} else {
-					left_node = other_node;
-				}
+			// if on same machine, link together
+			if (other_node->ip_addr() == node->ip_addr()) {
+				node->set_right_neighbour_id( other_node->id() );
+				other_node->set_left_neighbour_id( node->id() );
+				break;
 			}
 		}
-
-		// Set both node's new neighbour ids
-		if (left_node == NULL) {
-			cerr << "Failed to get a left neighbour for node" << endl;
-			exit(-1);
-		}
-		node->set_left_neighbour_id( left_node->id() );
-		left_node->set_right_neighbour_id( node->id() );
-		cout << "Node " << node->id() << " has left neighbour " << left_node->id() << endl;
-		cout << "Node " << left_node->id() << " has right neighbour " << node->id() << endl << endl;
 	}
-	
+
+	// After all local machine nodes are linked together, link the chains of
+	// local nodes to each other
+	for (int i = 0; i < node_list.node_size(); i++) {
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		// Node doesn't have a right neighbour
+		if (node->right_neighbour_id() == -1) {
+			// Find next node which doesn't have a left neighbour and link them
+			for (int j = i + 1; j < node_list.node_size(); j++) {
+				antixtransfer::Node_list::Node *other_node = node_list.mutable_node(j);
+				if (other_node->left_neighbour_id() == -1) {
+					node->set_right_neighbour_id( other_node->id() );
+					other_node->set_left_neighbour_id( node->id() );
+					break;
+				}
+			}
+
+			// If we still didn't get a right neighbour, we must be on the far right
+			// Set our right neighbour to be the far left
+			if (node->right_neighbour_id()) {
+				antixtransfer::Node_list::Node *far_left_node = node_list.mutable_node(0);
+				assert(far_left_node->left_neighbour_id() == -1);
+				node->set_right_neighbour_id( far_left_node->id() );
+				far_left_node->set_left_neighbour_id( node->id() );
+			}
+		}
+	}
+
 	// make sure all node's have a right and left neighbour id
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);

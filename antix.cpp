@@ -329,34 +329,6 @@ public:
 		antixtransfer::Node_list *node_list,
 		int id)
 	{
-	/* Old way
-
-		antixtransfer::Node_list::Node n;
-		for (int i = 0; i < node_list->node_size(); i++) {
-			n = node_list->node(i);
-			int index_left,
-				index_right;
-			// found ourself, take the previous as left, next as right
-			if (n.id() == id) {
-				// if we're far left node, our left is the furthest right
-				if (id == 0) {
-					index_left = node_list->node_size() - 1;
-					index_right = i + 1;
-
-				// if we're far right node, our right is furthest left
-				} else if (id == node_list->node_size() - 1) {
-					index_left = i - 1;
-					index_right = 0;
-				} else {
-					index_left = i - 1;
-					index_right = i + 1;
-				}
-				copy_node(left, node_list->mutable_node( index_left ) );
-				copy_node(right, node_list->mutable_node( index_right ) );
-				return;
-			}
-		}
-	*/
 		int left_neighbour_id = -1;
 		int right_neighbour_id = -1;
 		for (int i = 0; i < node_list->node_size(); i++) {

@@ -19,12 +19,6 @@ ROBOTS_PER_TEAM=$3
 NODES_PER_MACHINE=$4
 AI_LIBRARY=$5
 
-if [ $NODES_PER_MACHINE -gt 2 -o $NODES_PER_MACHINE -lt 1 ]
-then
-	echo "Error: Nodes per machine must be between 1 and 2"
-	exit -1
-fi
-
 #count=0
 for line in `cat $ANTIX_PATH/scripts/$WORKSTATIONS`
 do
