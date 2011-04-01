@@ -216,7 +216,7 @@ set_node_neighbours() {
 
 			// If we still didn't get a right neighbour, we must be on the far right
 			// Set our right neighbour to be the far left
-			if (node->right_neighbour_id()) {
+			if (node->right_neighbour_id() == -1) {
 				antixtransfer::Node_list::Node *far_left_node = node_list.mutable_node(0);
 				assert(far_left_node->left_neighbour_id() == -1);
 				node->set_right_neighbour_id( far_left_node->id() );
