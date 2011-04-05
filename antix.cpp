@@ -21,17 +21,22 @@
 #include "antix.pb.h"
 
 // To disable asserts, define this
-//#define NDEBUG
+#define NDEBUG
 #include <assert.h>
 
 #define SLEEP 0
-#define GUI 1
+#define GUI 0
 #define COLLISIONS 1
 
 // # of turns until a puck respawns from a home
 #define PUCK_LIFETIME 10
 // # of turns to wait before updating master with per node scores
 #define TURNS_SEND_SCORE 100
+
+// Uncomment this to print turns/sec every turn
+#define PRINT_TURNS_EVERY_TURN
+
+//#define MULTI_NODES_MACHINE
 
 // Debug everything
 #define DEBUG 0
@@ -317,6 +322,41 @@ public:
 		dest->set_neighbour_port( src->neighbour_port() );
 		dest->set_gui_port( src->gui_port() );
 		dest->set_x_offset( src->x_offset() );
+	}
+
+	static void
+	set_neighbours_old(antixtransfer::Node_list::Node *left,
+		antixtransfer::Node_list::Node *right,
+		antixtransfer::Node_list *node_list,
+		int id)
+	{
+		antixtransfer::Node_list::Node n;
+		for (int i = 0; i < node_list->node_size(); i++) {
+			n = node_list->node(i);
+			int index_left,
+				index_right;
+			// found ourself, take the previous as left, next as right
+			if (n.id() == id) {
+				// if we're far left node, our left is the furthest right
+				if (id == 0) {
+					index_left = node_list->node_size() - 1;
+					index_right = i + 1;
+
+				// if we're far right node, our right is furthest left
+				} else if (id == node_list->node_size() - 1) {
+					index_left = i - 1;
+					index_right = 0;
+				} else {
+					index_left = i - 1;
+					index_right = i + 1;
+				}
+				copy_node(left, node_list->mutable_node( index_left ) );
+				copy_node(right, node_list->mutable_node( index_right ) );
+				return;
+			}
+		}
+		cout << "Left neighbour id: " << left->id() << " " << left->ip_addr() << " neighbour port " << left->neighbour_port() << endl;
+		cout << "Right neighbour id: " << right->id() << " " << right->ip_addr() << " neighbour port " << right->neighbour_port() << endl;
 	}
 
 	/*

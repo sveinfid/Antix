@@ -158,9 +158,9 @@ rebuild_entity_db() {
 		node_iterator++;
 	}
 	assert(sockets_count == req_sockets.size());
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	cout << "Sync: After rebuilding db, know about " << robots.size() << " robots and " << pucks.size() << " pucks." << endl;
-#endif
+//#endif
 
 	// Read response from master: contains update of scores
 	antixtransfer::Scores scores_msg;

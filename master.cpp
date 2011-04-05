@@ -83,8 +83,14 @@ set_node_offsets() {
 	set<int> nodes_offsets_assigned;
 	while (nodes_offsets_assigned.size() != node_list.node_size()) {
 		node->set_x_offset( position );
-		cout << "Assigned node " << node->id() << " x offset " << node->x_offset() << endl;
+		//cout << "Assigned node " << node->id() << " x offset " << node->x_offset() << endl;
 		position += offset_size;
+
+		if (nodes_offsets_assigned.count( node->id() )) {
+			cout << "Already saw this node (assigning offsets)" << endl;
+			cout << "Starting regardless with only " << nodes_offsets_assigned.size() << " nodes." << endl;
+			break;
+		}
 		nodes_offsets_assigned.insert( node->id() );
 
 		// find this node's right neighbour to assign an offset to next
@@ -100,8 +106,11 @@ set_node_offsets() {
 	// make sure all nodes have an offset
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		if (node->x_offset() == -1) {
+			cerr << "Error: bad x offset on node " << node->id() << endl;
+		}
 		assert( node->x_offset() != -1.0 );
-		cout << "Node " << node->id() << " has x offset " << node->x_offset() << endl;
+		//cout << "Node " << node->id() << " has x offset " << node->x_offset() << endl;
 	}
 }
 
@@ -231,6 +240,7 @@ set_node_neighbours() {
 		assert(node->left_neighbour_id() != -1);
 		assert(node->right_neighbour_id() != -1);
 	}
+	cout << "Done setting node neighbours" << endl;
 }
 /*
 	Node connected initially
@@ -363,7 +373,7 @@ handle_done(zmq::socket_t *rep_sock,
 		// Output scores to stdout
 		if (antix::turn % TURNS_SEND_SCORE == 0) {
 			for (map<int, int>::const_iterator it = scores.begin(); it != scores.end(); it++) {
-				cout << "Team " << it->first << " has score " << it->second << "." << endl;
+				//cout << "Team " << it->first << " has score " << it->second << "." << endl;
 			}
 		}
 
@@ -375,11 +385,15 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG_SYNC
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
+#ifndef PRINT_TURNS_EVERY_TURN
 			if (antix::turn % 20 == 0) {
+#endif
 				const double seconds = time(NULL) - start_time;
 				if (seconds != 0)
 					cout << antix::turn / seconds << " turns/second (" << antix::turn << " turns)" << endl;
+#ifndef PRINT_TURNS_EVERY_TURN
 			}
+#endif
 			antix::turn++;
 			//cout << "Turn " << turns << " done." << endl;
 			antix::send_str(publish_sock, "b");
@@ -457,7 +471,7 @@ main(int argc, char **argv) {
 	while (!begun) {
 		string type;
 
-		antix::sleep(1000);
+		antix::sleep(200);
 
 		// send a message on our pub sock so connected nodes can hear it (for sync)
 		antix::send_blank_envelope(&publish_socket, "sync");
@@ -514,8 +528,10 @@ main(int argc, char **argv) {
 			node_list.set_initial_pucks_per_node( ceil( (double) num_pucks / (double) node_list.node_size() ) );
 			cout << "Made " << node_list.initial_pucks_per_node() << " pucks per node." << endl;
 
+#ifdef MULTI_NODES_MACHINE
 			// set each node's neighbour in the node list
 			set_node_neighbours();
+#endif
 
 			// assign each node in our list an x offset
 			set_node_offsets();

@@ -125,7 +125,7 @@ synchronise_clients() {
 				cout << heard_clients.size() << " sync'd, expecting " << total_teams << endl;
 			}
 		}
-		antix::sleep(200);
+		antix::sleep(100);
 	}
 }
 

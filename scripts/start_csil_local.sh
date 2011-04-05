@@ -13,8 +13,8 @@ then
   exit -1
 fi
 
-BASE_NODE_PORT=3123
-BASE_GUI_PORT=4123
+BASE_NODE_PORT=7219
+BASE_GUI_PORT=8392
 
 MASTER=$1
 NUM_TEAMS=$2
@@ -33,8 +33,9 @@ then
 	exit -1
 fi
 
-killall client
-killall node
+pkill -9 client &> /dev/null
+pkill -9 node &> /dev/null
+sleep 5
 
 rm -f /home/$USER/clients.$HOST.log
 rm -f /home/$USER/node.$HOST.log
