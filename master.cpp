@@ -264,7 +264,7 @@ handle_done(zmq::socket_t *rep_sock,
 		// Output scores to stdout
 		if (antix::turn % TURNS_SEND_SCORE == 0) {
 			for (map<int, int>::const_iterator it = scores.begin(); it != scores.end(); it++) {
-				cout << "Team " << it->first << " has score " << it->second << "." << endl;
+				//cout << "Team " << it->first << " has score " << it->second << "." << endl;
 			}
 		}
 
@@ -276,11 +276,11 @@ handle_done(zmq::socket_t *rep_sock,
 #if DEBUG_SYNC
 			cout << "Sync: Heard from " << nodes_done->size() << " nodes. Starting next turn." << endl;
 #endif
-			if (antix::turn % 20 == 0) {
+//if (antix::turn % 20 == 0) {
 				const double seconds = time(NULL) - start_time;
 				if (seconds != 0)
 					cout << antix::turn / seconds << " turns/second (" << antix::turn << " turns)" << endl;
-			}
+//			}
 			antix::turn++;
 			//cout << "Turn " << turns << " done." << endl;
 			antix::send_str(publish_sock, "b");
@@ -358,7 +358,7 @@ main(int argc, char **argv) {
 	while (!begun) {
 		string type;
 
-		antix::sleep(1000);
+		antix::sleep(200);
 
 		// send a message on our pub sock so connected nodes can hear it (for sync)
 		antix::send_blank_envelope(&publish_socket, "sync");

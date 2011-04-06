@@ -16,7 +16,7 @@
 
 // for bots[][]
 #define BOTS_TEAM_SIZE 1000
-#define BOTS_ROBOT_SIZE 6000
+#define BOTS_ROBOT_SIZE 60000
 
 using namespace std;
 

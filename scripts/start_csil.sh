@@ -4,7 +4,8 @@
 # processes, until we reach csil machine N = number of nodes
 #
 
-WORKSTATIONS=workstations.txt_partial
+#WORKSTATIONS=workstations.txt_partial
+WORKSTATIONS=workstations.txt
 ANTIX_PATH=/home/$USER/Antix
 
 if [ $# -ne 4 ]
@@ -21,6 +22,7 @@ AI_LIBRARY=$4
 #count=0
 for line in `cat $ANTIX_PATH/scripts/$WORKSTATIONS`
 do
+  echo "Launching on $line..."
 	ssh -oStrictHostKeyChecking=no -p 24 $USER@$line.csil.sfu.ca $ANTIX_PATH/scripts/start_csil_local.sh $MASTER $NUM_TEAMS $ROBOTS_PER_TEAM $AI_LIBRARY &
 #  count=`expr $count + 1`
 #  if [ $count -eq $NUM_NODES ]

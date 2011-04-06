@@ -4,7 +4,7 @@
 #
 
 ANTIX_PATH=/home/$USER/Antix
-export LD_LIBRARY_PATH=/home/$USER/sfuhome/protobuf/lib:/home/$USER/sfuhome/zeromq/lib
+export LD_LIBRARY_PATH=/home/$USER/protobuf/lib:/home/$USER/zeromq/lib
 
 if [ $# -ne 4 ]
 then
@@ -18,6 +18,8 @@ ROBOTS_PER_TEAM=$3
 AI_LIBRARY=$4
 HOST=`hostname`
 MY_IP=`$ANTIX_PATH/scripts/get_ip.tcl`
+NODE_PORT=7219
+GUI_PORT=8392
 
 # Before running simulation, remove old sockets. This can fail if node sockets
 # exist from other users...
@@ -28,8 +30,9 @@ then
 	exit -1
 fi
 
-killall client
-killall node
+pkill -9 client &> /dev/null
+pkill -9 node &> /dev/null
+sleep 1
 
 # Then start the client processes
 rm -f /home/$USER/clients.$HOST.log
@@ -48,4 +51,4 @@ done
 # First start the node for this machine
 #$ANTIX_PATH/scripts/run_node.tcl $MASTER $NUM_TEAMS &> /home/$USER/node.$HOST.log &
 # <master ip> <my ip> <node port> <gui port> <ipc suffix> <num teams>
-$ANTIX_PATH/node $MASTER $MY_IP 3000 4000 0 $NUM_TEAMS &> /home/$USER/node.$HOST.log
+$ANTIX_PATH/node $MASTER $MY_IP $NODE_PORT $GUI_PORT 0 $NUM_TEAMS &> /home/$USER/node.$HOST.log

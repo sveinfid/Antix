@@ -21,11 +21,11 @@
 #include "antix.pb.h"
 
 // To disable asserts, define this
-//#define NDEBUG
+#define NDEBUG
 #include <assert.h>
 
 #define SLEEP 0
-#define GUI 1
+#define GUI 0
 #define COLLISIONS 1
 
 // # of turns until a puck respawns from a home
