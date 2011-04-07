@@ -25,7 +25,7 @@
 #include <assert.h>
 
 #define SLEEP 0
-#define GUI 0
+#define GUI 1
 #define COLLISIONS 1
 
 // # of turns until a puck respawns from a home
@@ -36,7 +36,7 @@
 // Uncomment this to print turns/sec every turn
 #define PRINT_TURNS_EVERY_TURN
 
-//#define MULTI_NODES_MACHINE
+#define MULTI_NODES_MACHINE
 
 // Debug everything
 #define DEBUG 0
@@ -378,6 +378,10 @@ public:
 				right_neighbour_id = node->right_neighbour_id();
 				break;
 			}
+		}
+		if (left_neighbour_id == -1 || right_neighbour_id == -1) {
+			cerr << "Error: didn't find one of our neighbours!" << endl;
+			exit(-1);
 		}
 		assert(left_neighbour_id != -1);
 		assert(right_neighbour_id != -1);

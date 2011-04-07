@@ -632,6 +632,7 @@ main(int argc, char **argv) {
 	}
 
 	string ipc_fname_prefix = IPC_PREFIX;
+	cout << "Using IPC prefix " << ipc_fname_prefix << endl;
 
 	// sync rep sock which receives done messages from clients
 	while (1) {

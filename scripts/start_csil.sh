@@ -20,15 +20,16 @@ ROBOTS_PER_TEAM=$3
 NODES_PER_MACHINE=$4
 AI_LIBRARY=$5
 
-#count=0
+rm -f /home/$USER/node.*.log
+rm -f /home/$USER/clients.*.log
+
+count=0
 for line in `cat $ANTIX_PATH/scripts/$WORKSTATIONS`
 do
   echo "Launching on $line..."
 	ssh -oStrictHostKeyChecking=no -p 24 $USER@$line.csil.sfu.ca $ANTIX_PATH/scripts/start_csil_local.sh $MASTER $NUM_TEAMS $ROBOTS_PER_TEAM $NODES_PER_MACHINE $AI_LIBRARY &
-#  count=`expr $count + 1`
-#  if [ $count -eq $NUM_NODES ]
-#  then
-#    break
-#  fi
+  count=`expr $count + 1`
 	sleep 2
 done
+
+echo "Launched on $count hosts, $NODES_PER_MACHINE nodes per host."

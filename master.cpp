@@ -63,6 +63,19 @@ set<int> nodes_done;
 map<int, int> scores;
 
 /*
+	Return pointer to the node with id id in the node list
+*/
+antixtransfer::Node_list::Node *
+find_node_by_id(int id) {
+	for (int i = 0; i < node_list.node_size(); i++) {
+		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		if (node->id() == id)
+			return node;
+	}
+	return NULL;
+}
+
+/*
 	Go through our list of nodes & assign an x offset to the node for which
 	it is responsible to manage the map for
 */
@@ -83,7 +96,7 @@ set_node_offsets() {
 	set<int> nodes_offsets_assigned;
 	while (nodes_offsets_assigned.size() != node_list.node_size()) {
 		node->set_x_offset( position );
-		//cout << "Assigned node " << node->id() << " x offset " << node->x_offset() << endl;
+		cout << "Assigned node " << node->id() << " x offset " << node->x_offset() << endl;
 		position += offset_size;
 
 		if (nodes_offsets_assigned.count( node->id() )) {
@@ -93,13 +106,10 @@ set_node_offsets() {
 		}
 		nodes_offsets_assigned.insert( node->id() );
 
-		// find this node's right neighbour to assign an offset to next
-		for (int i = 0; i < node_list.node_size(); i++) {
-			antixtransfer::Node_list::Node *other_node = node_list.mutable_node(i);
-			if (other_node->id() == node->right_neighbour_id()) {
-				node = other_node;
-				break;
-			}
+		node = find_node_by_id( node->right_neighbour_id() );
+		if (node == NULL) {
+			cerr << "Error: Didn't find a neighbour node in set_node_offsets()" << endl;
+			exit(-1);
 		}
 	}
 
@@ -181,6 +191,9 @@ set_node_neighbours() {
 		node_list.mutable_node(i)->set_right_neighbour_id( -1 );
 	}
 
+	// Maintain a map of ip_addr to first left neighbour id in the local chain
+	map<string, int> left_nodes;
+
 	// For each node which doesn't yet have a right neighbour, go through the
 	// remaining nodes and try to find one on the same local IP.
 	// If find one, set it as our right neighbour
@@ -188,7 +201,19 @@ set_node_neighbours() {
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
 
-		assert(node->right_neighbour_id() == -1);
+		if (node->right_neighbour_id() != -1) {
+			cerr << "Failure 1 in set_node_neighbours()" << endl;
+			exit(-1);
+		}
+
+		// Add first node in chain on local machine to the map
+		if (left_nodes.count( node->ip_addr()) == 0) {
+			if (node->left_neighbour_id() != -1) {
+				cerr << "Failure 2 in set_node_neighbours()" << endl;
+				exit(-1);
+			}
+			left_nodes.insert( pair<string, int>( node->ip_addr(), node->id() ) );
+		}
 
 		// Look for nodes after this one with the same IP which do not yet have
 		// a left neighbour
@@ -207,8 +232,65 @@ set_node_neighbours() {
 		}
 	}
 
+	cout << "left nodes map size " << left_nodes.size() << endl;
+	for (map<string, int>::iterator it = left_nodes.begin(); it != left_nodes.end(); it++) {
+		cout << "Local parent " << it->second << " has path " << endl;
+		antixtransfer::Node_list::Node *node = find_node_by_id( it->second );
+		while (node->right_neighbour_id() != -1) {
+			cout << "\t" << node->id() << " link to " << node->right_neighbour_id() << endl;
+			node = find_node_by_id( node->right_neighbour_id() );
+		}
+	}
+
 	// After all local machine nodes are linked together, link the chains of
 	// local nodes to each other
+
+	// Each chain has one entry in the left_nodes map. Link its far right node to
+	// the left node of next chain
+	for (map<string, int>::iterator it = left_nodes.begin(); it != left_nodes.end(); it++) {
+		// At first this is the far left node in the chain of local nodes
+		antixtransfer::Node_list::Node *node = find_node_by_id( it->second );
+
+		// Get the far right node in this local chain
+		while (node->right_neighbour_id() != -1) {
+			node = find_node_by_id( node->right_neighbour_id() );
+			assert(node != NULL);
+		}
+
+		// Start after our current position in map
+		map<string, int>::iterator it2 = it;
+		it2++;
+
+		// Either we link to the next node in the map, or we are the last node
+		// in the map, in which case we link to the first one
+
+		// We are last node in the map. Link to the first.
+		if (it2 == left_nodes.end()) {
+			it2 = left_nodes.begin();
+			// Otherwise linking to the next should be acceptable
+		}
+
+		// Perform the link
+		antixtransfer::Node_list::Node *other_node = find_node_by_id( it2->second );
+		assert( other_node != NULL );
+		assert( other_node->left_neighbour_id() == -1 );
+		if (other_node == NULL || other_node->left_neighbour_id() != -1) {
+			cerr << "Failure 5 in set_node_neighbours()" << endl;
+			exit(-1);
+		}
+		node->set_right_neighbour_id( other_node->id() );
+		other_node->set_left_neighbour_id( node->id() );
+
+		if (node->right_neighbour_id() == -1) {
+			cerr << "Failure 3 in set_node_neighbours()" << endl;
+			exit(-1);
+		}
+		assert( node->right_neighbour_id() != -1 );
+	}
+
+	// After all local machine nodes are linked together, link the chains of
+	// local nodes to each other
+	/*
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
 		// Node doesn't have a right neighbour
@@ -233,15 +315,36 @@ set_node_neighbours() {
 			}
 		}
 	}
+	*/
 
 	// make sure all node's have a right and left neighbour id
 	for (int i = 0; i < node_list.node_size(); i++) {
 		antixtransfer::Node_list::Node *node = node_list.mutable_node(i);
+		if (node->left_neighbour_id() == -1 || node->right_neighbour_id() == -1) {
+			cerr << "Failure 4 in set_node_neighbours()" << endl;
+			exit(-1);
+		}
 		assert(node->left_neighbour_id() != -1);
 		assert(node->right_neighbour_id() != -1);
 	}
 	cout << "Done setting node neighbours" << endl;
 }
+
+/*
+	Follow the chain of nodes, printing out their id, ip, x offsets
+*/
+void
+output_node_offsets() {
+	antixtransfer::Node_list::Node *node = node_list.mutable_node(0);
+	set<int> seen_nodes;
+	while (seen_nodes.size() != node_list.node_size()) { 
+		seen_nodes.insert( node->id() );
+		cout << "Node " << node->id() << " with IP " << node->ip_addr();
+		cout << " has x offset " << node->x_offset() << endl;
+		node = find_node_by_id( node->right_neighbour_id() );
+	}
+}
+
 /*
 	Node connected initially
 	Add it to our node list and give it an ID
@@ -440,6 +543,11 @@ main(int argc, char **argv) {
 	num_pucks = atof(argv[2]);
 	world_size = atof(argv[3]);
 
+#ifndef NDEBUG
+	cout << endl;
+	cout << " *** STARTING SIMULATION WITH DEBUGGING ON *** " << endl << endl;
+#endif
+
 	// nodes/client socket are for nodes/clients connecting & giving their
 	// ip. in return they get assigned an id
 	zmq::socket_t nodes_socket(context, ZMQ_REP);
@@ -535,6 +643,9 @@ main(int argc, char **argv) {
 
 			// assign each node in our list an x offset
 			set_node_offsets();
+
+			// Print out the nodes in order & with their offsets
+			output_node_offsets();
 
 			// send message on publish_socket containing a list of nodes
 			antix::send_pb_envelope(&publish_socket, &node_list, "start");
